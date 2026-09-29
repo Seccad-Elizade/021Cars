@@ -1,0 +1,408 @@
+@page "/media"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Options
+@inject IMediaService MediaService
+@inject ICarService CarService
+@inject ICreditService CreditService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Sənədlər — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">📎 Sənəd və Media Arxivi</div>
+        <div class="page-sub">Avtomobil sənədləri və kredit əməliyyatı faylları</div>
+    </div>
+    <div class="page-actions">
+        <button class="btn" @onclick="LoadFilesAsync" disabled="@_loading">🔄 Yenilə</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="toolbar">
+        <select @bind="RefType" @bind:after="OnRefTypeChanged" style="min-width:190px">
+            <option value="@MediaRefTypes.Car">🚗 Avtomobil</option>
+            <option value="@MediaRefTypes.CreditTransaction">🧾 Kredit əməliyyatı</option>
+        </select>
+
+        @if (RefType == MediaRefTypes.Car)
+        {
+            <select @bind="RefId" @bind:after="LoadFilesAsync" style="flex:1 1 320px;max-width:520px">
+                <option value="">— Avtomobil seçin —</option>
+                @foreach (var car in _cars)
+                {
+                    <option value="@car.Id">@car.DisplayName — @car.Status</option>
+                }
+            </select>
+        }
+        else
+        {
+            <select @bind="RefId" @bind:after="LoadFilesAsync" style="flex:1 1 320px;max-width:520px">
+                <option value="">— Əməliyyat seçin —</option>
+                @foreach (var item in _transactions)
+                {
+                    <option value="@item.Id">
+                        @AppFormat.Date(item.Tarix) — @item.Nov — @AppFormat.Money(item.Mebleg) — @item.CreditInfo
+                    </option>
+                }
+            </select>
+        }
+    </div>
+</div>
+
+@if (RefId is null)
+{
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-icon">📎</div>
+            <h2>Obyekt seçilməyib</h2>
+            <p>Yuxarıdan avtomobil və ya kredit əməliyyatı seçin.</p>
+        </div>
+    </div>
+}
+else
+{
+    @if (CanWrite)
+    {
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">⬆️ Fayl yüklə</div>
+                <div class="muted" style="font-size:12px">Şəkil, PDF, Word, Excel — maksimum 50 MB</div>
+            </div>
+            <div class="card-body">
+                <InputFile OnChange="UploadAsync" multiple
+                           accept=".pdf,.jpg,.jpeg,.png,.bmp,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.rtf" />
+
+                @if (_uploading)
+                {
+                    <div style="margin-top:12px">
+                        <span class="spinner"></span>
+                        <span class="muted"> @_uploadStatus</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">📁 Fayllar (@_files.Count)</div>
+            <div class="muted" style="font-size:12px">@TargetLabel</div>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="loading-box"><span class="spinner"></span> Yüklənir…</div>
+        }
+        else if (_files.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon">📂</div>
+                <h2>Fayl yoxdur</h2>
+                <p>Bu obyekt üçün hələ sənəd yüklənməyib.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card-body tight table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th style="width:52px"></th>
+                            <th>Fayl adı</th>
+                            <th>Növ</th>
+                            <th class="num">Ölçü</th>
+                            <th>Tarix</th>
+                            <th style="width:150px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var file in _files)
+                        {
+                            <tr>
+                                <td style="font-size:20px;text-align:center">@file.Icon</td>
+                                <td class="strong">
+                                    @file.FileName
+                                    @if (!file.Exists)
+                                    {
+                                        <span class="st gecikmis" title="Fayl diskdə tapılmadı">iti</span>
+                                    }
+                                </td>
+                                <td class="muted">@file.Extension</td>
+                                <td class="num mono">@file.SizeText</td>
+                                <td class="mono nowrap">@AppFormat.Date(file.Tarix)</td>
+                                <td class="nowrap">
+                                    <a class="btn btn-sm btn-primary" href="@($"/api/media/file/{file.Id}")"
+                                       target="_blank" title="Aç / Yüklə">⬇ Aç</a>
+                                    @if (CanWrite)
+                                    {
+                                        <button class="btn btn-sm btn-danger" @onclick="() => _deleting = file" title="Sil">🗑️</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@* ------------------------------------------------------------------- SİLMƏ --- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Faylı sil</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0">
+                    <b>@_deleting.FileName</b> faylı həm diskdən, həm də bazadan silinəcək.<br />
+                    <span class="muted">Bu əməliyyat geri qaytarıla bilməz.</span>
+                </p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_busy">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Ünvan sətrindən obyekt növü (?type=Avtomobil).</summary>
+    [SupplyParameterFromQuery(Name = "type")]
+    public string? TypeQuery { get; set; }
+
+    /// <summary>Ünvan sətrindən obyekt Id-si (?id=3).</summary>
+    [SupplyParameterFromQuery(Name = "id")]
+    public int? IdQuery { get; set; }
+
+    private bool _loading;
+    private bool _uploading;
+    private bool _busy;
+    private string _uploadStatus = string.Empty;
+
+    private List<CarItem> _cars = new();
+    private List<CreditTransaction> _transactions = new();
+    private List<MediaAttachment> _files = new();
+
+    private MediaAttachment? _deleting;
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Obyekt növü: "Avtomobil" və ya "KreditEmeliyyati".</summary>
+    private string RefType { get; set; } = MediaRefTypes.Car;
+
+    /// <summary>Seçilmiş obyektin Id-si.</summary>
+    private int? RefId { get; set; }
+
+    /// <summary>Hazırkı seçimin oxunaqlı təsviri.</summary>
+    private string TargetLabel => RefId is not int id
+        ? "—"
+        : RefType == MediaRefTypes.Car
+            ? _cars.FirstOrDefault(c => c.Id == id)?.DisplayName ?? $"#{id}"
+            : $"{_transactions.FirstOrDefault(t => t.Id == id)?.CreditInfo} ({id})";
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        try
+        {
+            _cars = (await CarService.GetAllCarsAsync())
+                .OrderBy(c => c.SiraNomresi)
+                .ToList();
+
+            _transactions = (await CreditService.GetTransactionsAsync())
+                .OrderByDescending(t => t.Tarix)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Məlumatlar yüklənə bilmədi: " + ex.Message);
+        }
+
+        // Ünvan sətrindən gəlinibsə həmin obyekti seç.
+        if (!string.IsNullOrWhiteSpace(TypeQuery))
+        {
+            RefType = TypeQuery;
+        }
+
+        if (IdQuery is int id)
+        {
+            RefId = id;
+            await LoadFilesAsync();
+        }
+    }
+
+    /// <summary>Növ dəyişdikdə seçimi sıfırlayır.</summary>
+    private Task OnRefTypeChanged()
+    {
+        RefId = null;
+        _files.Clear();
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadFilesAsync()
+    {
+        if (RefId is not int id)
+        {
+            _files.Clear();
+            return;
+        }
+
+        _loading = true;
+
+        try
+        {
+            _files = (await MediaService.GetAsync(RefType, id)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Fayllar yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Brauzerdən seçilmiş faylları müvəqqəti qovluğa yazıb MediaService-ə ötürür.</summary>
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        if (RefId is not int id)
+        {
+            return;
+        }
+
+        _uploading = true;
+        var tempFiles = new List<string>();
+        var added = 0;
+
+        try
+        {
+            var selection = e.GetMultipleFiles(30);
+
+            foreach (var file in selection)
+            {
+                _uploadStatus = $"Yüklənir: {file.Name}";
+
+                // Masaüstü tətbiqlə eyni Media qovluğuna köçürülməsi üçün
+                // əvvəlcə müvəqqəti fayla yazılır.
+                var temp = Path.Combine(
+                    Path.GetTempPath(),
+                    $"autopark_{Guid.NewGuid():N}{Path.GetExtension(file.Name)}");
+
+                await using (var source = file.OpenReadStream(50L * 1024 * 1024))
+                await using (var target = File.Create(temp))
+                {
+                    await source.CopyToAsync(target);
+                }
+
+                tempFiles.Add(temp);
+            }
+
+            if (tempFiles.Count > 0)
+            {
+                added = await MediaService.AddAsync(RefType, id, tempFiles);
+            }
+
+            if (added > 0)
+            {
+                Ui.Success($"{added} fayl yükləndi.");
+                await LoadFilesAsync();
+            }
+            else
+            {
+                Ui.Warn("Heç bir fayl yüklənmədi.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Fayl yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            // Müvəqqəti fayllar təmizlənir (əsl nüsxə Media qovluğundadır).
+            foreach (var temp in tempFiles)
+            {
+                try
+                {
+                    if (File.Exists(temp))
+                    {
+                        File.Delete(temp);
+                    }
+                }
+                catch
+                {
+                    // Təmizlik xətası istifadəçiyə göstərilmir.
+                }
+            }
+
+            _uploading = false;
+            _uploadStatus = string.Empty;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            var name = _deleting.FileName;
+            await MediaService.DeleteAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success($"\"{name}\" silindi.");
+            await LoadFilesAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadFilesAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

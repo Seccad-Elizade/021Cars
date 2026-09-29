@@ -1,0 +1,307 @@
+﻿<Window x:Class="EnterpriseAeroStudio.Views.ArchiveDetayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="🗄️ Arxiv Detalları" Height="740" Width="1160"
+        WindowStartupLocation="CenterOwner" Background="#0B0F17" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Inter, sans-serif">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ==================== BAŞLIQ ==================== -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <Button DockPanel.Dock="Right" Content="✖ Bağla" Style="{StaticResource iOSButton}"
+                    Padding="16,7" Background="#374151" Foreground="#F9FAFB"
+                    Click="Bagla_Click" Margin="8,0,0,0"/>
+            <Button DockPanel.Dock="Right" Content="📄 PDF İXRAC ET"
+                    Style="{StaticResource iOSButton}" Padding="18,7"
+                    Background="#2563EB" Foreground="#FFFFFF" FontWeight="Bold"
+                    ToolTip="Peşəkar sənəd yaradılır — «hara yadda saxlayım?» pəncərəsi açılır ✓"
+                    Click="PdfIxrac_Click"/>
+            <StackPanel>
+                <TextBlock Text="{Binding Basliq}" FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"/>
+                <TextBlock Text="{Binding AltBasliq}" FontSize="12" Foreground="#94A3B8" Margin="0,4,0,0"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ==================== 📊 YEKUN KPI ==================== -->
+        <Border Grid.Row="1" Background="#111827" CornerRadius="12"
+                BorderBrush="#1F2937" BorderThickness="1" Padding="14,11" Margin="0,0,0,12">
+            <UniformGrid Columns="5">
+                <StackPanel>
+                    <TextBlock Text="MAYA DƏYƏRİ" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.MayaDeyeri, Converter={StaticResource Currency}}"
+                               FontSize="17" FontWeight="Bold" Foreground="#C084FC" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="ALIŞ QİYMƏTİ" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.AlisQiymeti, Converter={StaticResource Currency}}"
+                               FontSize="17" FontWeight="Bold" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="XƏRCLƏR" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding XercCemi, Converter={StaticResource Currency}}"
+                               FontSize="17" FontWeight="Bold" Foreground="#F59E0B" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="💰 SATIŞ QİYMƏTİ (NECƏYƏ SATILIB)" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding SatisQiymeti, Converter={StaticResource Currency}}"
+                               FontSize="17" FontWeight="Bold" Foreground="#38BDF8" Margin="0,4,0,0"/>
+                    <TextBlock Text="{Binding SatisAltMetni}" FontSize="9.5"
+                               Foreground="#64748B" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="MƏNFƏƏT" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Menfeet, Converter={StaticResource Currency}}"
+                               FontSize="17" FontWeight="Bold"
+                               Foreground="{Binding MenfeetRengi}" Margin="0,4,0,0"/>
+                </StackPanel>
+            </UniformGrid>
+        </Border>
+
+        <!-- ==================== ƏTRAFLI MƏLUMAT ==================== -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- ============ 📎 SƏNƏDLƏR (MEDIA ARXİVİ) ============ -->
+                <TextBlock Text="{Binding SenedBasligi}" FontSize="14" FontWeight="Bold"
+                           Foreground="#FBBF24" Margin="2,0,0,8" TextWrapping="Wrap"/>
+                <Border Background="#111827" CornerRadius="12" BorderBrush="#F59E0B"
+                        BorderThickness="1" Padding="6" Margin="0,0,0,14">
+                    <StackPanel>
+                        <DataGrid x:Name="SenedGrid" ItemsSource="{Binding Senedler}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                  RowHeight="34" ColumnHeaderHeight="36" Height="150"
+                                  MouseDoubleClick="SenedGrid_MouseDoubleClick"
+                                  ToolTip="🖱️ Sənəd sətrinə İKİ DƏFƏ KLİK → fayl açılır ✓">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="📎 Fayl" Binding="{Binding DisplayText}" Width="*"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="180"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Ölçü" Binding="{Binding SizeText}" Width="90"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Tarix"
+                                                    Binding="{Binding Tarix, StringFormat={}{0:dd.MM.yyyy}}"
+                                                    Width="105" ElementStyle="{StaticResource GridCellText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Orientation="Horizontal" Margin="2,8,2,2">
+                            <Button Content="📂  Seçilmiş sənədi AÇ" Style="{StaticResource iOSButton}"
+                                    Height="32" Padding="14,0" Background="#B45309" Foreground="#FFF7ED"
+                                    Cursor="Hand" Click="SenedAc_Click"
+                                    ToolTip="Seçilmiş sənədi standart proqramla açır ✓"/>
+                            <Button Content="🗂️  Sənəd qovluğunu aç" Style="{StaticResource iOSButton}"
+                                    Height="32" Padding="14,0" Margin="8,0,0,0" Background="#1F2937"
+                                    Foreground="#F8FAFC" Cursor="Hand" Click="SenedQovluguAc_Click"
+                                    ToolTip="Bu avtomobilin bütün sənədləri olan qovluğu File Explorer-də açır ✓"/>
+                            <TextBlock Text="{Binding SenedQovlugu}" FontSize="10" Foreground="#64748B"
+                                       VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ============ 🚘 AVTOMOBİL ============ -->
+                <TextBlock Text="🚘 AVTOMOBİL MƏLUMATLARI" FontSize="14" FontWeight="Bold"
+                           Foreground="#93C5FD" Margin="2,0,0,8"/>
+                <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                        BorderThickness="1" Padding="14,11" Margin="0,0,0,14">
+                    <UniformGrid Columns="4">
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="Marka / Model" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Marka}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="Dövlət Nömrəsi" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.QeydiyyatNisani}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="VIN Kod" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Vin}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="Status" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Status}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="#FBBF24" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="İl" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Il}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="Yürüş (km)" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Yurus}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,10">
+                            <TextBlock Text="Yanacaq" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.Yanacaq}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="Alış Üsulu" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.AlisUsuluMetni}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,0">
+                            <TextBlock Text="Alış Tarixi" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.AlisTarixiTamMetni}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,0">
+                            <TextBlock Text="Sənəd Sayı" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding Car.SenedMetni}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,10,0">
+                            <TextBlock Text="Satış Qiyməti (necəyə satılıb)" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding SatisQiymeti, Converter={StaticResource Currency}}"
+                                       FontSize="14" FontWeight="SemiBold" Foreground="#38BDF8" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="Sənəd Tarixi" Style="{StaticResource StatLabel}"/>
+                            <TextBlock Text="{Binding SenedTarixiMetni}" FontSize="14" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </UniformGrid>
+                </Border>
+
+                <!-- ============ 🧾 XƏRCLƏR ============ -->
+                <StackPanel Visibility="{Binding XercVar, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="🧾 XƏRCLƏR (KATEQORİYA ÜZRƏ)" FontSize="14" FontWeight="Bold"
+                               Foreground="#FBBF24" Margin="2,0,0,8"/>
+                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                            BorderThickness="1" Padding="6" Margin="0,0,0,14">
+                        <DataGrid ItemsSource="{Binding Xercler}" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kateqoriya" Binding="{Binding Kategoriya}" Width="*"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Qeyd sayı" Binding="{Binding Say}" Width="120"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Məbləğ"
+                                                    Binding="{Binding Mebleg, Converter={StaticResource Currency}}"
+                                                    Width="170" ElementStyle="{StaticResource GridCellText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- ============ 📋 HƏRƏKƏTLƏR ============ -->
+                <StackPanel Visibility="{Binding HereketVar, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Margin="2,14,0,8">
+                        <TextBlock DockPanel.Dock="Left" Text="📋 BÜTÜN HƏRƏKƏTLƏR" FontSize="14"
+                                   FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
+                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#94A3B8"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding HereketCemi, StringFormat=CƏMİ: {0:N2} AZN}"/>
+                    </DockPanel>
+                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                            BorderThickness="1" Padding="6" Margin="0,0,0,14">
+                        <DataGrid ItemsSource="{Binding Hereketler}" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tarix"
+                                                    Binding="{Binding Tarix, StringFormat={}{0:dd.MM.yyyy}}"
+                                                    Width="110" ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="170"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Məbləğ"
+                                                    Binding="{Binding Mebleg, Converter={StaticResource Currency}}"
+                                                    Width="150" ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridCheckBoxColumn Header="Ödənilib" Binding="{Binding Odenilib}" Width="90"/>
+                                <DataGridTextColumn Header="Təsvir" Binding="{Binding Tesvir}" Width="*"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- ============ 👥 TƏRƏFDAŞ PAYLARI ============ -->
+                <StackPanel Visibility="{Binding PayVar, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Margin="2,0,0,8">
+                        <TextBlock DockPanel.Dock="Left" Text="👥 TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ" FontSize="14"
+                                   FontWeight="Bold" Foreground="#34D399" VerticalAlignment="Center"/>
+                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#94A3B8"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding PayCemi, StringFormat=CƏMİ: {0:N2} AZN}"/>
+                    </DockPanel>
+                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                            BorderThickness="1" Padding="6" Margin="0,0,0,14">
+                        <DataGrid ItemsSource="{Binding Paylar}" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tərəfdaş" Binding="{Binding Terefdas}" Width="*"
+                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Faiz %"
+                                                    Binding="{Binding Faiz, StringFormat={}{0:N2}}"
+                                                    Width="130" ElementStyle="{StaticResource GridCellText}"/>
+                                <DataGridTextColumn Header="Məbləğ"
+                                                    Binding="{Binding Mebleg, Converter={StaticResource Currency}}"
+                                                    Width="180" ElementStyle="{StaticResource GridCellText}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- ============ 💳 KREDİT ============ -->
+                <StackPanel Visibility="{Binding KreditVar, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="💳 KREDİT MÜQAVİLƏSİ" FontSize="14" FontWeight="Bold"
+                               Foreground="#C084FC" Margin="2,14,0,8"/>
+                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                            BorderThickness="1" Padding="14,11" Margin="0,0,0,14">
+                        <UniformGrid Columns="4">
+                            <StackPanel Margin="0,0,10,10">
+                                <TextBlock Text="Müqavilə №" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.MuqavileNomresi}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,10,10">
+                                <TextBlock Text="Müştəri" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.Mustəri}" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,10,10">
+                                <TextBlock Text="Status" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.Status}" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#34D399" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="Başlama Tarixi" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.BaslamaTarixi, StringFormat={}{0:dd.MM.yyyy}}"
+                                           FontSize="14" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Müddət" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.MuddetAy, StringFormat={}{0} ay}"
+                                           FontSize="14" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Aylıq Ödəniş" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.AylıqOdenis, Converter={StaticResource Currency}}"
+                                           FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Faiz Dərəcəsi" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.FaizDerecesi, StringFormat={}{0:N2} %}"
+                                           FontSize="14" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Kreditləşdirilən" Style="{StaticResource StatLabel}"/>
+                                <TextBlock Text="{Binding Credit.Kreditlesdirilen, Converter={StaticResource Currency}}"
+                                           FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ================================================================
+             🖨️ GİZLİ WebView2 — AMMA **REAL PDF** MÜHƏRRİKİ ✓✓✓
+             HTML-i Chromium render edir ✓ → `PrintToPdf` ilə ƏSL PDF yazır ✓
+             (ekranda görünmür ✗ — 1×1 ölçü və tam şəffaf ✓)
+             ================================================================ -->
+        <wv2:WebView2 x:Name="PdfWebView" Grid.Row="2"
+                      Width="1" Height="1"
+                      HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                      IsHitTestVisible="False"/>
+    </Grid>
+</Window>

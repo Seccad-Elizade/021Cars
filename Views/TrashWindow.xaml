@@ -1,0 +1,59 @@
+<Window x:Class="EnterpriseAeroStudio.Views.TrashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🗑 Silinənlər və Geri Qaytarma"
+        Height="640" Width="1120" MinHeight="420" MinWidth="820"
+        WindowStartupLocation="CenterOwner"
+        Background="#0B0F17" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Inter, sans-serif">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ==================================================== BAŞLIQ === -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="🗑 SİLİNƏNLƏR VƏ GERİ QAYTARMA"
+                       FontSize="19" FontWeight="Bold" Foreground="#F8FAFC"/>
+            <TextBlock x:Name="SubText" Foreground="#9CA3AF" FontSize="12.5" Margin="0,5,0,0"/>
+            <TextBlock Margin="0,5,0,0" FontSize="11.5" Foreground="#6B7280" TextWrapping="Wrap"
+                       Text="• «Silinmə» — qeyd silinib, bərpada yenidən yaradılır (sıra nömrəsi də əvvəlki kimi).&#10;• «Dəyişiklik» — kateqoriya/qrup və ya məlumat səhvən dəyişdirilib, bərpada ƏVVƏLKİ vəziyyətinə qaytarılır.&#10;• Ctrl+Z — ən sonuncu əməliyyatı geri qaytarır (dəfələrlə basmaqla ardıcıl olaraq əvvəlkilər də)."/>
+        </StackPanel>
+
+        <!-- ===================================================== CƏDVƏL === -->
+        <Border Grid.Row="1" Background="#111827" CornerRadius="12"
+                BorderBrush="#1F2937" BorderThickness="1" Padding="6">
+            <DataGrid x:Name="Grid" AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" SelectionUnit="FullRow"
+                      RowHeight="38" ColumnHeaderHeight="40"
+                      Background="#0B0F17" Foreground="#F8FAFC"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#1F2937"
+                      BorderThickness="0" MouseDoubleClick="Grid_MouseDoubleClick">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Əməliyyat" Binding="{Binding Action}" Width="110"/>
+                    <DataGridTextColumn Header="Növ" Binding="{Binding Kind}" Width="110"/>
+                    <DataGridTextColumn Header="Ad" Binding="{Binding Title}" Width="230"/>
+                    <DataGridTextColumn Header="Tərkib" Binding="{Binding Summary}" Width="240"/>
+                    <DataGridTextColumn Header="Məlumat" Binding="{Binding Note}" Width="*"/>
+                    <DataGridTextColumn Header="Məbləğ (₼)" Binding="{Binding Amount, StringFormat=N2}" Width="110"/>
+                    <DataGridTextColumn Header="Vaxt" Binding="{Binding DeletedAt, StringFormat=dd.MM.yyyy HH:mm}" Width="135"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- ===================================================== DÜYMƏLƏR === -->
+        <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="RestoreButton" Content="↩️ Seçiləni Geri Qaytar"
+                        Width="200" Height="36" Margin="4,0" Click="Restore_Click"/>
+                <Button x:Name="PurgeButton" Content="🗑️ Birdəfəlik Sil"
+                        Width="160" Height="36" Margin="4,0" Click="Purge_Click"/>
+                <Button Content="✕ Bağla" Width="100" Height="36" Margin="4,0" Click="Close_Click"/>
+            </StackPanel>
+            <TextBlock x:Name="StatusText" Foreground="#9CA3AF" FontSize="12"
+                       VerticalAlignment="Center" TextWrapping="Wrap"/>
+        </DockPanel>
+    </Grid>
+</Window>

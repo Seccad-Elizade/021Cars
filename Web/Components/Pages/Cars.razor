@@ -1,0 +1,1056 @@
+@page "/cars"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@using System.ComponentModel.DataAnnotations
+@inject ICarService CarService
+@inject IMediaService MediaService
+@inject ISaleService SaleService
+@inject ICreditService CreditService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Avtomobillər — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🚗 Avtomobil Parkı</div>
+        <div class="page-sub">@_filtered.Count nəticə / @_cars.Count avtomobil</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="/api/export/cars">⬇ CSV İxrac</a>
+        @if (CanWrite)
+        {
+            <button class="btn btn-primary" @onclick="OpenNew">➕ Yeni Avtomobil</button>
+        }
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Marka, nömrə və ya VIN üzrə axtar…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+            <select @bind="StatusFilter">
+                <option value="">Bütün statuslar</option>
+                @foreach (var status in Catalog.CarStatuses)
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+            @if (!string.IsNullOrWhiteSpace(_search) || !string.IsNullOrWhiteSpace(_statusFilter))
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="ClearFilters">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:44px">#</th>
+                        <th>Marka / Model</th>
+                        <th>Nömrə</th>
+                        <th>İl</th>
+                        <th>🗓️ Alış Tarixi</th>
+                        <th>Yanacaq</th>
+                        <th class="num">Alış</th>
+                        <th class="num">Xərc</th>
+                        <th class="num">Maya</th>
+                        <th>Status</th>
+                        <th>Kredit №</th>
+                        <th>Sənəd</th>
+                        <th style="width:150px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="13" class="empty-cell">
+                                @(_cars.Count == 0 ? "Hələ avtomobil əlavə edilməyib." : "Axtarışa uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var car in _filtered)
+                    {
+                        <tr>
+                            <td class="muted mono">@car.SiraNomresi</td>
+                            <td class="strong">
+                                @car.Marka
+                                @if (car.IsBarter && !string.IsNullOrWhiteSpace(car.BarterCarInfo))
+                                {
+                                    <div class="muted" style="font-size:11px;font-weight:400">
+                                        🔄 əvəz: @car.BarterCarInfo
+                                        @if (car.BarterDeyeri > 0m)
+                                        {
+                                            <span> · maya @AppFormat.Money(car.BarterDeyeri)</span>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td class="mono">@AppFormat.Text(car.QeydiyyatNisani)</td>
+                            <td class="mono">@car.Il</td>
+                            <td class="mono" title="@(string.IsNullOrWhiteSpace(car.AlisSaati) ? "Alış tarixi" : $"Alış saatı: {car.AlisSaati}")">
+                                @car.AlisTarixiMetni
+                                @if (!string.IsNullOrWhiteSpace(car.AlisSaati))
+                                {
+                                    <span class="muted" style="font-size:11px"> · @car.AlisSaati</span>
+                                }
+                            </td>
+                            <td class="muted">@AppFormat.Text(car.Yanacaq)</td>
+                            <td class="num">
+                                @AppFormat.Money(car.AlisQiymeti)
+                                @if (car.IsBarter)
+                                {
+                                    <span title="Barter alış — əvəzə verilən: @car.BarterCarInfo (@car.BarterFerqiMetni)"
+                                          style="cursor:help;color:#f59e0b;margin-left:4px">🔄</span>
+                                }
+                            </td>
+                            <td class="num muted">@AppFormat.Money(car.Xercler)</td>
+                            <td class="num strong">@AppFormat.Money(car.MayaDeyeri)</td>
+                            <td><span class="@AppFormat.StatusClass(car.Status)">@car.Status</span></td>
+                            <td class="mono muted">@AppFormat.Text(car.KreditNomresi)</td>
+                            <td>
+                                <a href="@($"media?type={MediaRefTypes.Car}&id={car.Id}")" title="Sənəd və media arxivi">
+                                    @car.SenedMetni
+                                </a>
+                            </td>
+                            <td class="nowrap">
+                                <button class="btn btn-sm" @onclick="() => ShowInfo(car)"
+                                        title="Tam məlumat — alış, barter, xərclər, satış, kredit">ℹ</button>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => OpenEdit(car)" title="Redaktə">✏️</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => AskDelete(car)" title="Sil">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (_filtered.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="6">CƏMİ (@_filtered.Count)</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.AlisQiymeti))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.Xercler))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.MayaDeyeri))</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+}
+
+@* ---------------------------------------------------------------------------
+   REDAKTƏ MODALI
+   --------------------------------------------------------------------------- *@
+@if (_editing is not null)
+{
+    <div class="modal-backdrop" @onclick="CloseEditor">
+        <div class="modal wide" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">@(_editing.Id == 0 ? "➕ Yeni Avtomobil" : "✏️ Avtomobili Redaktə Et")</div>
+                <button type="button" class="modal-close" @onclick="CloseEditor">✕</button>
+            </div>
+
+            <EditForm Model="_editing" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field span-2">
+                            <label>Marka / Model <span class="req">*</span></label>
+                            <InputText @bind-Value="_editing.Marka" placeholder="Məs. Mercedes C300" />
+                            <ValidationMessage For="() => _editing.Marka" />
+                        </div>
+
+                        <div class="field">
+                            <label>Dövlət nömrəsi <span class="req">*</span></label>
+                            <InputText @bind-Value="_editing.QeydiyyatNisani" placeholder="Məs. 77HY717" />
+                            <ValidationMessage For="() => _editing.QeydiyyatNisani" />
+                        </div>
+
+                        <div class="field">
+                            <label>VIN kod</label>
+                            <InputText @bind-Value="_editing.Vin" placeholder="17 simvol" />
+                        </div>
+
+                        <div class="field">
+                            <label>Buraxılış ili</label>
+                            <InputNumber @bind-Value="_editing.Il" />
+                            <ValidationMessage For="() => _editing.Il" />
+                        </div>
+
+                        <div class="field">
+                            <label>Yürüş (km)</label>
+                            <InputNumber @bind-Value="_editing.Yurus" />
+                            <ValidationMessage For="() => _editing.Yurus" />
+                        </div>
+
+                        <div class="field">
+                            <label>Yanacaq növü</label>
+                            <InputSelect @bind-Value="_editing.Yanacaq">
+                                @foreach (var fuel in Catalog.FuelTypes)
+                                {
+                                    <option value="@fuel">@fuel</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label>Status</label>
+                            <InputSelect @bind-Value="_editing.Status">
+                                @foreach (var status in Catalog.CarStatuses)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="margin-top:14px">
+                        <div class="field">
+                            <label>Alış tarixi</label>
+                            <InputDate @bind-Value="_editing.AlisTarixi" />
+                        </div>
+
+                        <div class="field">
+                            <label>Alış saatı</label>
+                            <InputText @bind-Value="_editing.AlisSaati" placeholder="12:15" />
+                        </div>
+
+                        <div class="field">
+                            <label>Alış üsulu <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.AlisUsulu"
+                                         @bind-Value:after="OnPurchaseMethodChangedAsync">
+                                @foreach (var method in Catalog.PurchaseMethods)
+                                {
+                                    <option value="@method">
+                                        @(method == Catalog.BarterPurchase ? "🔄 Barter (əvəzləmə)" : "💵 Nağd")
+                                    </option>
+                                }
+                            </InputSelect>
+                            <div class="muted" style="font-size:11.5px">
+                                Avtomobil nağd pulla, yoxsa əvəzlə alınıb?
+                            </div>
+                        </div>
+
+                        @if (_editing.AlisUsulu == Catalog.BarterPurchase)
+                        {
+                            <div class="field span-2">
+                                <label>🔄 Əvəzə verilən avtomobil (avto parkdan)</label>
+
+                                <input type="text"
+                                       placeholder="Yazın: marka, dövlət nömrəsi, VIN, il…  (siyahı avtomatik süzülür)"
+                                       value="@_barterSearch"
+                                       @oninput="OnBarterSearch" />
+
+                                @if (SelectedBarterCar is not null)
+                                {
+                                    <div style="margin-top:8px;padding:9px 13px;border-radius:9px;
+                                                background:rgba(16,185,129,.14);border-left:3px solid #10B981;font-size:12.5px">
+                                        ✅ Seçildi: <b>@SelectedBarterCar.DisplayName</b>
+                                        <span class="muted">
+                                            · @SelectedBarterCar.Il il · maya @AppFormat.Money(SelectedBarterCar.MayaDeyeri)
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-ghost" @onclick="ClearBarterCar"
+                                                style="margin-left:10px">✕ Dəyiş</button>
+                                    </div>
+                                }
+
+                                @if (_barterMatches.Count == 0)
+                                {
+                                    <div class="muted" style="font-size:12px;margin-top:7px">
+                                        Uyğun avto park maşını tapılmadı.
+                                        @if (_barterCandidates.Count == 0)
+                                        {
+                                            <span>Parkda əlçatan maşın yoxdur.</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="margin-top:8px;max-height:215px;overflow-y:auto;border-radius:9px;
+                                                border:1px solid rgba(148,163,184,.25);background:rgba(148,163,184,.06)">
+                                        @foreach (var candidate in _barterMatches)
+                                        {
+                                            <div @onclick="() => PickBarterCarAsync(candidate)"
+                                                 style="display:flex;justify-content:space-between;gap:14px;align-items:center;
+                                                        padding:9px 13px;cursor:pointer;font-size:13px;
+                                                        border-bottom:1px solid rgba(148,163,184,.15)">
+                                                <span><b>@candidate.DisplayName</b></span>
+                                                <span class="muted" style="font-size:12px">
+                                                    @candidate.Il il · @AppFormat.Money(candidate.MayaDeyeri)
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="muted" style="font-size:11.5px;margin-top:5px">
+                                        @_barterMatches.Count variant göstərilir — yazmağa davam etdikcə siyahı süzülür.
+                                    </div>
+                                }
+
+                                <div class="muted" style="font-size:11.5px">
+                                    Seçilən maşın avtomatik <b>«Satıldı»</b> statusuna keçir və parkdan çıxır.
+                                    Məlumat avtomobilin kartında <b>«barter əvəzi»</b> kimi qalır —
+                                    ümumi avtomobil sayı artmır.
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label>Verilən maşının <b>MAYA DƏYƏRİ</b> (₼)</label>
+                                <InputNumber @bind-Value="_editing.BarterDeyeri" step="0.01" />
+                                <ValidationMessage For="() => _editing.BarterDeyeri" />
+                                <div class="muted" style="font-size:11.5px">
+                                    Alış qiyməti + əlavə xərclər — <b>satış qiyməti deyil</b>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label>Barter təsviri (əlavə qeyd)</label>
+                                <InputText @bind-Value="_editing.BarterTesviri"
+                                           placeholder="Məs. 2015 Nexia 90AB123 + 5 000 ₼" />
+                                <div class="muted" style="font-size:11.5px">
+                                    Sərbəst izah (istəyə bağlı)
+                                </div>
+                            </div>
+
+                            @if (SelectedBarterCar is not null)
+                            {
+                                @* ------------ VERİLƏN MAŞININ MAYA DƏYƏRİ HESABLANMASI ------------ *@
+                                <div class="field span-2">
+                                    <div style="background:var(--panel-2);border-left:3px solid #06b6d4;border-radius:9px;
+                                                padding:14px 16px;font-size:13px">
+                                        <div style="font-size:12.5px;font-weight:700;color:#06b6d4;margin-bottom:12px">
+                                            🧮 VERİLƏN MAŞININ MAYA DƏYƏRİ — «@SelectedBarterCar.DisplayName»
+                                        </div>
+
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px 30px">
+                                            <div>
+                                                @CalcRow("Alış qiyməti", AppFormat.Money(SelectedBarterCar.AlisQiymeti), "+")
+                                                @CalcRow("Əlavə xərclər", AppFormat.Money(SelectedBarterCar.Xercler), "+")
+                                                @CalcDivider()
+                                                @CalcRow("MAYA DƏYƏRİ (əvəz dəyəri)",
+                                                    AppFormat.Money(SelectedBarterCar.MayaDeyeri), "=", true)
+                                            </div>
+
+                                            <div class="muted" style="font-size:12px;line-height:1.75">
+                                                ❗ Barter-də <b style="color:#06b6d4">MAYA DƏYƏRİ</b> istifadə olunur,
+                                                <b>satış qiyməti deyil</b> — maşın əldən çıxır və sizə başa gəldiyi
+                                                dəyər hesaba alınır.<br />
+                                                Nəzərdə tutulan satış qiyməti:
+                                                <b>@AppFormat.Money(SelectedBarterCar.SatisQiymeti)</b>
+                                                <span class="muted">(yalnız gözlənti — hesaba daxil edilmir)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @* ---------------------- BARTER HESABLAŞMASI ---------------------- *@
+                                <div class="field span-2">
+                                    <div style="background:var(--panel-2);border-left:3px solid #f59e0b;border-radius:9px;
+                                                padding:14px 16px;font-size:13px">
+                                        <div style="font-size:12.5px;font-weight:700;color:#f59e0b;margin-bottom:12px">
+                                            ⚖️ BARTER HESABLAŞMASI
+                                        </div>
+
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px 30px">
+                                            <div>
+                                                @CalcRow("Alınan maşının qiyməti", AppFormat.Money(_editing.AlisQiymeti), "+")
+                                                @CalcRow("Verilən maşının maya dəyəri", AppFormat.Money(_editing.BarterDeyeri), "−")
+                                                @CalcDivider()
+                                                @if (BarterDifference > 0m)
+                                                {
+                                                    @CalcRow("ƏLAVƏ PUL ÖDƏNİLİB", AppFormat.Money(BarterDifference), "=", true)
+                                                }
+                                                else if (BarterDifference < 0m)
+                                                {
+                                                    @CalcRow("GERİ PUL ALINIB", AppFormat.Money(Math.Abs(BarterDifference)), "=", true)
+                                                }
+                                                else
+                                                {
+                                                    @CalcRow("BƏRABƏR DƏYİŞMƏ", AppFormat.Money(0m), "=", true)
+                                                }
+                                            </div>
+
+                                            <div class="muted" style="font-size:12px;line-height:1.75">
+                                                <b>Alınan maşının maya dəyəri</b> yuxarıdaki «Alış qiyməti» sahəsinə
+                                                yazılır: <b style="color:#e2e8f0">@AppFormat.Money(_editing.AlisQiymeti)</b><br />
+                                                <b>Verilən maşının maya dəyəri</b> isə xərc kimi qeyd olunur:
+                                                <b style="color:#e2e8f0">@AppFormat.Money(_editing.BarterDeyeri)</b><br />
+                                                Fərq pul ilə hesablaşılır ve xərc qeydində saxlanılır.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        <div class="field">
+                            <label>Alış qiyməti (₼)</label>
+                            <InputNumber @bind-Value="_editing.AlisQiymeti" step="0.01" />
+                            <ValidationMessage For="() => _editing.AlisQiymeti" />
+                        </div>
+
+                        <div class="field">
+                            <label>Satış qiyməti (₼)</label>
+                            <InputNumber @bind-Value="_editing.SatisQiymeti" step="0.01" />
+                            <ValidationMessage For="() => _editing.SatisQiymeti" />
+                        </div>
+
+                        <div class="field">
+                            <label>Kredit nömrəsi</label>
+                            <InputText @bind-Value="_editing.KreditNomresi" placeholder="KR-0001 (boş = avtomatik)" />
+                        </div>
+
+                        <div class="field">
+                            <label>Sıra nömrəsi</label>
+                            <InputNumber @bind-Value="_editing.SiraNomresi" />
+                            <div class="muted" style="font-size:11.5px">0 = avtomatik təyin olunur</div>
+                        </div>
+                    </div>
+
+                    @if (_editing.Id != 0)
+                    {
+                        <div style="margin-top:16px">
+                            <a class="btn btn-sm" href="@($"media?type={MediaRefTypes.Car}&id={_editing.Id}")" target="_blank">
+                                📎 Sənəd və Media Arxivi
+                            </a>
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="CloseEditor">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        @(_editing.Id == 0 ? "Əlavə et" : "Yadda saxla")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* ---------------------------------------------------------------------------
+   SİLMƏ TƏSDİQİ
+   --------------------------------------------------------------------------- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Silməni təsdiqlə</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 12px">
+                    <b>@_deleting.Marka (@_deleting.QeydiyyatNisani)</b> avtomobili silinəcək.
+                </p>
+                <div style="background:rgba(239,68,68,.12);border-left:3px solid #ef4444;border-radius:8px;
+                            padding:10px 13px;font-size:12.5px;line-height:1.8">
+                    <b>Bunlarla birlikdə silinəcək:</b><br />
+                    • 📉 Bütün <b>xərc qeydləri</b> (maya hesablamasına daxil olanlar)<br />
+                    • 💰 Avtomobilə aid <b>satış qeydləri</b><br />
+                    • 🏦 Kredit müqaviləsi və <b>bütün ödəniş əməliyyatları</b><br />
+                    • 📎 <b>Sənəd / media</b> faylları (disk daxil)<br />
+                    • 🔄 Digər maşınlarda bu maşına olan <b>barter əlaqəsi</b> kəsiləcək
+                </div>
+                <p class="muted" style="margin:12px 0 0;font-size:12px">
+                    Nəticədə «Ümumi xərc», «Dövr xərci» və «Dövr mənfəəti» göstəriciləri
+                    <b>dəqiq</b> qalacaq.<br />
+                    ⚠️ Bu əməliyyat geri qaytarıla bilməz.
+                </p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_saving">
+                    Bəli, sil
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ---------------------------------- AVTOMOBİL MƏLUMAT PƏNCƏRƏSİ (ℹ) --- *@
+<CarInfoDialog Car="_infoCar"
+               Sale="SaleFor(_infoCar)"
+               Credit="CreditFor(_infoCar)"
+               OnClose="() => _infoCar = null" />
+
+@code {
+    private bool _loading = true;
+    private List<CarItem> _cars = new();
+    private List<CarItem> _filtered = new();
+    private CarForm? _editing;
+    private CarItem? _deleting;
+    private bool _saving;
+    private string? _formError;
+
+    /// <summary>ℹ düyməsi ilə açılan məlumat pəncərəsinin avtomobili.</summary>
+    private CarItem? _infoCar;
+
+    /// <summary>ℹ məlumat pəncərəsi üçün bütün satış qeydləri.</summary>
+    private List<Sale> _sales = new();
+
+    /// <summary>ℹ məlumat pəncərəsi üçün bütün kredit qeydləri.</summary>
+    private List<Credit> _credits = new();
+
+    private void ShowInfo(CarItem car) => _infoCar = car;
+
+    /// <summary>Avtomobilin satış qeydi.</summary>
+    private Sale? SaleFor(CarItem? car)
+        => car is null ? null : _sales.FirstOrDefault(s => s.CarId == car.Id);
+
+    /// <summary>Avtomobilin kredit qeydi.</summary>
+    private Credit? CreditFor(CarItem? car)
+        => car is null ? null : _credits.FirstOrDefault(c => c.Car?.Id == car.Id);
+
+    /// <summary>Barter alışında əvəzə verilə bilən avto park maşınları.</summary>
+    private List<CarItem> _barterCandidates = new();
+
+    /// <summary>Əvəz maşın axtarışına uyğun (süzülmüş) maşınlar.</summary>
+    private List<CarItem> _barterMatches = new();
+
+    /// <summary>Əvəz maşın axtarış mətni — yazdıqca siyahı süzülür.</summary>
+    private string _barterSearch = string.Empty;
+
+    /// <summary>Hazırda seçilmiş əvəz avtomobil.</summary>
+    private CarItem? SelectedBarterCar =>
+        _editing?.BarterCarId is int id
+            ? _barterCandidates.FirstOrDefault(c => c.Id == id)
+            : null;
+
+    /// <summary>Barter fərqi: alınan maşının qiyməti − verilən maşının dəyəri.</summary>
+    private decimal BarterDifference =>
+        _editing is null ? 0m : _editing.AlisQiymeti - _editing.BarterDeyeri;
+
+    private string _search = string.Empty;
+    private string _statusFilter = string.Empty;
+
+    /// <summary>Veb interfeysdən yazmağa icazə varmı (appsettings.json).</summary>
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Axtarış mətni — hər simvolda filtr yenilənir.</summary>
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    /// <summary>Status filtri — dəyişdikcə filtr yenilənir.</summary>
+    private string StatusFilter
+    {
+        get => _statusFilter;
+        set { _statusFilter = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            var cars = await CarService.GetAllCarsAsync();
+
+            // Hər avtomobil üzrə sənəd (media) sayı.
+            var counts = await MediaService.GetCountsAsync(MediaRefTypes.Car);
+            foreach (var car in cars)
+            {
+                car.SenedSayi = counts.TryGetValue(car.Id, out var count) ? count : 0;
+            }
+
+            _cars = cars.OrderBy(c => c.SiraNomresi).ThenBy(c => c.Id).ToList();
+
+            // ℹ məlumat pəncərəsi üçün satış və kredit qeydləri.
+            _sales = (await SaleService.GetSalesAsync()).ToList();
+            _credits = (await CreditService.GetCreditsAsync()).ToList();
+
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Avtomobillər yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Axtarış və status filtrini tətbiq edir.</summary>
+    private void ApplyFilter()
+    {
+        IEnumerable<CarItem> query = _cars;
+
+        if (!string.IsNullOrWhiteSpace(_statusFilter))
+        {
+            query = query.Where(c => c.Status == _statusFilter);
+        }
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(c =>
+                Contains(c.Marka, term) ||
+                Contains(c.QeydiyyatNisani, term) ||
+                Contains(c.Vin, term) ||
+                Contains(c.KreditNomresi, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _statusFilter = string.Empty;
+        ApplyFilter();
+    }
+
+    private async Task OpenNew()
+    {
+        _formError = null;
+        _editing = new CarForm();
+        await LoadBarterCandidatesAsync();
+    }
+
+    private async Task OpenEdit(CarItem car)
+    {
+        _formError = null;
+        _editing = new CarForm
+        {
+            Id = car.Id,
+            Marka = car.Marka,
+            QeydiyyatNisani = car.QeydiyyatNisani,
+            Vin = car.Vin,
+            Il = car.Il,
+            Yurus = car.Yurus,
+            Yanacaq = string.IsNullOrWhiteSpace(car.Yanacaq) ? Catalog.FuelTypes[0] : car.Yanacaq,
+            AlisTarixi = car.AlisTarixi,
+            AlisSaati = car.AlisSaati,
+            AlisUsulu = string.IsNullOrWhiteSpace(car.AlisUsulu) ? Catalog.CashPurchase : car.AlisUsulu,
+            BarterTesviri = car.BarterTesviri,
+            BarterCarId = car.BarterCarId,
+            BarterDeyeri = car.BarterDeyeri,
+            BarterSaleId = car.BarterSaleId,
+            AlisQiymeti = car.AlisQiymeti,
+            SatisQiymeti = car.SatisQiymeti,
+            Status = string.IsNullOrWhiteSpace(car.Status) ? Catalog.StockStatus : car.Status,
+            KreditNomresi = car.KreditNomresi,
+            SiraNomresi = car.SiraNomresi
+        };
+
+        await LoadBarterCandidatesAsync();
+    }
+
+    private void CloseEditor() => _editing = null;
+
+    /// <summary>Alış üsulu dəyişdikdə barter siyahısını hazırlayır.</summary>
+    private async Task OnPurchaseMethodChangedAsync()
+    {
+        if (_editing?.AlisUsulu == Catalog.BarterPurchase)
+        {
+            await LoadBarterCandidatesAsync();
+            ApplyBarterFilter();
+        }
+    }
+
+    /// <summary>
+    /// Əvəz maşın seçildikdə dəyərini avtomatik doldurur.
+    /// <para>
+    /// <b>MAYA DƏYƏRİ</b> götürülür (alış qiyməti + əlavə xərclər) —
+    /// satış qiyməti DEYİL. Barter-də maşın əldən çıxır, ona görə düzgün
+    /// uçot üçün maşının sizə başa gəldiyi dəyər istifadə olunur.
+    /// </para>
+    /// </summary>
+    private Task OnBarterCarChangedAsync()
+    {
+        if (_editing?.BarterCarId is not { } id)
+        {
+            return Task.CompletedTask;
+        }
+
+        var candidate = _barterCandidates.FirstOrDefault(c => c.Id == id);
+        if (candidate is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        // Həmişə maya dəyəri təklif olunur (istifadəçi istəsə əl ilə dəyişə bilər).
+        _editing.BarterDeyeri = candidate.MayaDeyeri;
+
+        return Task.CompletedTask;
+    }
+
+    // ------------------------------------------------- ƏVƏZ MAŞIN SEÇİCİSİ ---
+
+    /// <summary>Axtarış mətni dəyişdikcə siyahını süzür (bir-bir azalan variantlar).</summary>
+    private void OnBarterSearch(ChangeEventArgs e)
+    {
+        _barterSearch = e.Value?.ToString() ?? string.Empty;
+        ApplyBarterFilter();
+    }
+
+    /// <summary>
+    /// Yazılan mətnə uyğun maşınları süzür.
+    /// <para>
+    /// <b>Yalnız</b> marka, dövlət nömrəsi və buraxılış ili üzrə axtarılır.
+    /// Uyğun olmayan variantlar siyahıdan <b>tamamilə çıxarılır</b> —
+    /// məsələn «lexus» yazıldıqda BMW, Mercedes göstərilmir.
+    /// </para>
+    /// <para>
+    /// Bir neçə söz yazmaq olar («lexus 2015») — hamısı uyğun gəlməlidir.
+    /// </para>
+    /// </summary>
+    private void ApplyBarterFilter()
+    {
+        var term = (_barterSearch ?? string.Empty).Trim();
+
+        if (term.Length == 0)
+        {
+            _barterMatches = _barterCandidates.Take(8).ToList();
+            return;
+        }
+
+        // «lexus 2015», «90-AB-123» kimi girişləri hissələrə ayırır.
+        var parts = term
+            .Split(new[] { ' ', ',', '-', '/', '.', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 0)
+            .ToList();
+
+        _barterMatches = _barterCandidates
+            // HƏR hissə uyğun gəlməlidir (AND məntiqi).
+            .Where(c => parts.All(p => MatchesTerm(c, p)))
+            // Əvvəlcə adı yazılan mətnlə BAŞLAYANLAR.
+            .OrderByDescending(c => c.DisplayName.StartsWith(term, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(c => c.Marka.StartsWith(term, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(c => c.SiraNomresi)
+            .ThenBy(c => c.Id)
+            .Take(12)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Bu maşın verilmiş sözü ehtiva edirmi?
+    /// Yalnız marka, dövlət nömrəsi və il — VIN və yanacaq axtarılmır
+    /// (təsadüfi uyğunluqların qarşısını alır).
+    /// </summary>
+    private static bool MatchesTerm(CarItem car, string part)
+        => HasText(car.Marka, part)
+           || HasText(car.QeydiyyatNisani, part)
+           || car.Il.ToString().Contains(part, StringComparison.Ordinal);
+
+    /// <summary>Əvəz maşını seçir və dəyərini avtomatik doldurur.</summary>
+    private async Task PickBarterCarAsync(CarItem candidate)
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.BarterCarId = candidate.Id;
+        _barterSearch = candidate.DisplayName;
+
+        await OnBarterCarChangedAsync();
+        ApplyBarterFilter();
+    }
+
+    /// <summary>Seçimi ləğv edir.</summary>
+    private void ClearBarterCar()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.BarterCarId = null;
+        _barterSearch = string.Empty;
+        ApplyBarterFilter();
+    }
+
+    /// <summary>
+    /// Hesablama panelində bir sətir: əməliyyat işarəsi + ad + dəyər.
+    /// </summary>
+    /// <param name="op">«+», «−» və ya «=».</param>
+    private static MarkupString CalcRow(string label, string value, string op, bool strong = false)
+    {
+        var open = strong ? "<b>" : string.Empty;
+        var close = strong ? "</b>" : string.Empty;
+
+        var color = op switch
+        {
+            "−" => "#f87171",
+            "=" => "#f59e0b",
+            _ => "#94a3b8"
+        };
+
+        return new MarkupString(
+            "<div style=\"display:flex;align-items:baseline;gap:10px;padding:6px 0;font-size:12.5px\">" +
+            "<span style=\"color:" + color + ";font-weight:700;width:14px;text-align:center\">" +
+            System.Net.WebUtility.HtmlEncode(op) + "</span>" +
+            "<span style=\"color:#94a3b8;flex:1\">" + System.Net.WebUtility.HtmlEncode(label) + "</span>" +
+            "<span style=\"text-align:right;white-space:nowrap\">" + open +
+            System.Net.WebUtility.HtmlEncode(value) + close + "</span></div>");
+    }
+
+    /// <summary>Hesablama panelində ayırıcı xətt (cəm xətti).</summary>
+    private static MarkupString CalcDivider()
+        => new("<div style=\"height:1px;background:rgba(148,163,184,.35);margin:6px 0 6px 24px\"></div>");
+
+    private static bool HasText(string? value, string term)
+        => !string.IsNullOrEmpty(value) && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Barter üçün seçilə bilən maşınları yükləyir. Hazırda seçilmiş maşın
+    /// siyahıda yoxdursa (məs. artıq başqa alışda verilibsə) yenə əlavə olunur ki,
+    /// mövcud seçim itməsin.
+    /// </summary>
+    private async Task LoadBarterCandidatesAsync()
+    {
+        if (_editing is null)
+        {
+            _barterCandidates = new List<CarItem>();
+            return;
+        }
+
+        var excludeId = _editing.Id > 0 ? _editing.Id : (int?)null;
+        var list = (await CarService.GetBarterCandidatesAsync(excludeId)).ToList();
+
+        if (_editing.BarterCarId is { } current && list.All(c => c.Id != current))
+        {
+            var all = await CarService.GetAllCarsAsync();
+            var existing = all.FirstOrDefault(c => c.Id == current);
+            if (existing is not null)
+            {
+                list.Insert(0, existing);
+            }
+        }
+
+        _barterCandidates = list;
+        _barterSearch = SelectedBarterCar?.DisplayName ?? string.Empty;
+        ApplyBarterFilter();
+    }
+
+    private void AskDelete(CarItem car) => _deleting = car;
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            var registration = _editing.QeydiyyatNisani.Trim();
+
+            var duplicate = await CarService.RegistrationExistsAsync(
+                registration,
+                _editing.Id == 0 ? null : _editing.Id);
+
+            if (duplicate)
+            {
+                _formError = $"\"{registration}\" nömrəli avtomobil artıq sistemdə mövcuddur.";
+                return;
+            }
+
+            var payload = BuildCar(_editing);
+
+            if (_editing.Id == 0)
+            {
+                await CarService.AddCarAsync(payload);
+                Ui.Success($"\"{payload.Marka}\" avtomobili əlavə edildi.");
+            }
+            else
+            {
+                await CarService.UpdateCarAsync(payload);
+                Ui.Success($"\"{payload.Marka}\" məlumatları yeniləndi.");
+            }
+
+            _editing = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Yadda saxlana bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Formadan <see cref="CarItem"/> yaradır (xidmət yalnız skalyar sahələri oxuyur).</summary>
+    private static CarItem BuildCar(CarForm form) => new()
+    {
+        Id = form.Id,
+        Marka = form.Marka.Trim(),
+        QeydiyyatNisani = form.QeydiyyatNisani.Trim(),
+        Vin = form.Vin?.Trim() ?? string.Empty,
+        Il = form.Il,
+        Yurus = form.Yurus,
+        Yanacaq = form.Yanacaq,
+        AlisTarixi = form.AlisTarixi,
+        AlisSaati = form.AlisSaati?.Trim() ?? string.Empty,
+        AlisUsulu = form.AlisUsulu,
+        BarterTesviri = form.BarterTesviri?.Trim() ?? string.Empty,
+        BarterCarId = form.BarterCarId,
+        BarterDeyeri = form.BarterDeyeri,
+        BarterSaleId = form.BarterSaleId,
+        AlisQiymeti = form.AlisQiymeti,
+        SatisQiymeti = form.SatisQiymeti,
+        Status = form.Status,
+        KreditNomresi = form.KreditNomresi?.Trim() ?? string.Empty,
+        SiraNomresi = form.SiraNomresi
+    };
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            var name = _deleting.DisplayName;
+            await CarService.DeleteCarAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success($"\"{name}\" silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Redaktə forması — DataAnnotations ilə doğrulanan müvəqqəti model.</summary>
+    private sealed class CarForm
+    {
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "Marka / model tələb olunur.")]
+        [MaxLength(120, ErrorMessage = "Marka 120 simvoldan çox ola bilməz.")]
+        public string Marka { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Dövlət nömrəsi tələb olunur.")]
+        [MaxLength(20, ErrorMessage = "Nömrə 20 simvoldan çox ola bilməz.")]
+        public string QeydiyyatNisani { get; set; } = string.Empty;
+
+        [MaxLength(30, ErrorMessage = "VIN 30 simvoldan çox ola bilməz.")]
+        public string? Vin { get; set; } = string.Empty;
+
+        [Range(1900, 2100, ErrorMessage = "İl 1900–2100 aralığında olmalıdır.")]
+        public int Il { get; set; } = DateTime.Today.Year;
+
+        [Range(0, 9_999_999, ErrorMessage = "Yürüş mənfi ola bilməz.")]
+        public int Yurus { get; set; }
+
+        public string Yanacaq { get; set; } = "Benzin";
+
+        public DateTime? AlisTarixi { get; set; } = DateTime.Today;
+
+        [MaxLength(10)]
+        public string? AlisSaati { get; set; } = "12:00";
+
+        public string AlisUsulu { get; set; } = "Nağd";
+
+        [MaxLength(300, ErrorMessage = "Barter təsviri 300 simvoldan çox ola bilməz.")]
+        public string? BarterTesviri { get; set; } = string.Empty;
+
+        /// <summary>Barter üçün avto parkdan verilən avtomobilin Id-si.</summary>
+        public int? BarterCarId { get; set; }
+
+        /// <summary>Barter satışından gələn maşındırsa, həmin satışın Id-si.</summary>
+        public int? BarterSaleId { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Barter dəyəri mənfi ola bilməz.")]
+        public decimal BarterDeyeri { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Alış qiyməti mənfi ola bilməz.")]
+        public decimal AlisQiymeti { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Satış qiyməti mənfi ola bilməz.")]
+        public decimal SatisQiymeti { get; set; }
+
+        public string Status { get; set; } = "Stokda";
+
+        [MaxLength(60)]
+        public string? KreditNomresi { get; set; } = string.Empty;
+
+        [Range(0, 9999, ErrorMessage = "Sıra nömrəsi 0–9999 aralığında olmalıdır.")]
+        public int SiraNomresi { get; set; }
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

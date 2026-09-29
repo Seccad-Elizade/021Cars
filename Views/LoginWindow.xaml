@@ -1,0 +1,93 @@
+<Window x:Class="EnterpriseAeroStudio.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🔐 Proqrama Giriş" Height="520" Width="430"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#0B0F17" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Inter, sans-serif"
+        WindowStyle="None" AllowsTransparency="True">
+    <Border Background="#0B0F17" CornerRadius="16" BorderBrush="#1F2937" BorderThickness="1">
+        <Grid Margin="30,26,30,26">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ==================== BAŞLIQ ==================== -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="🚗 AVTO SALON" FontSize="24" FontWeight="Bold"
+                           Foreground="#38BDF8" HorizontalAlignment="Center"/>
+                <TextBlock Text="İDARƏETMƏ SİSTEMİ" FontSize="11" Foreground="#64748B"
+                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                <Border Height="1" Background="#1F2937" Margin="0,16,0,0"/>
+            </StackPanel>
+
+            <!-- ==================== İSTİFADƏÇİ ==================== -->
+            <TextBlock Grid.Row="1" Text="👤 İSTİFADƏÇİ ADI" FontSize="10" FontWeight="Bold"
+                       Foreground="#94A3B8" Margin="0,0,0,6"/>
+            <Border Grid.Row="2" Background="#111827" CornerRadius="8" Padding="10,4"
+                    BorderBrush="#334155" BorderThickness="1">
+                <TextBox x:Name="IstifadeciAdi" Background="Transparent" BorderThickness="0"
+                         Foreground="#F8FAFC" CaretBrush="#38BDF8" FontSize="15"
+                         VerticalContentAlignment="Center" Height="34"
+                         ToolTip="Sahil · Asif · Seccad"/>
+            </Border>
+
+            <!-- ==================== ŞİFRƏ ==================== -->
+            <TextBlock Grid.Row="3" Text="🔑 ŞİFRƏ" FontSize="10" FontWeight="Bold"
+                       Foreground="#94A3B8" Margin="0,16,0,6"/>
+            <Border Grid.Row="4" Background="#111827" CornerRadius="8" Padding="10,4"
+                    BorderBrush="#334155" BorderThickness="1">
+                <Grid>
+                    <PasswordBox x:Name="SifreQutusu" Background="Transparent" BorderThickness="0"
+                                 Foreground="#F8FAFC" CaretBrush="#38BDF8" FontSize="15"
+                                 VerticalContentAlignment="Center" Height="34"
+                                 KeyDown="Sifre_KeyDown"/>
+                    <TextBox x:Name="SifreAciq" Background="Transparent" BorderThickness="0"
+                             Foreground="#F8FAFC" CaretBrush="#38BDF8" FontSize="15"
+                             VerticalContentAlignment="Center" Height="34"
+                             Visibility="Collapsed" KeyDown="Sifre_KeyDown"/>
+                </Grid>
+            </Border>
+
+            <!-- ==================== XƏTA + GÖSTƏR ==================== -->
+            <DockPanel Grid.Row="5" Margin="0,10,0,0" VerticalAlignment="Top">
+                <CheckBox DockPanel.Dock="Right" x:Name="SifreGoster" Content="👁 Göstər"
+                          Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center"
+                          Checked="SifreGoster_Changed" Unchecked="SifreGoster_Changed"/>
+                <TextBlock x:Name="XetaMetni" Foreground="#F43F5E" FontSize="11.5"
+                           FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            </DockPanel>
+
+            <!-- ==================== DÜYMƏLƏR ==================== -->
+            <StackPanel Grid.Row="6" Margin="0,16,0,0">
+                <Button Content="🔓  D A X İ L   O L" Height="44" FontSize="14" FontWeight="Bold"
+                        Background="#2563EB" Foreground="#FFFFFF" BorderThickness="0"
+                        Cursor="Hand" IsDefault="True" Click="Giris_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="9"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+                <Button Content="✖  Çıxış" Height="34" Margin="0,8,0,0" FontSize="12"
+                        Background="#1F2937" Foreground="#94A3B8" BorderThickness="0"
+                        Cursor="Hand" Click="Cixis_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="9"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+                <TextBlock Text="🔐 Giriş məlumatları yalnız proqramın içinə aiddir ✓"
+                           FontSize="9.5" Foreground="#475569" HorizontalAlignment="Center"
+                           Margin="0,12,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

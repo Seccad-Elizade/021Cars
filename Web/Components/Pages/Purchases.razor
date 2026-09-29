@@ -1,0 +1,495 @@
+@page "/purchases"
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using System.ComponentModel.DataAnnotations
+@inject ICarService CarService
+@inject UiState Ui
+
+<PageTitle>Alışlar — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🛒 Avtomobil Alışları</div>
+        <div class="page-sub">
+            Nağd və barter alışların tam təhlili —
+            @_filtered.Count nəticə / @_rows.Count alış
+        </div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="/api/export/purchases">⬇ CSV İxrac</a>
+        <button class="btn" @onclick="LoadAsync" disabled="@_loading">🔄 Yenilə</button>
+        <a class="btn btn-primary" href="cars">🚗 Avtomobillər</a>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Məlumatlar yüklənir…</div></div>
+}
+else
+{
+    @* ------------------------------------------------------- KPI KARTLARI --- *@
+    <div class="stat-grid">
+        <StatCard Label="Ümumi Alış" Value="@_stats.Count.ToString()" Icon="🛒" Accent="blue"
+                  Hint="@AppFormat.MoneyShort(_stats.Total)" />
+        <StatCard Label="Nağd Alış" Value="@_stats.CashCount.ToString()" Icon="💵" Accent="green"
+                  Hint="@AppFormat.MoneyShort(_stats.CashTotal)" />
+        <StatCard Label="Barter Alış" Value="@_stats.BarterCount.ToString()" Icon="🔄" Accent="violet"
+                  Hint="@AppFormat.MoneyShort(_stats.BarterTotal)" />
+        <StatCard Label="Bu Ay" Value="@AppFormat.MoneyShort(_stats.MonthTotal)" Icon="📅" Accent="amber"
+                  Hint="@DateTime.Today.ToString("MMMM yyyy")" />
+        <StatCard Label="Orta Alış Qiyməti" Value="@AppFormat.MoneyShort(_average)" Icon="📊" Accent="cyan"
+                  Hint="Bir avtomobilə düşən orta məbləğ" />
+        <StatCard Label="Barter Payı" Value="@AppFormat.Percent(_barterShare)" Icon="⚖️" Accent="slate"
+                  Hint="Ümumi alışların faizi" />
+    </div>
+
+    @* ------------------------------------------------------------- QRAFİK --- *@
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">📈 Son 12 ay — Nağd / Barter alışları</div>
+            <div class="legend">
+                <span><i style="background:#059669"></i>Nağd (₼)</span>
+                <span><i style="background:#7c3aed"></i>Barter (₼)</span>
+                <span><i style="background:#d97706"></i>Alış sayı</span>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (_chart.Count == 0 || _chartMax <= 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">📉</div>
+                    <p>Qrafik üçün məlumat yoxdur.</p>
+                </div>
+            }
+            else
+            {
+                <div class="chart">
+                    @foreach (var point in _chart)
+                    {
+                        <div class="chart-col"
+                             title="@($"{point.Label}: Nağd {AppFormat.Money(point.Cash)} | Barter {AppFormat.Money(point.Barter)} | Say {point.Count}")">
+                            <div class="chart-bars">
+                                <div class="chart-bar cash"
+                                     style="@($"height:{Scale(point.Cash, _chartMax):F1}%")"></div>
+                                <div class="chart-bar barter"
+                                     style="@($"height:{Scale(point.Barter, _chartMax):F1}%")"></div>
+                                <div class="chart-bar count"
+                                     style="@($"height:{point.CountHeight:F1}%")"></div>
+                            </div>
+                            <div class="chart-label">@point.Label</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ------------------------------------------------------------- FİLTRLƏR --- *@
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Marka, nömrə, VIN, barter təsviri…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+
+            <select @bind="MethodFilter">
+                @foreach (var item in Catalog.PurchaseFilterTypes)
+                {
+                    <option value="@item">@item</option>
+                }
+            </select>
+
+            <select @bind="YearFilter">
+                <option value="">Bütün illər</option>
+                @foreach (var year in _years)
+                {
+                    <option value="@year">@year</option>
+                }
+            </select>
+
+            <select @bind="StatusFilter">
+                <option value="">Bütün statuslar</option>
+                @foreach (var status in Catalog.CarStatuses)
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+
+            @if (HasFilter)
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="ClearFilters">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:52px">#</th>
+                        <th>Alış tarixi</th>
+                        <th>Avtomobil</th>
+                        <th>Nömrə</th>
+                        <th>VIN</th>
+                        <th>Üsul</th>
+                        <th>Barter təsviri</th>
+                        <th class="num">Alış qiyməti</th>
+                        <th class="num">Xərc</th>
+                        <th class="num">Maya</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="11" class="empty-cell">
+                                @(_rows.Count == 0
+                                    ? "Hələ alış qeydi yoxdur. «Avtomobillər» bölməsindən avtomobil əlavə edin."
+                                    : "Filtrə uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var row in _filtered)
+                    {
+                        <tr>
+                            <td class="mono muted">@row.SiraNomresi</td>
+                            <td class="mono nowrap">
+                                @AppFormat.Date(row.AlisTarixi)
+                                @if (!string.IsNullOrWhiteSpace(row.AlisSaati))
+                                {
+                                    <span class="muted"> @row.AlisSaati</span>
+                                }
+                            </td>
+                            <td class="strong">@AppFormat.Text(row.Marka)</td>
+                            <td class="mono">@AppFormat.Text(row.QeydiyyatNisani)</td>
+                            <td class="mono muted" style="font-size:11.5px">@AppFormat.Text(row.Vin)</td>
+                            <td>
+                                @if (row.IsBarter)
+                                {
+                                    <span class="st kredit">🔄 Barter</span>
+                                }
+                                else
+                                {
+                                    <span class="st stok">💵 Nağd</span>
+                                }
+                            </td>
+                            <td class="muted" style="font-size:12.5px">@AppFormat.Text(row.BarterTesviri)</td>
+                            <td class="num strong">@AppFormat.Money(row.AlisQiymeti)</td>
+                            <td class="num muted">@AppFormat.Money(row.Xercler)</td>
+                            <td class="num">@AppFormat.Money(row.MayaDeyeri)</td>
+                            <td><span class="@AppFormat.StatusClass(row.Status)">@AppFormat.Text(row.Status)</span></td>
+                        </tr>
+                    }
+                </tbody>
+                @if (_filtered.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="7">CƏMİ (@_filtered.Count alış)</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(r => r.AlisQiymeti))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(r => r.Xercler))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(r => r.MayaDeyeri))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+
+    @* ----------------------------------------------------------- BÖLGÜ --- *@
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">⚖️ Alış üsulları üzrə bölgü</div>
+            <div class="muted" style="font-size:12px">Filtrdən asılı deyil — bütün alışlar</div>
+        </div>
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:150px">Üsul</th>
+                        <th class="num">Say</th>
+                        <th class="num">Payı</th>
+                        <th class="num">Ümumi məbləğ</th>
+                        <th class="num">Orta qiymət</th>
+                        <th>Paylaşma</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="st stok">💵 Nağd</span></td>
+                        <td class="num strong">@_stats.CashCount</td>
+                        <td class="num">@AppFormat.Percent(Share(_stats.CashCount, _stats.Count))</td>
+                        <td class="num">@AppFormat.Money(_stats.CashTotal)</td>
+                        <td class="num">@AppFormat.Money(Average(_stats.CashTotal, _stats.CashCount))</td>
+                        <td>
+                            <div class="bar-track">
+                                <div class="bar-fill cash"
+                                     style="@($"width:{Share(_stats.CashCount, _stats.Count):F1}%")"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="st kredit">🔄 Barter</span></td>
+                        <td class="num strong">@_stats.BarterCount</td>
+                        <td class="num">@AppFormat.Percent(Share(_stats.BarterCount, _stats.Count))</td>
+                        <td class="num">@AppFormat.Money(_stats.BarterTotal)</td>
+                        <td class="num">@AppFormat.Money(Average(_stats.BarterTotal, _stats.BarterCount))</td>
+                        <td>
+                            <div class="bar-track">
+                                <div class="bar-fill barter"
+                                     style="@($"width:{Share(_stats.BarterCount, _stats.Count):F1}%")"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>CƏMİ</td>
+                        <td class="num">@_stats.Count</td>
+                        <td class="num">% 100</td>
+                        <td class="num">@AppFormat.Money(_stats.Total)</td>
+                        <td class="num">@AppFormat.Money(_average)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    // ------------------------------------------------------------- VƏZİYYƏT ---
+    private bool _loading = true;
+
+    private List<CarItem> _rows = new();
+    private List<CarItem> _filtered = new();
+    private List<int> _years = new();
+
+    private PurchaseStats _stats = new(0, 0, 0, 0m, 0m, 0m, 0m);
+    private List<ChartCol> _chart = new();
+    private decimal _chartMax;
+    private decimal _average;
+    private decimal _barterShare;
+
+    private string _search = string.Empty;
+    private string _methodFilter = Catalog.PurchaseFilterTypes[0];
+    private string _yearFilter = string.Empty;
+    private string _statusFilter = string.Empty;
+
+    /// <summary>Qrafikin bir sütunu (ay).</summary>
+    private sealed record ChartCol(
+        string Label, decimal Cash, decimal Barter, int Count, double CountHeight);
+
+    // -------------------------------------------------------------- FİLTRLƏR ---
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    private string MethodFilter
+    {
+        get => _methodFilter;
+        set { _methodFilter = value; ApplyFilter(); }
+    }
+
+    private string YearFilter
+    {
+        get => _yearFilter;
+        set { _yearFilter = value; ApplyFilter(); }
+    }
+
+    private string StatusFilter
+    {
+        get => _statusFilter;
+        set { _statusFilter = value; ApplyFilter(); }
+    }
+
+    private bool HasFilter =>
+        !string.IsNullOrWhiteSpace(_search) ||
+        _methodFilter != Catalog.PurchaseFilterTypes[0] ||
+        !string.IsNullOrWhiteSpace(_yearFilter) ||
+        !string.IsNullOrWhiteSpace(_statusFilter);
+
+    // ---------------------------------------------------------------- YÜKLƏMƏ ---
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _rows = (await CarService.GetAllCarsAsync())
+                .Where(c => c.AlisQiymeti > 0 || c.IsBarter)
+                .OrderByDescending(c => c.AlisTarixi ?? c.YaradilmaTarixi)
+                .ThenByDescending(c => c.Id)
+                .ToList();
+
+            _stats = CarService.BuildPurchaseStats(_rows);
+            _average = Average(_stats.Total, _stats.Count);
+            _barterShare = Share(_stats.BarterCount, _stats.Count);
+
+            _years = _rows
+                .Select(c => (c.AlisTarixi ?? c.YaradilmaTarixi).Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToList();
+
+            BuildChart();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Alışlar yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // -------------------------------------------------------------- FİLTRLƏMƏ ---
+    private void ApplyFilter()
+    {
+        IEnumerable<CarItem> query = _rows;
+
+        // Üsul: Nağd / Barter
+        if (_methodFilter == Catalog.PurchaseFilterTypes[1])
+        {
+            query = query.Where(c => !c.IsBarter);
+        }
+        else if (_methodFilter == Catalog.PurchaseFilterTypes[2])
+        {
+            query = query.Where(c => c.IsBarter);
+        }
+
+        // İl
+        if (int.TryParse(_yearFilter, out var year))
+        {
+            query = query.Where(c => (c.AlisTarixi ?? c.YaradilmaTarixi).Year == year);
+        }
+
+        // Status
+        if (!string.IsNullOrWhiteSpace(_statusFilter))
+        {
+            query = query.Where(c => c.Status == _statusFilter);
+        }
+
+        // Axtarış: marka, nömrə, VIN, barter təsviri, alış saatı
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(c =>
+                Contains(c.Marka, term) ||
+                Contains(c.QeydiyyatNisani, term) ||
+                Contains(c.Vin, term) ||
+                Contains(c.BarterTesviri, term) ||
+                Contains(c.AlisSaati, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _methodFilter = Catalog.PurchaseFilterTypes[0];
+        _yearFilter = string.Empty;
+        _statusFilter = string.Empty;
+        ApplyFilter();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    // ----------------------------------------------------------------- QRAFİK ---
+    /// <summary>Son 12 ay üzrə nağd / barter alışlarını hesablayır.</summary>
+    private void BuildChart()
+    {
+        var today = DateTime.Today;
+        var start = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
+
+        var columns = new List<(string Label, decimal Cash, decimal Barter, int Count)>();
+
+        for (var i = 0; i < 12; i++)
+        {
+            var from = start.AddMonths(i);
+            var to = from.AddMonths(1);
+
+            var month = _rows
+                .Where(c =>
+                {
+                    var date = c.AlisTarixi ?? c.YaradilmaTarixi;
+                    return date >= from && date < to;
+                })
+                .ToList();
+
+            columns.Add((
+                $"{AppFormat.MonthShort(from.Month)} {from:yy}",
+                month.Where(c => !c.IsBarter).Sum(c => c.AlisQiymeti),
+                month.Where(c => c.IsBarter).Sum(c => c.AlisQiymeti),
+                month.Count));
+        }
+
+        _chartMax = columns
+            .SelectMany(c => new[] { c.Cash, c.Barter })
+            .DefaultIfEmpty(0m)
+            .Max();
+
+        var maxCount = columns.DefaultIfEmpty().Max(c => c.Count);
+
+        _chart = columns
+            .Select(c => new ChartCol(
+                c.Label,
+                c.Cash,
+                c.Barter,
+                c.Count,
+                maxCount <= 0 ? 0 : Math.Max(2, (double)c.Count / maxCount * 100)))
+            .ToList();
+    }
+
+    /// <summary>Dəyəri qrafik hündürlüyünə (faiz) çevirir.</summary>
+    private static double Scale(decimal value, decimal max)
+        => max <= 0 ? 0 : Math.Max(2, (double)(value / max) * 100);
+
+    /// <summary>Faiz payı (0–100).</summary>
+    private static decimal Share(int part, int total)
+        => total <= 0 ? 0m : Math.Round((decimal)part * 100m / total, 1);
+
+    /// <summary>Orta məbləğ (bölmə sıfırdırsa 0).</summary>
+    private static decimal Average(decimal total, int count)
+        => count <= 0 ? 0m : Math.Round(total / count, 2);
+
+    // ========================================================================
+    //   CANLI SİNXRONİZASİYA  -  masaustu tetbiq  <->  veb sayt
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

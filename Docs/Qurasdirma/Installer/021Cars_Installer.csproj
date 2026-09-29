@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ======================================================================
+       📦 021Cars — QURAŞDIRICI (INSTALLER) ✓✓✓
+       ✅ WPF tətbiq → 021Cars_Installer.exe (əsl .exe ✓ — ps1 DEYİL ✗)
+       ✅ Quraşdırma yerini seçmək ✓ (default C:\Program Files\021Cars ✓)
+       ✅ Qısayollar + «Proqramlar və Xüsusiyyətlər» qeydiyyatı ✓
+       ✅ Öz surətini {app}\Uninstaller.exe kimi yazır ✓✓✓
+       ====================================================================== -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>021Cars_Installer</AssemblyName>
+    <RootNamespace>Cas0201.Setup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>6.2.0</Version>
+    <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
+    <Product>021Cars — Avtomobil Parkı</Product>
+    <Company>021Cars</Company>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <StartupObject>Cas0201.Setup.Program</StartupObject>
+  </PropertyGroup>
+
+  <!-- ======================================================================
+       ★★★ TƏK FAYLLI INSTALLER ✓✓✓ ★★★
+       payload.zip → .EXE-İN İÇİNƏ gömülür ✓ → müştəriyə YALNIZ BİR .exe gedir ✓
+       (zip yoxdursa ✗ → yanındaki payload\ qovluğu da işləyir ✓ ehtiyat ✓)
+       ====================================================================== -->
+  <ItemGroup Condition="Exists('payload.zip')">
+    <EmbeddedResource Include="payload.zip">
+      <LogicalName>payload.zip</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

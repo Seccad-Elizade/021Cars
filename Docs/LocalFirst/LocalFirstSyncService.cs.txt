@@ -1,0 +1,1473 @@
+// ============================================================================
+//  🔄  LOCAL-FIRST SİNXRONİZASİYA MÜHƏRRİKİ  ·  C# (.NET 8)
+// ----------------------------------------------------------------------------
+//  ÜÇ MƏNBƏ:  🖥️ Yerli SQLite  ⇄  💾 Fləşkart SQLite  ⇄  ☁️ Bulud PostgreSQL
+//
+//  Prinsiplər:
+//   ① Hər sətirdə Id · UpdatedAt (UTC) · UpdatedBy · IsDeleted ✓
+//   ② LWW (Last-Write-Wins): UpdatedAt böyük olan üstün ✓
+//      bərabərdirsə → UpdatedBy ordinal müqayisəsi (deterministik ✓)
+//   ③ Yeni qeydlər MERGE olunur ✓ — heç bir sətir İTMİR ✗
+//   ④ Soft-delete sinxronlaşır ✓ → fiziki silinmə yoxdur ✗
+//   ⑤ Hər faz try/catch içindədir ✓ → UI DONMUR ✗, log yazılır ✓
+//   ⑥ Fləşkart yoxdursa/cıxarılsa → faz atlanır, proqram çökmür ✓
+//   ⑦ Hər toplu TRANZAKSİYA içindədir ✓ (Zero Data Loss ✓)
+//
+//  ⚠ Bu faylın adı «.cs.txt»-dir — repoya zərər verməmək üçün (build-ə
+//    daxil edilmir ✗). İstifadə: faylı layihənizə `LocalFirstSyncService.cs`
+//    kimi köçürün ✓ və NuGet paketlərini əlavə edin:
+//        dotnet add package Microsoft.Data.Sqlite
+//        dotnet add package Npgsql
+// ============================================================================
+
+using System.Collections.Concurrent;
+using Microsoft.Data.Sqlite;
+
+namespace EnterpriseAeroStudio.Sync;
+
+// ---------------------------------------------------------------------------
+//  ⚙️ KONFİQURASİYA
+// ---------------------------------------------------------------------------
+public sealed class SyncOptions
+{
+    /// <summary>🖥️ Yerli bazanın yolu (kompüter).</summary>
+    public string LocalDbPath { get; set; } = "local.db";
+
+    /// <summary>💾 Fləşkartdakı baza faylının kökə nisbətən yolu.</summary>
+    public string FlashDbRelativePath { get; set; } = @"data\backup.db";
+
+    /// <summary>🔑 Fləşkartı tanıyan marker faylın adı (kök qovluqda ✓).</summary>
+    public string FlashLockFile { get; set; } = "021cars_drive.lock";
+
+    /// <summary>⚙️ Fləşkartı tanıyan marker faylın adı (baza qovluğu).</summary>
+    public string FlashLockFileInData { get; set; } = "021cars_drive.lock";
+
+    /// <summary>☁️ PostgreSQL bağlantı sətri (Firebase / Supabase / öz server).</summary>
+    public string? CloudConnectionString { get; set; }
+
+    /// <summary>⏱️ Şəbəkə əməliyyatları üçün timeout (saniyə).</summary>
+    public int TimeoutSeconds { get; set; } = 30;
+
+    /// <summary>📦 Bir tranzaksiyada göndərilən maksimum sətir sayı.</summary>
+    public int BatchSize { get; set; } = 500;
+
+    /// <summary>🔄 Uğursuz şəbəkə cəhdi üçün maksimum təkrar sayı.</summary>
+    public int MaxRetries { get; set; } = 3;
+
+    /// <summary>⏲️ Saat fərqinə dözüm (saniyə) — gələcək tarixlər sıxılır ✓.</summary>
+    public int ClockSkewSeconds { get; set; } = 300;
+
+    /// <summary>🪟 Nazik kənar: hər dəfə bu qədər geriyə baxılır ✓ (sətir itkisi olmasın ✗).</summary>
+    public TimeSpan CursorOverlap { get; set; } = TimeSpan.FromMinutes(2);
+}
+
+// ---------------------------------------------------------------------------
+//  📋 CƏDVƏL REYESTRİ — SQLite (PascalCase) ⇄ PostgreSQL (snake_case)
+// ---------------------------------------------------------------------------
+public sealed record SyncTable(string LocalName, string Key, string[] Columns)
+{
+    /// <summary>☁️ PostgreSQL-dəki adı: «Cars» → «cars» ✓</summary>
+    public string CloudName => Yu.ToSnake(LocalName);
+
+    /// <summary>Sinxronlaşan BÜTÜN sütunlar (açar daxil ✓).</summary>
+    public IEnumerable<string> AllColumns
+    {
+        get
+        {
+            yield return Key;
+            foreach (var c in Columns)
+            {
+                yield return c;
+            }
+        }
+    }
+}
+
+/// <summary>🧰 Kiçik köməkçilər.</summary>
+internal static class Yu
+{
+    /// <summary>«QeydiyyatNisani» → «qeydiyyat_nisani» ✓</summary>
+    public static string ToSnake(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return name;
+
+        var sb = new System.Text.StringBuilder(name.Length + 8);
+
+        for (var i = 0; i < name.Length; i++)
+        {
+            var ch = name[i];
+
+            if (char.IsUpper(ch))
+            {
+                if (i > 0) sb.Append('_');
+                sb.Append(char.ToLowerInvariant(ch));
+            }
+            else
+            {
+                sb.Append(ch);
+            }
+        }
+
+        return sb.ToString();
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  🧩 SİNXRON SƏTRİ — hər cədvəlin bir sətri (sütun adı → dəyər ✓)
+// ---------------------------------------------------------------------------
+public sealed class SyncRow
+{
+    public required string Table { get; init; }
+
+    public required Dictionary<string, object?> Values { get; init; }
+
+    public string Id => Convert.ToString(Values.GetValueOrDefault("Id")) ?? string.Empty;
+
+    public string DeviceId => Convert.ToString(Values.GetValueOrDefault("UpdatedBy")) ?? string.Empty;
+
+    public bool IsDeleted => Values.TryGetValue("IsDeleted", out var v)
+                             && v is not null
+                             && Convert.ToInt64(v) != 0;
+
+    /// <summary>🕒 UTC dəyəri — həm mətn, həm DateTime-dan oxunur ✓</summary>
+    public DateTime UpdatedAtUtc
+    {
+        get
+        {
+            var raw = Values.GetValueOrDefault("UpdatedAt");
+
+            return raw switch
+            {
+                DateTime dt => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+                string s when DateTime.TryParse(s, null,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal |
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var p) => p,
+                _ => DateTime.MinValue
+            };
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  🗄️ MAĞAZA MÜQAVİLƏSİ — SQLite (yerli/fləş) və PostgreSQL eyni interfeysi
+//     tətbiq edir ✓ → mühərrik mənbədən asılı deyil ✓✓✓
+// ---------------------------------------------------------------------------
+public interface ISyncStore : IAsyncDisposable
+{
+    /// <summary>Adı («Yerli» · «Fləşkart» · «Bulud» ✓) — log üçün.</summary>
+    string Name { get; }
+
+    /// <summary>🟢 Hazırdır? (fləşkart taxılmayıbsa ✗ / şəbəkə yoxdursa ✗)</summary>
+    Task<bool> IsAvailableAsync(CancellationToken ct);
+
+    /// <summary>🔍 Cədvəlin strukturunu hazırlayır (yoxdursa yaradır ✓).</summary>
+    Task EnsureSchemaAsync(IReadOnlyList<SyncTable> tables, CancellationToken ct);
+
+    /// <summary>📤 Verilən tarixdən SONRA dəyişən sətirlər (səhifə-səhifə ✓).</summary>
+    Task<IReadOnlyList<SyncRow>> GetChangedAsync(SyncTable table, DateTime sinceUtc, int limit, CancellationToken ct);
+
+    /// <summary>📥 Sətirləri UPSERT edir (tək tranzaksiya ✓ — Zero Data Loss ✓).</summary>
+    Task<int> UpsertAsync(SyncTable table, IReadOnlyList<SyncRow> rows, CancellationToken ct);
+
+    /// <summary>🕒 Cədvəldəki ən böyük UpdatedAt (boşdursa null ✓).</summary>
+    Task<DateTime?> GetMaxUpdatedAtAsync(SyncTable table, CancellationToken ct);
+}
+
+// ---------------------------------------------------------------------------
+//  💾 FLƏŞKART AŞKARLAYICI — «021cars_drive.lock» marker faylı ilə ✓✓✓
+//     ⚠ Fləşkartın hərfi dəyişə bilər (E:, F:, G: …) ✗ → hər dəfə yenidən
+//       skan edilir ✓ və nəticə keşlənir ✓
+// ---------------------------------------------------------------------------
+public sealed class FlashDriveLocator
+{
+    private readonly SyncOptions _opt;
+    private readonly Action<string>? _log;
+    private (string Root, DateTime CheckedAt)? _cache;
+
+    public FlashDriveLocator(SyncOptions opt, Action<string>? log = null)
+    {
+        _opt = opt;
+        _log = log;
+    }
+
+    /// <summary>💾 Fləşkartın kök qovluğu (tapılmazsa null ✗).</summary>
+    public string? Find(int cacheSeconds = 30)
+    {
+        try
+        {
+            if (_cache is { } c && (DateTime.UtcNow - c.CheckedAt).TotalSeconds < cacheSeconds)
+            {
+                return string.IsNullOrEmpty(c.Root) ? null : c.Root;
+            }
+
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (!drive.IsReady || drive.DriveType is not (DriveType.Removable or DriveType.Fixed))
+                    {
+                        continue;
+                    }
+
+                    var root = drive.RootDirectory.FullName;
+
+                    // ✓ ① kökdə marker ✓  ② data qovluğunda marker ✓
+                    if (File.Exists(Path.Combine(root, _opt.FlashLockFile))
+                        || File.Exists(Path.Combine(root, "data", _opt.FlashLockFileInData)))
+                    {
+                        _cache = (root, DateTime.UtcNow);
+                        _log?.Invoke($"💾 Fləşkart TAPILDI ✓: {root}");
+
+                        return root;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // ✗ bir disk oxunmursa QƏTİYYƏN çökmürük ✗ — davam ✓
+                    _log?.Invoke($"⚠️ Disk yoxlanıla bilmədi ({drive.Name}): {ex.Message}");
+                }
+            }
+
+            _cache = (string.Empty, DateTime.UtcNow);
+            _log?.Invoke("💾 Fləşkart TAPILMADI ✗ — sənəd əməliyyatları məhdud olacaq ✓");
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("❌ Fləşkart aşkarlanmasında xəta: " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>💾 Fləşkartdaki baza faylının tam yolu ✓ (yoxdursa null ✗).</summary>
+    public string? FindDbPath()
+    {
+        var root = Find();
+
+        return root is null ? null : Path.Combine(root, _opt.FlashDbRelativePath);
+    }
+
+    /// <summary>🔎 Verilən yol hazırda mövcud fləşkartdakı yoldur? ✓</summary>
+    public bool StillMounted(string? dbPath)
+    {
+        if (string.IsNullOrWhiteSpace(dbPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var root = Path.GetPathRoot(dbPath);
+
+            return !string.IsNullOrEmpty(root) && Directory.Exists(root);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+//  💾 FLƏŞKART AŞKARLAYICI — «021cars_drive.lock» marker faylı ilə ✓✓✓
+//     ⚠ Fləşkartın hərfi dəyişə bilər (E:, F:, G: …) ✗ → hər dəfə yenidən
+//       skan edilir ✓, nəticə qısa müddət keşlənir ✓, xəta halında çökmür ✗
+// ---------------------------------------------------------------------------
+public sealed class FlashDriveLocator
+{
+    private readonly SyncOptions _opt;
+    private readonly Action<string>? _log;
+    private (string Root, DateTime CheckedAt)? _cache;
+
+    public FlashDriveLocator(SyncOptions opt, Action<string>? log = null)
+    {
+        _opt = opt;
+        _log = log;
+    }
+
+    /// <summary>💾 Fləşkartın kök qovluğu (tapılmazsa <c>null</c> ✗).</summary>
+    public string? Find(int cacheSeconds = 30)
+    {
+        try
+        {
+            if (_cache is { } c && (DateTime.UtcNow - c.CheckedAt).TotalSeconds < cacheSeconds)
+            {
+                return string.IsNullOrEmpty(c.Root) ? null : c.Root;
+            }
+
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                try
+                {
+                    if (!drive.IsReady
+                        || drive.DriveType is not (DriveType.Removable or DriveType.Fixed))
+                    {
+                        continue;
+                    }
+
+                    var root = drive.RootDirectory.FullName;
+
+                    // ✓ ① kökdə marker ✓  ② «data» qovluğunda marker ✓
+                    if (File.Exists(Path.Combine(root, _opt.FlashLockFile))
+                        || File.Exists(Path.Combine(root, "data", _opt.FlashLockFileInData)))
+                    {
+                        _cache = (root, DateTime.UtcNow);
+                        _log?.Invoke($"💾 Fləşkart TAPILDI ✓: {root}");
+
+                        return root;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // ✗ bir disk oxunmursa QƏTİYYƏN çökmürük ✗ → davam ✓
+                    _log?.Invoke($"⚠️ Disk yoxlanıla bilmədi ({drive.Name}): {ex.Message}");
+                }
+            }
+
+            _cache = (string.Empty, DateTime.UtcNow);
+            _log?.Invoke("💾 Fləşkart TAPILMADI ✗ — sənəd əməliyyatları məhdud olacaq ✓");
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("❌ Fləşkart aşkarlanmasında xəta: " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>💾 Fləşkartdaki baza faylının tam yolu ✓ (yoxdursa null ✗).</summary>
+    public string? FindDbPath()
+    {
+        var root = Find();
+
+        return root is null ? null : Path.Combine(root, _opt.FlashDbRelativePath);
+    }
+
+    /// <summary>🔎 Verilən fləşkart yolu HƏLƏ də mövcuddur? (çıxarılıbsa ✗)</summary>
+    public bool StillMounted(string? dbPath)
+    {
+        if (string.IsNullOrWhiteSpace(dbPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var root = Path.GetPathRoot(dbPath);
+
+            return !string.IsNullOrEmpty(root) && Directory.Exists(root);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  🖥️/💾 SQLITE MAĞAZASI — YERLİ KOMPÜTER və FLƏŞKART üçün EYNİ sinif ✓✓✓
+// ---------------------------------------------------------------------------
+public sealed class SqliteSyncStore : ISyncStore
+{
+    private readonly Action<string>? _log;
+    private readonly string _cs;
+
+    public string Name { get; }
+
+    public string DbPath { get; }
+
+    public SqliteSyncStore(string name, string dbPath, SyncOptions opt, Action<string>? log = null)
+    {
+        Name = name;
+        DbPath = dbPath;
+        _log = log;
+        _cs = new SqliteConnectionStringBuilder
+        {
+            DataSource = dbPath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Shared,
+            Pooling = true
+        }.ToString();
+    }
+
+    /// <summary>🕒 Tarix sütunları — HƏMİŞƏ UTC MƏTN kimi ✓ (mətn sıralanır ✓)</summary>
+    private static bool TarixSutunu(string ad)
+        => ad.EndsWith("UpdatedAt", StringComparison.Ordinal)
+           || ad.Equals("DeletedAt", StringComparison.Ordinal)
+           || ad.EndsWith("Tarixi", StringComparison.Ordinal)
+           || ad.Equals("Tarix", StringComparison.Ordinal);
+
+    /// <summary>🔁 Dəyəri SQLite üçün NORMALLAŞDIRIR ✓ (UTC mətn · 0/1 ✓)</summary>
+    private static object? Deyer(string sutun, object? v)
+    {
+        if (v is null)
+        {
+            return DBNull.Value;
+        }
+
+        if (v is DateTime dt)
+        {
+            return dt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff");
+        }
+
+        if (v is bool b)
+        {
+            return b ? 1L : 0L;
+        }
+
+        if (TarixSutunu(sutun) && v is string s && DateTime.TryParse(s, out var p))
+        {
+            return p.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff");
+        }
+
+        return v;
+    }
+
+    public async Task<bool> IsAvailableAsync(CancellationToken ct)
+    {
+        try
+        {
+            var qovluq = Path.GetDirectoryName(DbPath);
+
+            if (!string.IsNullOrWhiteSpace(qovluq))
+            {
+                Directory.CreateDirectory(qovluq);
+            }
+
+            await using var c = new SqliteConnection(_cs);
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = "SELECT 1";
+            await cmd.ExecuteScalarAsync(ct);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // ✓ fləşkart çıxarılıbsa / fayl kilidlidirsə → SƏSSİZCƏ false ✓
+            _log?.Invoke($"⚠️ {Name}: əlçatan deyil ✗ — {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task EnsureSchemaAsync(IReadOnlyList<SyncTable> tables, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = new SqliteConnection(_cs);
+            await c.OpenAsync(ct);
+
+            await using var pragma = c.CreateCommand();
+            pragma.CommandText =
+                "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;";
+            await pragma.ExecuteNonQueryAsync(ct);
+
+            foreach (var t in tables)
+            {
+                var sutunlar = string.Join(", ",
+                    t.AllColumns.Select(x => $"\"{x}\" {(x == t.Key ? "TEXT PRIMARY KEY" : "TEXT")}"));
+
+                await using var cmd = c.CreateCommand();
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS \"{t.LocalName}\" ({sutunlar});";
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            await using var extra = c.CreateCommand();
+            extra.CommandText = @"
+                CREATE TABLE IF NOT EXISTS SyncState (
+                    Id TEXT PRIMARY KEY, TableName TEXT, TargetName TEXT,
+                    LastSyncedAt TEXT, LastRunAt TEXT, SentCount INTEGER,
+                    ReceivedCount INTEGER, ConflictCount INTEGER, ErrorCount INTEGER,
+                    UNIQUE (TableName, TargetName));
+
+                CREATE TABLE IF NOT EXISTS SyncLog (
+                    Id TEXT PRIMARY KEY, RunAt TEXT, PeerName TEXT, Phase TEXT,
+                    TableName TEXT, Sent INTEGER, Received INTEGER,
+                    Conflicts INTEGER, Success INTEGER, Message TEXT);";
+            await extra.ExecuteNonQueryAsync(ct);
+
+            _log?.Invoke($"✅ {Name}: sxem hazırdır ✓ ({tables.Count} cədvəl)");
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"❌ {Name}: sxem yaradıla bilmədi — {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>📤 Verilən tarixdən SONRA dəyişən sətirlər ✓ (səhifə-səhifə ✓)</summary>
+    public async Task<IReadOnlyList<SyncRow>> GetChangedAsync(
+        SyncTable table, DateTime sinceUtc, int limit, CancellationToken ct)
+    {
+        var netice = new List<SyncRow>();
+
+        try
+        {
+            await using var c = new SqliteConnection(_cs);
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText =
+                $"SELECT {string.Join(", ", table.AllColumns.Select(x => $"\"{x}\""))} " +
+                $"FROM \"{table.LocalName}\" WHERE \"UpdatedAt\" > $since " +
+                "ORDER BY \"UpdatedAt\" ASC LIMIT $limit;";
+
+            cmd.Parameters.AddWithValue("$since",
+                sinceUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            cmd.Parameters.AddWithValue("$limit", limit);
+
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+
+            while (await r.ReadAsync(ct))
+            {
+                var d = new Dictionary<string, object?>(table.AllColumns.Count(), StringComparer.Ordinal);
+
+                for (var i = 0; i < r.FieldCount; i++)
+                {
+                    var ad = r.GetName(i);
+                    d[ad] = r.IsDBNull(i) ? null : Deyer(ad, r.GetValue(i));
+                }
+
+                netice.Add(new SyncRow { Table = table.LocalName, Values = d });
+            }
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ {Name}.{table.LocalName}: oxuna bilmədi — {ex.Message}");
+        }
+
+        return netice;
+    }
+
+    /// <summary>📥 UPSERT — TƏK TRANZAKSİYA ✓ → ya hamısı, ya heç biri ✓✓✓</summary>
+    public async Task<int> UpsertAsync(SyncTable table, IReadOnlyList<SyncRow> rows, CancellationToken ct)
+    {
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        var sutunlar = table.AllColumns.ToList();
+        var say = 0;
+
+        try
+        {
+            await using var c = new SqliteConnection(_cs);
+            await c.OpenAsync(ct);
+
+            await using var tx = await c.BeginTransactionAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.Transaction = (SqliteTransaction)tx;
+
+            cmd.CommandText =
+                $"INSERT INTO \"{table.LocalName}\" ({string.Join(", ", sutunlar.Select(x => $"\"{x}\""))}) " +
+                $"VALUES ({string.Join(", ", sutunlar.Select(x => "$" + x))}) " +
+                $"ON CONFLICT(\"{table.Key}\") DO UPDATE SET " +
+                string.Join(", ", sutunlar
+                    .Where(x => x != table.Key)
+                    .Select(x => $"\"{x}\" = excluded.\"{x}\"")) + ";";
+
+            foreach (var sutun in sutunlar)
+            {
+                cmd.Parameters.Add(new SqliteParameter("$" + sutun, DBNull.Value));
+            }
+
+            foreach (var row in rows)
+            {
+                foreach (var sutun in sutunlar)
+                {
+                    cmd.Parameters["$" + sutun].Value =
+                        Deyer(sutun, row.Values.GetValueOrDefault(sutun));
+                }
+
+                say += await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"❌ {Name}.{table.LocalName}: yazıla bilmədi ✗ ({say} sətir geri alındı ✓) — {ex.Message}");
+            return 0;
+        }
+
+        return say;
+    }
+
+    /// <summary>🕒 Cədvəldəki ən böyük UpdatedAt (boşdursa null ✓)</summary>
+    public async Task<DateTime?> GetMaxUpdatedAtAsync(SyncTable table, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = new SqliteConnection(_cs);
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = $"SELECT MAX(\"UpdatedAt\") FROM \"{table.LocalName}\";";
+
+            var netice = await cmd.ExecuteScalarAsync(ct);
+
+            return netice is null || netice is DBNull
+                ? null
+                : DateTime.TryParse(Convert.ToString(netice), out var p) ? p.ToUniversalTime() : null;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ {Name}.{table.LocalName}: MAX(UpdatedAt) oxunmadı — {ex.Message}");
+            return null;
+        }
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+// ---------------------------------------------------------------------------
+//  ☁️ POSTGRESQL MAĞAZASI (Bulud / Firebase) — Npgsql ilə ✓✓✓
+//     • Cədvəl adları: cars · customers … (snake_case ✓)
+//     • Id → uuid · UpdatedAt → timestamptz · IsDeleted → boolean ✓
+// ---------------------------------------------------------------------------
+public sealed class PostgresSyncStore : ISyncStore
+{
+    private readonly string _cs;
+    private readonly SyncOptions _opt;
+    private readonly Action<string>? _log;
+
+    public string Name => "Bulud";
+
+    public PostgresSyncStore(string connectionString, SyncOptions opt, Action<string>? log = null)
+    {
+        _cs = connectionString;
+        _opt = opt;
+        _log = log;
+    }
+
+    private Npgsql.NpgsqlConnection Baglanti() => new(_cs);
+
+    public async Task<bool> IsAvailableAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+            {
+                _log?.Invoke("☁️ İnternet YOXDUR ✗ — bulud fazası atlanır ✓");
+                return false;
+            }
+
+            await using var c = Baglanti();
+            await c.OpenAsync(ct);
+
+            await using var cmd = new Npgsql.NpgsqlCommand("SELECT 1", c);
+            await cmd.ExecuteScalarAsync(ct);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"☁️ Bulud əlçatan deyil ✗ — {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task EnsureSchemaAsync(IReadOnlyList<SyncTable> tables, CancellationToken ct)
+    {
+        // ☁️ Sxem SQL skripti ilə yaradılır ✓ (Schema_PostgreSQL.sql) —
+        //     burada yalnız mövcudluq yoxlanılır ✓
+        try
+        {
+            await using var c = Baglanti();
+            await c.OpenAsync(ct);
+
+            foreach (var t in tables)
+            {
+                await using var cmd = new Npgsql.NpgsqlCommand(
+                    "SELECT to_regclass(@t) IS NOT NULL;", c);
+                cmd.Parameters.AddWithValue("t", $"public.{t.CloudName}");
+
+                var var_ = await cmd.ExecuteScalarAsync(ct);
+
+                if (var_ is false)
+                {
+                    _log?.Invoke($"⚠️ Buludda cədvəl yoxdur ✗: {t.CloudName} (skripti işə salın ✓)");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("⚠️ Bulud sxemi yoxlanıla bilmədi: " + ex.Message);
+        }
+    }
+
+    /// <summary>🔁 PostgreSQL üçün dəyər (uuid · timestamptz · boolean ✓)</summary>
+    private static object Deyer(string sutun, object? v)
+    {
+        if (v is null)
+        {
+            return DBNull.Value;
+        }
+
+        if (sutun.Equals("Id", StringComparison.Ordinal)
+            || sutun.EndsWith("Id", StringComparison.Ordinal))
+        {
+            return Guid.TryParse(Convert.ToString(v), out var g) ? g : (object)DBNull.Value;
+        }
+
+        if (v is DateTime dt)
+        {
+            return DateTime.SpecifyKind(dt.ToUniversalTime(), DateTimeKind.Utc);
+        }
+
+        if (sutun.Equals("IsDeleted", StringComparison.Ordinal))
+        {
+            return Convert.ToInt64(v) != 0;
+        }
+
+        return v;
+    }
+
+    public async Task<IReadOnlyList<SyncRow>> GetChangedAsync(
+        SyncTable table, DateTime sinceUtc, int limit, CancellationToken ct)
+    {
+        var netice = new List<SyncRow>();
+
+        try
+        {
+            await using var c = Baglanti();
+            await c.OpenAsync(ct);
+
+            var sutunlar = string.Join(", ", table.AllColumns.Select(x => $"\"{Yu.ToSnake(x)}\""));
+
+            await using var cmd = new Npgsql.NpgsqlCommand(
+                $"SELECT {sutunlar} FROM \"{table.CloudName}\" " +
+                "WHERE \"updated_at\" > @since ORDER BY \"updated_at\" ASC LIMIT @limit;", c);
+
+            cmd.Parameters.AddWithValue("since", DateTime.SpecifyKind(sinceUtc.ToUniversalTime(), DateTimeKind.Utc));
+            cmd.Parameters.AddWithValue("limit", limit);
+
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+
+            while (await r.ReadAsync(ct))
+            {
+                var d = new Dictionary<string, object?>(table.AllColumns.Count(), StringComparer.Ordinal);
+
+                for (var i = 0; i < r.FieldCount; i++)
+                {
+                    var lokalAd = table.AllColumns.ElementAt(i);
+                    var v = r.IsDBNull(i) ? null : r.GetValue(i);
+
+                    // ✓ uuid / timestamptz → mətn (SQLite ilə EYNİ format ✓)
+                    d[lokalAd] = v switch
+                    {
+                        Guid g => g.ToString(),
+                        DateTime dt => dt.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                        bool b => b ? 1L : 0L,
+                        _ => v
+                    };
+                }
+
+                netice.Add(new SyncRow { Table = table.LocalName, Values = d });
+            }
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ Bulud.{table.CloudName}: oxuna bilmədi — {ex.Message}");
+        }
+
+        return netice;
+    }
+
+    /// <summary>📥 Buluda UPSERT — TƏK TRANZAKSİYA ✓✓✓</summary>
+    public async Task<int> UpsertAsync(SyncTable table, IReadOnlyList<SyncRow> rows, CancellationToken ct)
+    {
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        var sutunlar = table.AllColumns.ToList();
+        var say = 0;
+
+        try
+        {
+            await using var c = Baglanti();
+            await c.OpenAsync(ct);
+            await using var tx = await c.BeginTransactionAsync(ct);
+
+            var adlar = string.Join(", ", sutunlar.Select(x => $"\"{Yu.ToSnake(x)}\""));
+            var parametrler = string.Join(", ",
+                sutunlar.Select((x, i) => $"@{x}_{i}::" + Tip(x)));
+
+            var yenile = string.Join(", ", sutunlar
+                .Where(x => x != table.Key)
+                .Select(x => $"\"{Yu.ToSnake(x)}\" = EXCLUDED.\"{Yu.ToSnake(x)}\""));
+
+            await using var cmd = new Npgsql.NpgsqlCommand(
+                $"INSERT INTO \"{table.CloudName}\" ({adlar}) VALUES ({parametrler}) " +
+                $"ON CONFLICT (\"{Yu.ToSnake(table.Key)}\") DO UPDATE SET {yenile};", c);
+
+            cmd.Transaction = (Npgsql.NpgsqlTransaction)tx;
+
+            foreach (var row in rows)
+            {
+                cmd.Parameters.Clear();
+
+                for (var i = 0; i < sutunlar.Count; i++)
+                {
+                    cmd.Parameters.AddWithValue(
+                        $"{sutunlar[i]}_{i}",
+                        Deyer(sutunlar[i], row.Values.GetValueOrDefault(sutunlar[i])));
+                }
+
+                say += await cmd.ExecuteNonQueryAsync(ct);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"❌ Bulud.{table.CloudName}: yazıla bilmədi ✗ ({say} sətir geri alındı ✓) — {ex.Message}");
+            return 0;
+        }
+
+        return say;
+    }
+
+    /// <summary>🗂️ Sütunun PostgreSQL tipi (cast üçün ✓)</summary>
+    private static string Tip(string sutun)
+    {
+        if (sutun.Equals("Id", StringComparison.Ordinal)
+            || sutun.EndsWith("Id", StringComparison.Ordinal))
+        {
+            return "uuid";
+        }
+
+        if (sutun.EndsWith("UpdatedAt", StringComparison.Ordinal)
+            || sutun.Equals("DeletedAt", StringComparison.Ordinal)
+            || sutun.EndsWith("Tarixi", StringComparison.Ordinal)
+            || sutun.Equals("Tarix", StringComparison.Ordinal))
+        {
+            return "timestamptz";
+        }
+
+        if (sutun.Equals("IsDeleted", StringComparison.Ordinal))
+        {
+            return "boolean";
+        }
+
+        return "text";
+    }
+
+    /// <summary>🕒 Buluddaki ən böyük updated_at (boşdursa null ✓)</summary>
+    public async Task<DateTime?> GetMaxUpdatedAtAsync(SyncTable table, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = Baglanti();
+            await c.OpenAsync(ct);
+
+            await using var cmd = new Npgsql.NpgsqlCommand(
+                $"SELECT MAX(\"updated_at\") FROM \"{table.CloudName}\";", c);
+
+            var v = await cmd.ExecuteScalarAsync(ct);
+
+            return v is DateTime dt ? DateTime.SpecifyKind(dt.ToUniversalTime(), DateTimeKind.Utc) : null;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ Bulud.{table.CloudName}: MAX(updated_at) oxunmadı — {ex.Message}");
+            return null;
+        }
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+// ---------------------------------------------------------------------------
+//  📊 NƏTİCƏ / STATUS modelləri ✓
+// ---------------------------------------------------------------------------
+public sealed record SyncResult
+{
+    public string Source { get; init; } = string.Empty;
+    public string Target { get; init; } = string.Empty;
+    public int Sent { get; set; }
+    public int Received { get; set; }
+    public int Conflicts { get; set; }
+    public int Errors { get; set; }
+    public bool Skipped { get; set; }
+    public TimeSpan Elapsed { get; set; }
+
+    public override string ToString()
+        => Skipped
+            ? $"⏭️ {Source} ⇄ {Target}: ATLANDI ✓ ({Elapsed.TotalSeconds:F1}s)"
+            : $"✅ {Source} ⇄ {Target}: ↑{Sent} ↓{Received} ⚔️{Conflicts} ❌{Errors} ({Elapsed.TotalSeconds:F1}s)";
+}
+
+// ---------------------------------------------------------------------------
+//  🔄  ƏSAS MÜHƏRRİK — LocalFirstSyncService ✓✓✓
+// ---------------------------------------------------------------------------
+public sealed class LocalFirstSyncService
+{
+    private readonly SyncOptions _opt;
+    private readonly Action<string>? _log;
+    private readonly FlashDriveLocator _locator;
+    private readonly SemaphoreSlim _qapi = new(1, 1);
+
+    public SqliteSyncStore Local { get; }
+
+    public FlashDriveLocator Locator => _locator;
+
+    /// <summary>📢 Status mesajı (UI-yə təhlükəsiz çatdırılır ✓ — Dispatcher ilə ✓)</summary>
+    public event Action<string>? StatusChanged;
+
+    /// <summary>✅ Bir faz bitdikdə ✓</summary>
+    public event Action<SyncResult>? ProgressChanged;
+
+    public LocalFirstSyncService(SyncOptions options, Action<string>? log = null)
+    {
+        _opt = options;
+        _log = log;
+        _locator = new FlashDriveLocator(options, log);
+
+        Local = new SqliteSyncStore("Yerli", options.LocalDbPath, options, log);
+    }
+
+    // -----------------------------------------------------------------------
+    //  📋 CƏDVƏL REYESTRİ — sinxronlaşan bütün cədvəllər ✓✓✓
+    // -----------------------------------------------------------------------
+    public static IReadOnlyList<SyncTable> Tables { get; } = new List<SyncTable>
+    {
+        new("Customers", "Id", new[]
+        {
+            "Ad", "Soyad", "AtaAdi", "Telefon", "FinKod", "SeriyaNomre",
+            "Unvan", "Qeyd", "UpdatedAt", "UpdatedBy", "IsDeleted", "DeletedAt"
+        }),
+
+        new("Cars", "Id", new[]
+        {
+            "SiraNomresi", "Marka", "QeydiyyatNisani", "Vin", "Il", "Yurus", "Yanacaq",
+            "AlisTarixi", "AlisUsulu", "AlisQiymeti", "XerclerCemi", "MayaDeyeri",
+            "SatisQiymeti", "Status", "KreditNomresi", "BarterTesviri", "BarterDeyeri",
+            "CustomerId", "UpdatedAt", "UpdatedBy", "IsDeleted", "DeletedAt"
+        }),
+
+        new("Expenses", "Id", new[]
+        {
+            "CarId", "Tarix", "Qrup", "Kategoriya", "Teyinat", "OdenisUsulu",
+            "Mebleg", "Qeyd", "UpdatedAt", "UpdatedBy", "IsDeleted", "DeletedAt"
+        }),
+
+        new("Sales", "Id", new[]
+        {
+            "MuqavileNomresi", "CarId", "CustomerId", "Musteri", "SatisTarixi",
+            "SatisQiymeti", "MayaDeyeri", "Menfeet", "OdenisUsulu", "BarterMebleg",
+            "NagdMebleg", "Qeyd", "UpdatedAt", "UpdatedBy", "IsDeleted", "DeletedAt"
+        }),
+
+        new("CreditTerms", "Id", new[]
+        {
+            "SaleId", "CarId", "CustomerId", "MuqavileNomresi", "Mebleg", "IlkinOdenis",
+            "Kreditlesdirilen", "FaizDerecesi", "KreditQiymeti", "AylıqOdenis",
+            "MuddetAy", "BaslamaTarixi", "Odenilmis", "QaliqBorc", "Status",
+            "UpdatedAt", "UpdatedBy", "IsDeleted", "DeletedAt"
+        })
+    };
+
+    /// <summary>
+    /// 🚀 <b>ARXA FONDA işə salır</b> ✓✓✓ — UI HEÇ VAXT donmur ✗
+    /// <code>
+    /// _sync.RunInBackground();     // ✓ proqram açılanda bir sətir ✓
+    /// </code>
+    /// </summary>
+    public void RunInBackground(CancellationToken ct = default)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await SyncAllAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                // ✓ HEÇ BİR HALDA UI-yə atmırıq ✗ — yalnız log ✓
+                _log?.Invoke("❌ Sinxronizasiya gözlənilməz xəta ilə bitdi: " + ex.Message);
+            }
+        }, ct);
+    }
+
+    /// <summary>
+    /// 🔄 <b>ÜÇ MƏNBƏLİ SİNXRONİZASİYA</b> ✓✓✓
+    /// <list type="number">
+    ///   <item>🖥️ Yerli ⇄ 💾 Fləşkart (fləş taxılmayıbsa atlanır ✗)</item>
+    ///   <item>🖥️ Yerli ⇄ ☁️ Bulud (internet yoxdursa atlanır ✗)</item>
+    /// </list>
+    /// ⚠ Yerli baza «mərkəz» rolunu oynayır ✓ → iki fazadan sonra hər üç mənbə
+    /// eyni vəziyyətə gəlir ✓ (fləş ⇄ bulud dolayı yolla uzlaşır ✓)
+    /// </summary>
+    public async Task<IReadOnlyList<SyncResult>> SyncAllAsync(CancellationToken ct = default)
+    {
+        await _qapi.WaitAsync(ct);
+
+        var neticeler = new List<SyncResult>();
+
+        try
+        {
+            StatusChanged?.Invoke("🔄 Sinxronizasiya başladı...");
+
+            // ---- ① 💾 FLƏŞKART -------------------------------------------------
+            try
+            {
+                var flashYolu = _locator.FindDbPath();
+
+                if (flashYolu is null)
+                {
+                    StatusChanged?.Invoke("💾 Fləşkart YOXDUR ✗ — yalnız yerli baza ilə işləyirik ✓");
+                }
+                else
+                {
+                    await using var flash = new SqliteSyncStore("Fləşkart", flashYolu, _opt, _log);
+
+                    var r = await SyncPairAsync(Local, flash, ct);
+                    neticeler.Add(r);
+                    ProgressChanged?.Invoke(r);
+                    StatusChanged?.Invoke(r.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                // ✓ fləşkart çıxarıldı / oxunmur → SƏSSİZCƏ davam ✓
+                _log?.Invoke("⚠️ Fləşkart fazası alınmadı (davam edirik ✓): " + ex.Message);
+                StatusChanged?.Invoke("⚠️ Fləşkart fazası alınmadı ✓ — proqram normal işləyir ✓");
+            }
+
+            // ---- ② ☁️ BULUD ----------------------------------------------------
+            try
+            {
+                if (string.IsNullOrWhiteSpace(_opt.CloudConnectionString))
+                {
+                    StatusChanged?.Invoke("☁️ Bulud təyin edilməyib ✗ — yalnız lokal/fləş ✓");
+                }
+                else
+                {
+                    await using var cloud = new PostgresSyncStore(_opt.CloudConnectionString!, _opt, _log);
+
+                    if (await cloud.IsAvailableAsync(ct))
+                    {
+                        var r = await SyncPairAsync(Local, cloud, ct);
+                        neticeler.Add(r);
+                        ProgressChanged?.Invoke(r);
+                        StatusChanged?.Invoke(r.ToString());
+                    }
+                    else
+                    {
+                        StatusChanged?.Invoke("☁️ İnternet/bulud yoxdur ✗ — sonra yenidən cəhd olunacaq ✓");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _log?.Invoke("⚠️ Bulud fazası alınmadı (davam edirik ✓): " + ex.Message);
+                StatusChanged?.Invoke("⚠️ Bulud əlçatan olmadı ✓ — məlumatlar YERLİ bazada TƏHLÜKƏSİZDİR ✓");
+            }
+
+            StatusChanged?.Invoke($"✅ Sinxronizasiya bitdi ✓ ({neticeler.Count} faza)");
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("❌ Sinxronizasiya xətası: " + ex.Message);
+        }
+        finally
+        {
+            _qapi.Release();
+        }
+
+        return neticeler;
+    }
+
+    /// <summary>
+    /// 🔁 <b>İKİ MƏNBƏ ARASINDA İKİTƏRƏFLİ SİNXRONİZASİYA</b> ✓✓✓
+    /// ① hər cədvəl üzrə «son sinxronizasiyadan sonra» dəyişənlər oxunur ✓
+    /// ② hər Id üçün LWW (UpdatedAt) ilə qalib seçilir ✓
+    /// ③ yalnız bir tərəfdə olan sətirlər DƏ köçürülür ✓ (MERGE ✓)
+    /// ④ qalib sətir digər tərəfə yazılır ✓ — tranzaksiya içində ✓
+    /// </summary>
+    public async Task<SyncResult> SyncPairAsync(ISyncStore src, ISyncStore tgt, CancellationToken ct)
+    {
+        var sayac = System.Diagnostics.Stopwatch.StartNew();
+        var netice = new SyncResult { Source = src.Name, Target = tgt.Name };
+
+        try
+        {
+            if (!await src.IsAvailableAsync(ct) || !await tgt.IsAvailableAsync(ct))
+            {
+                netice.Skipped = true;
+                netice.Elapsed = sayac.Elapsed;
+
+                return netice;
+            }
+
+            await src.EnsureSchemaAsync(Tables, ct);
+            await tgt.EnsureSchemaAsync(Tables, ct);
+
+            foreach (var table in Tables)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await SyncTableAsync(src, tgt, table, netice, ct);
+                }
+                catch (Exception ex)
+                {
+                    netice.Errors++;
+                    _log?.Invoke($"❌ {src.Name} ⇄ {tgt.Name} · {table.LocalName}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            netice.Errors++;
+            _log?.Invoke($"❌ {src.Name} ⇄ {tgt.Name}: {ex.Message}");
+        }
+        finally
+        {
+            netice.Elapsed = sayac.Elapsed;
+
+            // 📜 Hər faz AYRICA jurnala yazılır ✓ (audit ✓)
+            await LogYazAsync(netice, ct);
+        }
+
+        return netice;
+    }
+
+    /// <summary>🔁 BİR cədvəlin ikitərəfli sinxronizasiyası — LWW + MERGE ✓✓✓</summary>
+    private async Task SyncTableAsync(
+        ISyncStore src, ISyncStore tgt, SyncTable table, SyncResult netice, CancellationToken ct)
+    {
+        var cursor = await CursorAsync(table, tgt.Name, ct);
+
+        var srcXerite = new Dictionary<string, SyncRow>(StringComparer.OrdinalIgnoreCase);
+        var tgtXerite = new Dictionary<string, SyncRow>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var r in await src.GetChangedAsync(table, cursor, _opt.BatchSize, ct))
+        {
+            if (!string.IsNullOrEmpty(r.Id)) srcXerite[r.Id] = r;
+        }
+
+        foreach (var r in await tgt.GetChangedAsync(table, cursor, _opt.BatchSize, ct))
+        {
+            if (!string.IsNullOrEmpty(r.Id)) tgtXerite[r.Id] = r;
+        }
+
+        var tgtDeyisen = new List<SyncRow>();
+        var srcDeyisen = new List<SyncRow>();
+
+        // ✅ MERGE: hər iki tərəfin BÜTÜN Id-ləri birləşdirilir ✓ (heç nə itmir ✗)
+        foreach (var id in srcXerite.Keys.Concat(tgtXerite.Keys)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var s = srcXerite.GetValueOrDefault(id);
+            var t = tgtXerite.GetValueOrDefault(id);
+
+            var qalib = UstunTut(s, t);
+
+            if (qalib is null)
+            {
+                continue;
+            }
+
+            if (ReferenceEquals(qalib, s))
+            {
+                tgtDeyisen.Add(qalib);
+
+                if (t is not null)
+                {
+                    netice.Conflicts++;     // ⚔️ hər iki tərəfdə var idi → həll olundu ✓
+                }
+            }
+            else
+            {
+                srcDeyisen.Add(qalib);
+
+                if (s is not null)
+                {
+                    netice.Conflicts++;
+                }
+            }
+        }
+
+        // 📥 Yazma — HƏR tərəf üçün AYRI tranzaksiya ✓ (Zero Data Loss ✓)
+        if (tgtDeyisen.Count > 0)
+        {
+            netice.Sent += await tgt.UpsertAsync(table, tgtDeyisen, ct);
+        }
+
+        if (srcDeyisen.Count > 0)
+        {
+            netice.Received += await src.UpsertAsync(table, srcDeyisen, ct);
+        }
+
+        var enYeni = srcXerite.Values.Concat(tgtXerite.Values)
+            .Select(r => r.UpdatedAtUtc)
+            .DefaultIfEmpty(DateTime.MinValue)
+            .Max();
+
+        // 📌 Kursor YALNIZ İRƏLİ hərəkət edir ✗✓✓ (geri qayıtma = təkrar yazma ✓)
+        if (enYeni > cursor)
+        {
+            await CursorYazAsync(table, tgt.Name, Sinirla(enYeni), ct);
+        }
+
+        _log?.Invoke(
+            $"   ↳ {table.LocalName}: ↑{tgtDeyisen.Count} ↓{srcDeyisen.Count} (kursor {Sinirla(enYeni):HH:mm:ss}) ✓");
+    }
+
+    /// <summary>
+    /// ⚖️ <b>KONFLİKT HƏLLİ (LWW)</b> ✓✓✓
+    /// <list type="number">
+    ///   <item>UpdatedAt böyük olan üstün tutulur ✓ (ən son dəyişiklik ✓)</item>
+    ///   <item>Bərabərdirsə → <c>UpdatedBy</c> (DeviceId) ordinal müqayisəsi ✓
+    ///         → HƏR İKİ TƏRƏFDƏ EYNİ nəticə ✓ (deterministik ✓, sonsuz dövr yox ✗)</item>
+    /// </list>
+    /// </summary>
+    private SyncRow? UstunTut(SyncRow? a, SyncRow? b)
+    {
+        if (a is null)
+        {
+            return b;
+        }
+
+        if (b is null)
+        {
+            return a;
+        }
+
+        var ta = Sinirla(a.UpdatedAtUtc);
+        var tb = Sinirla(b.UpdatedAtUtc);
+
+        if (ta > tb)
+        {
+            return a;
+        }
+
+        if (tb > ta)
+        {
+            return b;
+        }
+
+        return string.CompareOrdinal(a.DeviceId, b.DeviceId) >= 0 ? a : b;
+    }
+
+    /// <summary>⏲️ Gələcək tarixləri (saat fərqi ✗) indiyə sıxır ✓</summary>
+    private DateTime Sinirla(DateTime utc)
+    {
+        var max = DateTime.UtcNow.AddSeconds(_opt.ClockSkewSeconds);
+
+        return utc > max ? max : utc;
+    }
+
+    /// <summary>
+    /// 📌 Son sinxronizasiya nişanını oxuyur ✓ — <b>nazik kənar</b> ilə ✓
+    /// <para>
+    /// ⚠ Kursorun özü saxlanılır (hər cədvəl × hər hədəf ✓) və hər dəfə
+    /// <see cref="SyncOptions.CursorOverlap"/> qədər GERİYƏ baxılır ✓ →
+    /// sinxronizasiya yarıda kəsilərsə belə <b>sətir İTMİR</b> ✗✓✓
+    /// (təkrar yazma idempotentdir ✓ — UPSERT ✓)
+    /// </para>
+    /// </summary>
+    private async Task<DateTime> CursorAsync(SyncTable table, string targetName, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = new SqliteConnection(
+                new SqliteConnectionStringBuilder { DataSource = Local.DbPath }.ToString());
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText =
+                "SELECT LastSyncedAt FROM SyncState WHERE TableName=$t AND TargetName=$g LIMIT 1;";
+            cmd.Parameters.AddWithValue("$t", table.LocalName);
+            cmd.Parameters.AddWithValue("$g", targetName);
+
+            var v = await cmd.ExecuteScalarAsync(ct);
+
+            if (v is null || v is DBNull)
+            {
+                return DateTime.MinValue;      // ✓ ilk dəfə → hər şey sinxronlaşır ✓
+            }
+
+            var cursor = DateTime.TryParse(Convert.ToString(v), out var p)
+                ? p.ToUniversalTime()
+                : DateTime.MinValue;
+
+            var geri = cursor - _opt.CursorOverlap;
+
+            return geri < DateTime.MinValue ? DateTime.MinValue : geri;
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ Kursor oxunmadı ({table.LocalName}): {ex.Message}");
+            return DateTime.MinValue;
+        }
+    }
+
+    /// <summary>📝 Kursoru yazır ✓ (hər sütun × hədəf üçün bir sətir ✓)</summary>
+    private async Task CursorYazAsync(
+        SyncTable table, string targetName, DateTime syncAtUtc, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = new SqliteConnection(
+                new SqliteConnectionStringBuilder { DataSource = Local.DbPath }.ToString());
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO SyncState
+                    (Id, TableName, TargetName, LastSyncedAt, LastRunAt,
+                     SentCount, ReceivedCount, ConflictCount, ErrorCount)
+                VALUES ($id, $t, $g, $s, $r, 0, 0, 0, 0)
+                ON CONFLICT(TableName, TargetName) DO UPDATE SET
+                    LastSyncedAt = excluded.LastSyncedAt,
+                    LastRunAt    = excluded.LastRunAt;";
+
+            cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            cmd.Parameters.AddWithValue("$t", table.LocalName);
+            cmd.Parameters.AddWithValue("$g", targetName);
+            cmd.Parameters.AddWithValue("$s", syncAtUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            cmd.Parameters.AddWithValue("$r", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke($"⚠️ Kursor yazıla bilmədi ({table.LocalName}): {ex.Message}");
+        }
+    }
+
+    /// <summary>📜 Sinxronizasiya jurnalına bir sətir yazır ✓ (audit ✓)</summary>
+    private async Task LogYazAsync(SyncResult r, CancellationToken ct)
+    {
+        try
+        {
+            await using var c = new SqliteConnection(
+                new SqliteConnectionStringBuilder { DataSource = Local.DbPath }.ToString());
+            await c.OpenAsync(ct);
+
+            await using var cmd = c.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO SyncLog
+                    (Id, RunAt, PeerName, Phase, TableName, Sent, Received,
+                     Conflicts, Success, Message)
+                VALUES ($id, $r, $p, $f, '', $s, $a, $k, $u, $m);";
+
+            cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            cmd.Parameters.AddWithValue("$r", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            cmd.Parameters.AddWithValue("$p", r.Target);
+            cmd.Parameters.AddWithValue("$f", $"{r.Source}⇄{r.Target}");
+            cmd.Parameters.AddWithValue("$s", r.Sent);
+            cmd.Parameters.AddWithValue("$a", r.Received);
+            cmd.Parameters.AddWithValue("$k", r.Conflicts);
+            cmd.Parameters.AddWithValue("$u", r.Errors == 0 ? 1 : 0);
+            cmd.Parameters.AddWithValue("$m", r.ToString());
+
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _log?.Invoke("⚠️ SyncLog yazıla bilmədi: " + ex.Message);
+        }
+    }
+}
+
+// ============================================================================
+//  🧩 İSTİFADƏ NÜMUNƏSİ  (proqram açılanda BİR dəfə ✓ — UI donmur ✗)
+// ----------------------------------------------------------------------------
+//  var sync = new LocalFirstSyncService(new SyncOptions
+//  {
+//      LocalDbPath = Path.Combine(AppContext.BaseDirectory, "data", "local.db"),
+//      FlashDbRelativePath = @"data\backup.db",
+//      FlashLockFile = "021cars_drive.lock",
+//      CloudConnectionString = "Host=…;Port=5432;Database=autosalon;" +
+//                              "Username=…;Password=…;SSL Mode=Require;Timeout=15"
+//  }, log: m => Serilog.Log.Information("{Sync}", m));
+//
+//  // 📢 UI-yə təhlükəsiz bildiriş ✓ (WPF Dispatcher ✓)
+//  sync.StatusChanged += m => Application.Current?.Dispatcher.Invoke(
+//      () => mainVm.StatusMessage = m);
+//
+//  sync.ProgressChanged += r => Serilog.Log.Information("{Faza}", r.ToString());
+//
+//  // 🚀 ARXA FONDA ✓ — proqram açılışını HEÇ VAXT GÖZLƏTMİR ✗✓✓
+//  sync.RunInBackground();
+//
+//  // 🪟 Sənəd əməliyyatları üçün fləşkart yoxlanışı ✓ (çökmə yox ✗):
+//  var flashVar = sync.Locator.Find() is not null;
+// ============================================================================
+
+//  🧩 SİNXRON SƏTRİ — hər cədvəlin bir sətri (sütun adı → dəyər ✓)
+// ---------------------------------------------------------------------------
+public sealed class SyncRow
+{
+    public required string Table { get; init; }
+
+    public required Dictionary<string, object?> Values { get; init; }
+
+    public string Id => Convert.ToString(Values.GetValueOrDefault("Id")) ?? string.Empty;
+
+    public string DeviceId => Convert.ToString(Values.GetValueOrDefault("UpdatedBy")) ?? string.Empty;
+
+    public bool IsDeleted => Values.TryGetValue("IsDeleted", out var v)
+                             && v is not null
+                             && Convert.ToInt64(v) != 0;
+
+    /// <summary>🕒 UTC dəyəri — həm mətn, həm DateTime-dan oxunur ✓</summary>
+    public DateTime UpdatedAtUtc
+    {
+        get
+        {
+            var raw = Values.GetValueOrDefault("UpdatedAt");
+
+            return raw switch
+            {
+                DateTime dt => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+                string s when DateTime.TryParse(s, null,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal |
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var p) => p,
+                _ => DateTime.MinValue
+            };
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  🗄️ MAĞAZA MÜQAVİLƏSİ — SQLite (yerli ✓ / fləş ✓) və PostgreSQL (bulud ✓)
+//     EYNİ interfeysi tətbiq edir → mühərrik mənbədən asılı DEYİL ✓✓✓
+// ---------------------------------------------------------------------------
+public interface ISyncStore : IAsyncDisposable
+{
+    /// <summary>Adı («Yerli» · «Fləşkart» · «Bulud» ✓) — log/status üçün.</summary>
+    string Name { get; }
+
+    /// <summary>🟢 Hazırdır? (fləşkart taxılmayıbsa ✗ / şəbəkə yoxdursa ✗)</summary>
+    Task<bool> IsAvailableAsync(CancellationToken ct);
+
+    /// <summary>🔍 Cədvəl strukturu hazırlanır (yoxdursa yaradılır ✓).</summary>
+    Task EnsureSchemaAsync(IReadOnlyList<SyncTable> tables, CancellationToken ct);
+
+    /// <summary>📤 Verilən tarixdən SONRA dəyişən sətirlər (səhifə-səhifə ✓).</summary>
+    Task<IReadOnlyList<SyncRow>> GetChangedAsync(SyncTable table, DateTime sinceUtc, int limit, CancellationToken ct);
+
+    /// <summary>📥 Sətirləri UPSERT edir — TƏK TRANZAKSİYA ✓ (Zero Data Loss ✓).</summary>
+    Task<int> UpsertAsync(SyncTable table, IReadOnlyList<SyncRow> rows, CancellationToken ct);
+
+    /// <summary>🕒 Cədvəldəki ən böyük UpdatedAt (boşdursa null ✓).</summary>
+    Task<DateTime?> GetMaxUpdatedAtAsync(SyncTable table, CancellationToken ct);
+}

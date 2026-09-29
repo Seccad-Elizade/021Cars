@@ -1,0 +1,92 @@
+<Window x:Class="EnterpriseAeroStudio.Views.GuncellemeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="🚀 Güncəlləmə — 021Cars"
+        Height="470" Width="640" MinHeight="420" MinWidth="560"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        ShowInTaskbar="True" Topmost="True"
+        Background="#0B0F17" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Inter, sans-serif">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================================================ BAŞLIQ === -->
+        <StackPanel Grid.Row="0">
+            <TextBlock x:Name="BasliqText" Text="🎉 YENİ GÜNCƏLLƏMƏ VAR" FontSize="22" FontWeight="Bold"
+                       Foreground="#38BDF8"/>
+            <TextBlock x:Name="VersiyaText" FontSize="13.5" Foreground="#9CA3AF"
+                       Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <!-- ================================================ TARİX === -->
+        <Border Grid.Row="1" Background="#111827" CornerRadius="10"
+                BorderBrush="#1F2937" BorderThickness="1"
+                Padding="14" Margin="0,14,0,0">
+            <StackPanel>
+                <TextBlock Text="📛 Buraxılış" FontSize="11.5" Foreground="#6B7280"/>
+                <TextBlock x:Name="AdText" FontSize="13.5" Foreground="#F8FAFC"
+                           TextWrapping="Wrap" Margin="0,3,0,0"/>
+                <TextBlock x:Name="TarixText" FontSize="11.5" Foreground="#6B7280"
+                           Margin="0,6,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ================================================ QEYDLƏR === -->
+        <Border Grid.Row="2" Background="#111827" CornerRadius="10"
+                BorderBrush="#1F2937" BorderThickness="1"
+                Padding="14" Margin="0,12,0,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="📝 NƏ DƏYİŞDİ"
+                           FontSize="11.5" Foreground="#6B7280" Margin="0,0,0,6"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock x:Name="QeydText" FontSize="12.5" Foreground="#CBD5E1"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ================================================ PROGRESS === -->
+        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+            <ProgressBar x:Name="Zolaq" Height="14" Minimum="0" Maximum="100"
+                         Visibility="Collapsed" Foreground="#22C55E"
+                         Background="#1F2937" BorderThickness="0"/>
+            <TextBlock x:Name="StatusText" FontSize="12" Foreground="#9CA3AF"
+                       TextWrapping="Wrap" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <!-- ================================================ DÜYMƏLƏR === -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="0,16,0,0">
+            <!-- 🔄 ƏL İLƏ YOXLAMA (yeni versiya yoxdursa ✓) -->
+            <Button x:Name="YoxlaButton" Content="🔄 Yenidən yoxla" Width="160" Height="40"
+                    Margin="0,0,10,0" Click="Yoxla_Click" Visibility="Collapsed"
+                    ToolTip="GitHub-a yenidən bax ✓"/>
+
+            <!-- ⏰ SONRA -->
+            <Button x:Name="SonraButton" Content="⏰ SONRA" Width="140" Height="40"
+                    Margin="0,0,10,0" Click="Sonra_Click"
+                    ToolTip="Bu sessiyada bir daha soruşulmur — növbəti AÇILIŞDA yenidən gəlir ✓"/>
+
+            <!-- ✕ BAĞLA -->
+            <Button x:Name="BaglaButton" Content="✕ Bağla" Width="120" Height="40"
+                    Margin="0,0,10,0" Click="Bagla_Click" Visibility="Collapsed"
+                    ToolTip="Pəncərəni bağlayır ✓ (proqram işləməyə davam edir ✓)"/>
+
+            <!-- 🌐 GITHUB -->
+            <Button x:Name="SaytButton" Content="🌐 GitHub" Width="120" Height="40"
+                    Margin="0,0,10,0" Click="Sayt_Click"
+                    ToolTip="Buraxılışlar səhifəsini brauzerdə açır ✓"/>
+
+            <!-- 🚀 GÜNCƏLLƏ -->
+            <Button x:Name="GuncelleButton" Content="🚀 GÜNCƏLLƏ" Width="190" Height="40"
+                    FontWeight="Bold" Click="Guncelle_Click"
+                    ToolTip="Proqram bağlanır, fayllar yenilənir və proqram YENİDƏN açılır ✓"/>
+        </StackPanel>
+    </Grid>
+</Window>

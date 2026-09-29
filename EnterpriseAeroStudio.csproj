@@ -1,0 +1,78 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>EnterpriseAeroStudio</RootNamespace>
+    <AssemblyName>EnterpriseAeroStudio</AssemblyName>
+    <ApplicationTitle>Avtomobil Parkı v6.2</ApplicationTitle>
+    <Version>6.2.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="Serilog" Version="4.0.2" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+
+  <!--
+    ============================================================================
+    VEB ALTLAYİHƏSİ XARİC EDİLİR
+    ============================================================================
+    "Web" qovluğunda ayrıca ASP.NET Core layihəsi (Autocode.Web) yerləşir.
+    SDK-nın avtomatik fayl qlobları onu da bu layihəyə daxil edərdi —
+    ona görə açıq şəkildə çıxarılır.
+  -->
+  <ItemGroup>
+    <Compile Remove="Web\**" />
+    <None Remove="Web\**" />
+    <Content Remove="Web\**" />
+    <EmbeddedResource Remove="Web\**" />
+    <Page Remove="Web\**" />
+    <ApplicationDefinition Remove="Web\**" />
+    <Resource Remove="Web\**" />
+  </ItemGroup>
+
+  <!--
+    ============================================================================
+    VEB LAYİHƏSİ İLƏ ƏLAQƏ  —  TƏK BUILD
+    ============================================================================
+    Masaüstü tətbiq build edildikdə veb layihə də AVTOMATİK build olunur.
+    Beləliklə bir build → hər iki tətbiq hazır olur.
+
+    ReferenceOutputAssembly=false — veb DLL-i masaüstü tətbiqə
+    referans kimi qoşulmur (ayrı proses kimi işləyir).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="Web\Autocode.Web.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+      <Private>false</Private>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+
+  <!-- 📦 Quraşdırıcı layihəsi ƏSAS TƏTBİQƏ DAXİL EDİLMİR ✗ (ayrı .exe-dir ✓) -->
+  <ItemGroup>
+    <Compile Remove="Docs\Qurasdirma\**" />
+    <Page Remove="Docs\Qurasdirma\**" />
+    <ApplicationDefinition Remove="Docs\Qurasdirma\**" />
+    <None Remove="Docs\Qurasdirma\**" />
+  </ItemGroup>
+
+</Project>

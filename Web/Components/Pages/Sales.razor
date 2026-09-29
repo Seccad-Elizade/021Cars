@@ -1,0 +1,1058 @@
+@page "/sales"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@using System.ComponentModel.DataAnnotations
+@inject ISaleService SaleService
+@inject ICarService CarService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Satışlar — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">💰 Satışlar</div>
+        <div class="page-sub">@_filtered.Count nəticə / @_sales.Count satış qeydi</div>
+    </div>
+    <div class="page-actions">
+        @if (CanWrite)
+        {
+            <button class="btn btn-primary" @onclick="OpenNew">➕ Yeni Satış</button>
+        }
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Satış Sayı" Value="@_stats.Count.ToString()" Icon="🧾" Accent="blue" />
+    <StatCard Label="Ümumi Gəlir" Value="@AppFormat.Money(_stats.TotalRevenue)" Icon="💰" Accent="green"
+              Hint="@($"💵 {_stats.NagdTotal:N0} ₼ nağd / köçürmə".Replace(",", " "))" />
+    <StatCard Label="Ümumi Mənfəət" Value="@AppFormat.MoneySigned(_stats.TotalProfit)" Icon="📈"
+              Accent="@(_stats.TotalProfit >= 0 ? "green" : "red")" />
+    <StatCard Label="Bu Ayın Gəliri" Value="@AppFormat.Money(_stats.MonthRevenue)" Icon="📅" Accent="amber" />
+    @if (_stats.BarterCount > 0)
+    {
+        <StatCard Label="🔄 Barter Satışlar" Value="@_stats.BarterCount.ToString()" Icon="🔄" Accent="violet"
+                  Hint="@($"maşınla {_stats.BarterTotal:N0} ₼".Replace(",", " "))" />
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    @* ------------------------------------------- SATIŞ QRAFİKİ (12 AY) --- *@
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">📈 Son 12 ay — satış qrafiki (Nağd / Barter)</div>
+            <div class="legend">
+                <span><i style="background:#059669"></i>Nağd / köçürmə (₼)</span>
+                <span><i style="background:#7c3aed"></i>Barter (₼)</span>
+                <span><i style="background:#d97706"></i>Satış sayı</span>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (_chart.Count == 0 || _chartMax <= 0)
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">📉</div>
+                    <p>Qrafik üçün məlumat yoxdur.</p>
+                </div>
+            }
+            else
+            {
+                <div class="chart">
+                    @foreach (var point in _chart)
+                    {
+                        <div class="chart-col"
+                             title="@($"{point.Label}: 💵 {AppFormat.Money(point.Cash)} | 🔄 {AppFormat.Money(point.Barter)} | {point.Count} satış")">
+                            <div class="chart-bars">
+                                <div class="chart-bar cash"
+                                     style="@($"height:{Scale(point.Cash, _chartMax):F1}%")"></div>
+                                <div class="chart-bar barter"
+                                     style="@($"height:{Scale(point.Barter, _chartMax):F1}%")"></div>
+                                <div class="chart-bar count"
+                                     style="@($"height:{point.CountHeight:F1}%")"></div>
+                            </div>
+                            <div class="chart-label">@point.Label</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* -------------------------------------------- ÖDƏNİŞ ÜSULLARI BÖLGÜSÜ --- *@
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">⚖️ Ödəniş üsulları üzrə bölgü</div>
+            <div class="muted" style="font-size:12px">Filtrdən asılı deyil — bütün satışlar</div>
+        </div>
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:160px">Üsul</th>
+                        <th class="num">Say</th>
+                        <th class="num">Payı</th>
+                        <th class="num">Daxil olan məbləğ</th>
+                        <th class="num">Orta satış</th>
+                        <th>Paylaşma</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="st stok">💵 Nağd / Köçürmə</span></td>
+                        <td class="num strong">@(_stats.Count - _stats.BarterCount)</td>
+                        <td class="num">@AppFormat.Percent(_cashShare)</td>
+                        <td class="num">@AppFormat.Money(_stats.NagdTotal)</td>
+                        <td class="num">@AppFormat.Money(Average(_stats.NagdTotal, _stats.Count - _stats.BarterCount))</td>
+                        <td>
+                            <div class="bar-track">
+                                <div class="bar-fill cash" style="@($"width:{_cashShare:F1}%")"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="st kredit">🔄 Barter</span></td>
+                        <td class="num strong">@_stats.BarterCount</td>
+                        <td class="num">@AppFormat.Percent(_barterShare)</td>
+                        <td class="num">@AppFormat.Money(_stats.BarterTotal)</td>
+                        <td class="num">@AppFormat.Money(Average(_stats.BarterTotal, _stats.BarterCount))</td>
+                        <td>
+                            <div class="bar-track">
+                                <div class="bar-fill barter" style="@($"width:{_barterShare:F1}%")"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td>CƏMİ</td>
+                        <td class="num">@_stats.Count</td>
+                        <td class="num">% 100</td>
+                        <td class="num">@AppFormat.Money(_stats.TotalRevenue)</td>
+                        <td class="num">@AppFormat.Money(Average(_stats.TotalRevenue, _stats.Count))</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Müqavilə, müştəri, avtomobil…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_search))
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="Clearsearch">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th>Müqavilə №</th>
+                        <th>Tarix</th>
+                        <th>Müştəri</th>
+                        <th>Avtomobil</th>
+                        <th class="num">Satış qiyməti</th>
+                        <th class="num">Maya dəyəri</th>
+                        <th class="num">Mənfəət</th>
+                        <th>Ödəniş</th>
+                        <th style="width:80px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="empty-cell">
+                                @(_sales.Count == 0 ? "Hələ satış qeydi yoxdur." : "Axtarışa uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var sale in _filtered)
+                    {
+                        <tr>
+                            <td class="strong">@AppFormat.Text(sale.MuqavileNomresi)</td>
+                            <td class="mono nowrap">@AppFormat.Date(sale.SatisTarixi)</td>
+                            <td>@AppFormat.Text(sale.Mustəri)</td>
+                            <td class="muted">@AppFormat.Text(sale.CarInfo)</td>
+                            <td class="num strong">@AppFormat.Money(sale.SatisQiymeti)</td>
+                            <td class="num muted">@AppFormat.Money(sale.MayaDeyeri)</td>
+                            <td class="num @(sale.Menfeet >= 0 ? "pos" : "neg")">@AppFormat.MoneySigned(sale.Menfeet)</td>
+                            <td class="muted nowrap">
+                                @if (sale.IsBarter)
+                                {
+                                    <span title="@sale.BarterTesviri">@sale.OdenisMetni</span>
+                                }
+                                else
+                                {
+                                    @AppFormat.Text(sale.OdenisMetni)
+                                }
+                            </td>
+                            <td class="nowrap">
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm btn-danger" @onclick="() => _deleting = sale" title="Sil">🗑️</button>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (_filtered.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="4">CƏMİ (@_filtered.Count satış)</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(s => s.SatisQiymeti))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(s => s.MayaDeyeri))</td>
+                            <td class="num @(_filtered.Sum(s => s.Menfeet) >= 0 ? "pos" : "neg")">
+                                @AppFormat.MoneySigned(_filtered.Sum(s => s.Menfeet))
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+
+    @* ------------------------------------------- BARTER SATIŞLARIN TƏHLİLİ --- *@
+    @if (_barterSales.Count > 0)
+    {
+        <div class="card">
+            <div class="card-head">
+                <div class="card-title">🔄 Barter satışların tam təhlili</div>
+                <div class="muted" style="font-size:12px">
+                    @_barterSales.Count satış · maşınla @AppFormat.Money(_stats.BarterTotal)
+                </div>
+            </div>
+            <div class="card-body tight table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th>Müqavilə №</th>
+                            <th>Tarix</th>
+                            <th>Müştəri</th>
+                            <th>Satılan avtomobil</th>
+                            <th>🔄 Alıcının verdiyi maşın</th>
+                            <th class="num">Satış qiyməti</th>
+                            <th class="num">🔄 Barter</th>
+                            <th class="num">💵 Nağd</th>
+                            <th>Paylaşma</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sale in _barterSales)
+                        {
+                            <tr>
+                                <td class="strong">@AppFormat.Text(sale.MuqavileNomresi)</td>
+                                <td class="mono nowrap">@AppFormat.Date(sale.SatisTarixi)</td>
+                                <td>@AppFormat.Text(sale.Mustəri)</td>
+                                <td class="muted">@AppFormat.Text(sale.CarInfo)</td>
+                                <td style="font-size:12.5px">
+                                    @if (string.IsNullOrWhiteSpace(sale.BarterTesviri))
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                    else
+                                    {
+                                        <span>🚗 @sale.BarterTesviri</span>
+                                    }
+                                </td>
+                                <td class="num strong">@AppFormat.Money(sale.SatisQiymeti)</td>
+                                <td class="num" style="color:#a78bfa">@AppFormat.Money(sale.BarterMebleg)</td>
+                                <td class="num pos">@AppFormat.Money(sale.NagdMebleg)</td>
+                                <td style="min-width:130px">
+                                    <div class="bar-track">
+                                        <div class="bar-fill barter"
+                                             style="@($"width:{Share(sale.BarterMebleg, sale.SatisQiymeti):F1}%")"></div>
+                                    </div>
+                                    <div class="muted" style="font-size:11px;margin-top:3px">
+                                        🔄 @AppFormat.Percent(Share(sale.BarterMebleg, sale.SatisQiymeti))
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">CƏMİ (@_barterSales.Count barter satış)</td>
+                            <td class="num">@AppFormat.Money(_barterSales.Sum(s => s.SatisQiymeti))</td>
+                            <td class="num">@AppFormat.Money(_barterSales.Sum(s => s.BarterMebleg))</td>
+                            <td class="num">@AppFormat.Money(_barterSales.Sum(s => s.NagdMebleg))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@* ---------------------------------------------------------------- YENİ SATIŞ --- *@
+@if (_editing is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _editing = null">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">➕ Yeni Satış</div>
+                <button type="button" class="modal-close" @onclick="() => _editing = null">✕</button>
+            </div>
+
+            <EditForm Model="_editing" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Müqavilə nömrəsi</label>
+                            <InputText @bind-Value="_editing.MuqavileNomresi" placeholder="Məs. S-0001" />
+                        </div>
+
+                        <div class="field">
+                            <label>Satış tarixi</label>
+                            <InputDate @bind-Value="_editing.SatisTarixi" />
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Müştəri (ad, soyad) <span class="req">*</span></label>
+                            <InputText @bind-Value="_editing.Mustəri" placeholder="Məs. Rəşad Məmmədov" />
+                            <ValidationMessage For="() => _editing.Mustəri" />
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Avtomobil <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.CarId">
+                                <option value="">— Seçin —</option>
+                                @foreach (var car in _cars)
+                                {
+                                    <option value="@car.Id">
+                                        @car.DisplayName — maya: @AppFormat.Money(car.MayaDeyeri)
+                                    </option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="() => _editing.CarId" />
+                            @if (_cars.Count == 0)
+                            {
+                                <div class="muted" style="font-size:11.5px">
+                                    Satışa hazır (Stokda / Satışda) avtomobil yoxdur.
+                                </div>
+                            }
+                        </div>
+
+                        <div class="field">
+                            <label>Satış qiyməti (₼) <span class="req">*</span></label>
+                            <InputNumber @bind-Value="_editing.SatisQiymeti" step="0.01" />
+                            <ValidationMessage For="() => _editing.SatisQiymeti" />
+                        </div>
+
+                        <div class="field">
+                            <label>Ödəniş üsulu</label>
+                            <InputSelect @bind-Value="_editing.OdenisUsulu">
+                                @foreach (var method in Catalog.SalePaymentMethods)
+                                {
+                                    <option value="@method">
+                                        @(method == Catalog.BarterSale ? "🔄 Barter (maşınla)" : $"💵 {method}")
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        @if (_editing.OdenisUsulu == Catalog.BarterSale)
+                        {
+                            <div class="field">
+                                <label>🔄 Barter hissəsi (₼)</label>
+                                <InputNumber @bind-Value="_editing.BarterMebleg" step="0.01" />
+                                <div class="muted" style="font-size:11.5px">
+                                    Alıcının verdiyi maşının dəyəri
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label>💵 Nağd / köçürmə hissəsi (₼)</label>
+                                <div class="mono strong" style="padding:6px 0;font-size:15px">
+                                    @AppFormat.Money(BarterCashPart)
+                                </div>
+                                <div class="muted" style="font-size:11.5px">
+                                    Satış qiyməti − barter hissəsi (avtomatik hesablanır)
+                                </div>
+                            </div>
+
+                            <div class="field span-2">
+                                <label>Barter təsviri (əlavə qeyd)</label>
+                                <InputText @bind-Value="_editing.BarterTesviri"
+                                           placeholder="Məs. 2013 Kia Rio 90AB123" />
+                            </div>
+
+                            @* ========= ALICININ VERDİYİ MAŞIN → AVTO PARKA ƏLAVƏ ========= *@
+                            <div class="field span-2">
+                                <div style="border-left:3px solid #10B981;padding-left:14px">
+                                    <div style="font-size:12.5px;font-weight:700;color:#10B981;margin-bottom:6px">
+                                        🚗 ALICININ VERDİYİ MAŞIN — AVTO PARKA ƏLAVƏ EDİLİR
+                                    </div>
+                                    <div class="muted" style="font-size:11.5px;margin-bottom:12px">
+                                        Maşın parka düşəcək və <b>maya dəyəri barter hissəsinə bərabər</b>
+                                        (<b>@AppFormat.Money(_editing.BarterMebleg)</b>) olacaq — çünki satışın
+                                        bu hissəsi maşınla ödənilib.
+                                    </div>
+
+                                    <div class="form-grid">
+                                        <div class="field">
+                                            <label>Marka / Model</label>
+                                            <InputText @bind-Value="_editing.ReceivedMarka" placeholder="Məs. Kia Rio" />
+                                            <div class="muted" style="font-size:11px">
+                                                Boş = parka əlavə edilmir
+                                            </div>
+                                        </div>
+                                        <div class="field">
+                                            <label>Dövlət nömrəsi</label>
+                                            <InputText @bind-Value="_editing.ReceivedNisan" placeholder="90AB123" />
+                                        </div>
+                                        <div class="field">
+                                            <label>Buraxılış ili</label>
+                                            <InputNumber @bind-Value="_editing.ReceivedIl" />
+                                        </div>
+                                        <div class="field">
+                                            <label>Yürüş (km)</label>
+                                            <InputNumber @bind-Value="_editing.ReceivedYurus" />
+                                        </div>
+                                        <div class="field">
+                                            <label>Yanacaq</label>
+                                            <InputSelect @bind-Value="_editing.ReceivedYanacaq">
+                                                @foreach (var fuel in Catalog.FuelTypes)
+                                                {
+                                                    <option value="@fuel">@fuel</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="field">
+                                            <label>Nəzərdə tutulan satış (₼)</label>
+                                            <InputNumber @bind-Value="_editing.ReceivedSatisQiymeti" step="0.01" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="field span-2">
+                                <div style="background:var(--panel-2);border-left:3px solid #f59e0b;border-radius:9px;
+                                            padding:14px 16px;font-size:13px">
+                                    <div style="font-size:12.5px;font-weight:700;color:#f59e0b;margin-bottom:12px">
+                                        ⚖️ PROFESSIONAL HESABLAŞMA
+                                    </div>
+
+                                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px 32px">
+
+                                        @* ---------------------- SATILAN MAŞIN ---------------------- *@
+                                        <div>
+                                            <div class="muted" style="font-size:11.5px;font-weight:700;margin-bottom:8px">
+                                                📤 SATILAN MAŞIN — @(SelectedCar?.DisplayName ?? "—")
+                                            </div>
+
+                                            @CalcRow("Satış qiyməti", AppFormat.Money(_editing.SatisQiymeti), "+")
+                                            @CalcRow("🔄 Müştəri maşınla verir", AppFormat.Money(_editing.BarterMebleg), "+")
+                                            @CalcRow("💵 Nağd / köçürmə", AppFormat.Money(BarterCashPart), "+")
+                                            @if (SelectedCar is not null)
+                                            {
+                                                @CalcRow("Maya dəyəri", AppFormat.Money(SelectedCar.MayaDeyeri), "−")
+                                                @CalcDivider()
+                                                @CalcRow("MƏNFƏƏT",
+                                                    AppFormat.MoneySigned(_editing.SatisQiymeti - SelectedCar.MayaDeyeri), "=", true)
+                                            }
+                                            <div class="muted" style="font-size:11.5px;margin-top:8px;line-height:1.6">
+                                                Maya dəyəri = alış qiyməti + maşına çəkilən bütün xərclər
+                                            </div>
+                                        </div>
+
+                                        @* ---------------------- ALINAN MAŞIN ---------------------- *@
+                                        <div>
+                                            <div class="muted" style="font-size:11.5px;font-weight:700;margin-bottom:8px">
+                                                📥 ALINAN MAŞIN — @(string.IsNullOrWhiteSpace(_editing.ReceivedMarka) ? "—" : _editing.ReceivedMarka)
+                                            </div>
+
+                                            @if (string.IsNullOrWhiteSpace(_editing.ReceivedMarka))
+                                            {
+                                                <div class="muted" style="font-size:12px;line-height:1.7">
+                                                    Marka yazılmayıb — maşın parka əlavə edilməyəcək.<br />
+                                                    Yalnız satış qeydi və barter təsviri saxlanılacaq.
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                @CalcRow("VERİLƏN MAŞINDAN ALINAN QİYMƏT",
+                                                    AppFormat.Money(_editing.BarterMebleg), "+")
+                                                @CalcRow("Əlavə xərclər (parka girəndə)", AppFormat.Money(0m), "+")
+                                                @CalcDivider()
+                                                @CalcRow("ALIŞ QİYMƏTİ (MAYA)", AppFormat.Money(_editing.BarterMebleg), "=", true)
+                                                @CalcRow("Nəzərdə tutulan satış", AppFormat.Money(_editing.ReceivedSatisQiymeti), "+")
+                                                @if (_editing.ReceivedSatisQiymeti > 0m)
+                                                {
+                                                    @CalcRow("GÖZLƏNİLƏN MƏNFƏƏT",
+                                                        AppFormat.MoneySigned(_editing.ReceivedSatisQiymeti - _editing.BarterMebleg), "=", true)
+                                                }
+                                                <div class="muted" style="font-size:11.5px;margin-top:8px;line-height:1.6">
+                                                    ✅ Maşın avto parka düşür, «Alış» xərci
+                                                    @AppFormat.Money(_editing.BarterMebleg) avtomatik yazılır,
+                                                    sıra nömrəsi verilir.
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="field span-2">
+                            <label>Qeyd</label>
+                            <InputTextArea @bind-Value="_editing.Qeyd" placeholder="Əlavə qeyd (istəyə bağlı)" />
+                        </div>
+                    </div>
+
+                    @if (SelectedCar is not null)
+                    {
+                        <div class="card" style="margin:16px 0 0;background:var(--panel-2)">
+                            <div class="card-body" style="padding:13px 16px">
+                                <div style="display:flex;gap:26px;flex-wrap:wrap;font-size:13px">
+                                    <span>Maya dəyəri: <b>@AppFormat.Money(SelectedCar.MayaDeyeri)</b></span>
+                                    <span>Satış qiyməti: <b>@AppFormat.Money(_editing.SatisQiymeti)</b></span>
+                                    <span>
+                                        Gözlənilən mənfəət:
+                                        <b class="@(_editing.SatisQiymeti - SelectedCar.MayaDeyeri >= 0 ? "pos" : "neg")">
+                                            @AppFormat.MoneySigned(_editing.SatisQiymeti - SelectedCar.MayaDeyeri)
+                                        </b>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _editing = null">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        Satışı qeydə al
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* ------------------------------------------------------------------- SİLMƏ --- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Silməni təsdiqlə</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 10px">
+                    <b>@AppFormat.Text(_deleting.MuqavileNomresi)</b> satış qeydi silinəcək.
+                </p>
+                <div style="background:rgba(245,158,11,.12);border-left:3px solid #f59e0b;border-radius:8px;
+                            padding:10px 13px;font-size:12.5px;line-height:1.7">
+                    • Satış <b>gəlirdən və hesabatlardan</b> çıxacaq.<br />
+                    • Avtomobilin statusu avtomatik dəyişmir — lazım gələrsə
+                    «Avtomobillər» bölməsindən əl ilə düzəldin.<br />
+                    • Əgər bu satış barter ilə olubsa, <b>alınan maşın parkda qalır</b>
+                    (onun maya dəyəri və xərcləri silinmir).
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_saving">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<Sale> _sales = new();
+    private List<Sale> _filtered = new();
+    private List<CarItem> _cars = new();
+
+    private SaleForm? _editing;
+    private Sale? _deleting;
+    private bool _saving;
+    private string? _formError;
+    private string _search = string.Empty;
+
+    private SaleStats _stats = new(0, 0m, 0m, 0m);
+
+    /// <summary>Son 12 ayın satış qrafiki (nağd / barter).</summary>
+    private List<ChartCol> _chart = new();
+
+    private decimal _chartMax;
+
+    /// <summary>Yalnız barter ilə edilmiş satışlar (ətraflı təhlil üçün).</summary>
+    private List<Sale> _barterSales = new();
+
+    private decimal _barterShare;
+    private decimal _cashShare;
+
+    /// <summary>Qrafikin bir sütunu (ay).</summary>
+    private sealed record ChartCol(
+        string Label, decimal Cash, decimal Barter, int Count, double CountHeight);
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Formada seçilmiş avtomobil (maya dəyəri/mənfəət önizləməsi üçün).</summary>
+    private CarItem? SelectedCar => _editing?.CarId is int id
+        ? _cars.FirstOrDefault(c => c.Id == id)
+        : null;
+
+    /// <summary>Barter satışında nağd / köçürmə ilə ödənilən hissə.</summary>
+    private decimal BarterCashPart =>
+        _editing is null ? 0m : Math.Max(0m, _editing.SatisQiymeti - _editing.BarterMebleg);
+
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _sales = (await SaleService.GetSalesAsync())
+                .OrderByDescending(s => s.SatisTarixi)
+                .ThenByDescending(s => s.Id)
+                .ToList();
+
+            // Yalnız satışa hazır avtomobillər (Satıldı / Kreditdə xaric).
+            _cars = (await CarService.GetCarsAsync())
+                .OrderBy(c => c.SiraNomresi)
+                .ToList();
+
+            _stats = SaleService.BuildStats(_sales);
+            BuildChart();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Satışlar yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<Sale> query = _sales;
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(s =>
+                Contains(s.MuqavileNomresi, term) ||
+                Contains(s.Mustəri, term) ||
+                Contains(s.CarInfo, term) ||
+                Contains(s.BarterTesviri, term) ||
+                Contains(s.Qeyd, term) ||
+                Contains(s.OdenisUsulu, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void Clearsearch()
+    {
+        _search = string.Empty;
+        ApplyFilter();
+    }
+
+    private void OpenNew()
+    {
+        _formError = null;
+        _editing = new SaleForm
+        {
+            MuqavileNomresi = SuggestContractNumber(),
+            SatisTarixi = DateTime.Today
+        };
+    }
+
+    /// <summary>Mövcud müqavilə nömrələrinə əsasən növbəti nömrəni təklif edir (S-0001).</summary>
+    private string SuggestContractNumber()
+    {
+        var max = 0;
+
+        foreach (var sale in _sales)
+        {
+            var digits = new string(sale.MuqavileNomresi.Where(char.IsDigit).ToArray());
+            if (int.TryParse(digits, out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return "S-" + (max + 1).ToString("D4");
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            if (_editing.CarId is not int carId)
+            {
+                _formError = "Avtomobil seçilməlidir.";
+                return;
+            }
+
+            // Barter satışında alıcının verdiyi maşın parka əlavə olunur —
+            // eyni nömrə artıq varsa qarışıqlıq yaranmasın.
+            if (_editing.OdenisUsulu == Catalog.BarterSale
+                && !string.IsNullOrWhiteSpace(_editing.ReceivedNisan))
+            {
+                var duplicate = await CarService.RegistrationExistsAsync(_editing.ReceivedNisan.Trim());
+                if (duplicate)
+                {
+                    _formError = $"«{_editing.ReceivedNisan.Trim()}» nömrəli maşın artıq parkdadır.";
+                    return;
+                }
+            }
+
+            var payload = new Sale
+            {
+                MuqavileNomresi = _editing.MuqavileNomresi?.Trim() ?? string.Empty,
+                Mustəri = _editing.Mustəri.Trim(),
+                CarId = carId,
+                SatisQiymeti = _editing.SatisQiymeti,
+                SatisTarixi = _editing.SatisTarixi,
+                OdenisUsulu = _editing.OdenisUsulu,
+                BarterMebleg = _editing.OdenisUsulu == Catalog.BarterSale ? _editing.BarterMebleg : 0m,
+                BarterTesviri = _editing.OdenisUsulu == Catalog.BarterSale
+                    ? _editing.BarterTesviri?.Trim() ?? string.Empty
+                    : string.Empty,
+                ReceivedCar = _editing.OdenisUsulu == Catalog.BarterSale
+                    ? BuildReceivedCar(_editing)
+                    : null,
+                Qeyd = _editing.Qeyd?.Trim() ?? string.Empty
+            };
+
+            // Xidmət maya dəyərini snapshot kimi özü hesablayır və avtomobili "Satıldı" edir.
+            await SaleService.AddSaleAsync(payload);
+
+            var message = $"Satış qeydə alındı: {payload.Mustəri} — {AppFormat.Money(payload.SatisQiymeti)}";
+
+            if (payload.ReceivedCar is { } received)
+            {
+                message += $" · 🔄 {received.DisplayName} parka əlavə edildi " +
+                           $"(maya {AppFormat.Money(received.AlisQiymeti)})";
+            }
+
+            Ui.Success(message);
+            _editing = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Satış qeydə alına bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await SaleService.DeleteSaleAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success("Satış qeydi silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Satış forması.</summary>
+    private sealed class SaleForm
+    {
+        [MaxLength(60)]
+        public string? MuqavileNomresi { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Müştəri adı tələb olunur.")]
+        [MaxLength(150, ErrorMessage = "Müştəri adı 150 simvoldan çox ola bilməz.")]
+        public string Mustəri { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Avtomobil seçilməlidir.")]
+        public int? CarId { get; set; }
+
+        [Range(typeof(decimal), "0.01", "999999999", ErrorMessage = "Satış qiyməti 0-dan böyük olmalıdır.")]
+        public decimal SatisQiymeti { get; set; }
+
+        public DateTime SatisTarixi { get; set; } = DateTime.Today;
+
+        public string OdenisUsulu { get; set; } = Catalog.PaymentMethods[0];
+
+        /// <summary>Barter zamanı alıcının verdiyi maşının dəyəri (₼).</summary>
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Barter hissəsi mənfi ola bilməz.")]
+        public decimal BarterMebleg { get; set; }
+
+        /// <summary>Barter zamanı alıcının verdiyi maşının təsviri.</summary>
+        [MaxLength(500, ErrorMessage = "Barter təsviri 500 simvoldan çox ola bilməz.")]
+        public string? BarterTesviri { get; set; } = string.Empty;
+
+        // ---- Alıcının verdiyi maşının TAM məlumatı (parka əlavə olunur) ----
+
+        /// <summary>Alıcının verdiyi maşının markası. Boşdursa parka əlavə edilmir.</summary>
+        [MaxLength(150, ErrorMessage = "Marka 150 simvoldan çox ola bilməz.")]
+        public string? ReceivedMarka { get; set; } = string.Empty;
+
+        /// <summary>Alıcının verdiyi maşının dövlət nömrəsi.</summary>
+        [MaxLength(20, ErrorMessage = "Nömrə 20 simvoldan çox ola bilməz.")]
+        public string? ReceivedNisan { get; set; } = string.Empty;
+
+        /// <summary>Alıcının verdiyi maşının buraxılış ili.</summary>
+        [Range(1900, 2100, ErrorMessage = "İl 1900–2100 aralığında olmalıdır.")]
+        public int ReceivedIl { get; set; } = DateTime.Today.Year;
+
+        /// <summary>Alıcının verdiyi maşının yürüşü (km).</summary>
+        [Range(0, 9_999_999, ErrorMessage = "Yürüş mənfi ola bilməz.")]
+        public int ReceivedYurus { get; set; }
+
+        /// <summary>Alıcının verdiyi maşının yanacaq növü.</summary>
+        public string ReceivedYanacaq { get; set; } = Catalog.FuelTypes[0];
+
+        /// <summary>Alıcının verdiyi maşın üçün nəzərdə tutulan satış qiyməti (₼).</summary>
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Satış qiyməti mənfi ola bilməz.")]
+        public decimal ReceivedSatisQiymeti { get; set; }
+
+        [MaxLength(400)]
+        public string? Qeyd { get; set; } = string.Empty;
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    // ------------------------------------------------- BARTER: ALINAN MAŞIN ---
+    /// <summary>Hesablaşma panelində bir «ad : dəyər» sətri.</summary>
+    private static MarkupString InfoRow(string label, string value, bool strong = false)
+    {
+        var open = strong ? "<b>" : string.Empty;
+        var close = strong ? "</b>" : string.Empty;
+
+        return new MarkupString(
+            "<div style=\"display:flex;justify-content:space-between;gap:14px;padding:5px 0;font-size:12.5px\">" +
+            "<span style=\"color:#94a3b8\">" + System.Net.WebUtility.HtmlEncode(label) + "</span>" +
+            "<span style=\"text-align:right\">" + open +
+            System.Net.WebUtility.HtmlEncode(value) + close + "</span></div>");
+    }
+
+    /// <summary>
+    /// Hesablaşma panelində riyazi sətir: əməliyyat işarəsi + ad + dəyər.
+    /// «+» toplanan, «−» çıxılan, «=» nəticə sətrini bildirir.
+    /// </summary>
+    private static MarkupString CalcRow(string label, string value, string op, bool strong = false)
+    {
+        var open = strong ? "<b>" : string.Empty;
+        var close = strong ? "</b>" : string.Empty;
+
+        var color = op switch
+        {
+            "−" => "#f87171",
+            "=" => "#f59e0b",
+            _ => "#94a3b8"
+        };
+
+        return new MarkupString(
+            "<div style=\"display:flex;align-items:baseline;gap:10px;padding:6px 0;font-size:12.5px\">" +
+            "<span style=\"color:" + color + ";font-weight:700;width:14px;text-align:center\">" +
+            System.Net.WebUtility.HtmlEncode(op) + "</span>" +
+            "<span style=\"color:#94a3b8;flex:1\">" + System.Net.WebUtility.HtmlEncode(label) + "</span>" +
+            "<span style=\"text-align:right;white-space:nowrap\">" + open +
+            System.Net.WebUtility.HtmlEncode(value) + close + "</span></div>");
+    }
+
+    /// <summary>Hesablaşma panelində ayırıcı (cəm) xətti.</summary>
+    private static MarkupString CalcDivider()
+        => new("<div style=\"height:1px;background:rgba(148,163,184,.35);margin:6px 0 6px 24px\"></div>");
+
+    /// <summary>
+    /// Barter satışında alıcının verdiyi maşını <see cref="CarItem"/>-a çevirir.
+    /// <para>
+    /// <b>MAYA DƏYƏRİ = BARTER HİSSƏSİ</b> (<see cref="SaleForm.BarterMebleg"/>):
+    /// maşın üçün faktiki olaraq bu qədər "ödənilib", çünki satılan avtomobilin
+    /// qiymətindən həmin hissə maşınla qarşılanıb.
+    /// </para>
+    /// </summary>
+    /// <returns>Marka boşdursa <c>null</c> — bu halda maşın parka əlavə edilmir.</returns>
+    private static CarItem? BuildReceivedCar(SaleForm form)
+    {
+        var marka = form.ReceivedMarka?.Trim();
+
+        if (string.IsNullOrWhiteSpace(marka))
+        {
+            return null;
+        }
+
+        return new CarItem
+        {
+            Marka = marka,
+            QeydiyyatNisani = form.ReceivedNisan?.Trim().ToUpperInvariant() ?? string.Empty,
+            Il = form.ReceivedIl,
+            Yurus = form.ReceivedYurus,
+            Yanacaq = form.ReceivedYanacaq,
+            AlisQiymeti = form.BarterMebleg,               // ← MAYА = barter dəyəri
+            SatisQiymeti = form.ReceivedSatisQiymeti,
+            BarterTesviri = form.BarterTesviri?.Trim() ?? string.Empty
+        };
+    }
+
+    // ----------------------------------------------------------------- QRAFİK ---
+    /// <summary>Son 12 ay üzrə nağd / barter satışlarını hesablayır.</summary>
+    private void BuildChart()
+    {
+        var today = DateTime.Today;
+        var start = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
+
+        var columns = new List<(string Label, decimal Cash, decimal Barter, int Count)>();
+
+        for (var i = 0; i < 12; i++)
+        {
+            var from = start.AddMonths(i);
+            var to = from.AddMonths(1);
+
+            var month = _sales
+                .Where(s => s.SatisTarixi >= from && s.SatisTarixi < to)
+                .ToList();
+
+            columns.Add((
+                $"{AppFormat.MonthShort(from.Month)} {from:yy}",
+                month.Sum(s => s.NagdMebleg),
+                month.Sum(s => s.BarterMebleg),
+                month.Count));
+        }
+
+        _chartMax = columns
+            .SelectMany(c => new[] { c.Cash, c.Barter })
+            .DefaultIfEmpty(0m)
+            .Max();
+
+        var maxCount = columns.DefaultIfEmpty().Max(c => c.Count);
+
+        _chart = columns
+            .Select(c => new ChartCol(
+                c.Label,
+                c.Cash,
+                c.Barter,
+                c.Count,
+                maxCount <= 0 ? 0 : Math.Max(2, (double)c.Count / maxCount * 100)))
+            .ToList();
+
+        _barterSales = _sales
+            .Where(s => s.IsBarter)
+            .OrderByDescending(s => s.SatisTarixi)
+            .ThenByDescending(s => s.Id)
+            .ToList();
+
+        _barterShare = Share(_stats.BarterCount, _stats.Count);
+        _cashShare = _stats.Count <= 0 ? 0m : Math.Round(100m - _barterShare, 1);
+    }
+
+    /// <summary>Dəyəri qrafik hündürlüyünə (faiz) çevirir.</summary>
+    private static double Scale(decimal value, decimal max)
+        => max <= 0 ? 0 : Math.Max(2, (double)(value / max) * 100);
+
+    /// <summary>Faiz payı (0–100).</summary>
+    private static decimal Share(int part, int total)
+        => total <= 0 ? 0m : Math.Round((decimal)part * 100m / total, 1);
+
+    /// <summary>Məbləğin faiz payı (0–100).</summary>
+    private static decimal Share(decimal part, decimal total)
+        => total <= 0 ? 0m : Math.Round(part * 100m / total, 1);
+
+    /// <summary>Orta məbləğ (bölmə sıfırdırsa 0).</summary>
+    private static decimal Average(decimal total, int count)
+        => count <= 0 ? 0m : Math.Round(total / count, 2);
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

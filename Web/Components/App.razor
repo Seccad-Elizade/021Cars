@@ -1,0 +1,28 @@
+@*  Tətbiqin kök komponenti.  Bütün Razor komponentləri qlobal olaraq
+    "Interactive Server" rejimində işləyir (Routes @rendermode ilə).  *@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <base href="/" />
+    <title>Avtomobil Parkı v6.0</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="app.css" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <div id="blazor-error-ui">
+        Gözlənilməz xəta baş verdi.
+        <a href="." class="reload">Yenilə</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="app.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

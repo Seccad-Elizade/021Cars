@@ -1,0 +1,51 @@
+﻿# ============================================================
+#  🚀 021Cars — GitHub-a GİTMƏYƏN fayllar ✗
+# ============================================================
+
+# 🔨 Build nəticələri
+bin/
+obj/
+publish/
+publish_web/
+publish_setup/
+publish_test/
+
+# 📦 Installer paketi (146 MB ✗ — Release-ə asset kimi gedir ✓)
+payload.zip
+Docs/Qurasdirma/Installer/payload.zip
+
+# 🗄️ İSTİFADƏÇİ MƏLUMATLARI ✗✓✓✓ (HEÇ VAXT ✗)
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+Media/
+Logs/
+Yedekler/
+Hesabatlar/
+AutocodePDF/
+app_errors.log
+app_errors.old.log
+istifadeciler.json
+bulud_ayarlari.json
+transfer-sexler.json
+data_usb.json
+offline_queue.json
+
+# 🔑 Açarlar / tokenlər
+*.token
+.env
+secrets.json
+
+# 🖥️ IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.bak
+
+# 📄 Müvəqqəti
+*.log
+*.tmp
+*.zip
+021Cars_GSAP_*.html

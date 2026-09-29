@@ -1,0 +1,183 @@
+@page "/diaqnostika"
+@using EnterpriseAeroStudio.Web.Components.Shared
+@inject IJSRuntime JS
+@inject IDataChangeWatcher DataChanges
+@inject UiState Ui
+
+<PageTitle>Diaqnostika — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🩺 Diaqnostika</div>
+        <div class="page-sub">Sistemin işləkliyini yoxlayın — düymələr işləmirsə, səbəb buradadır</div>
+    </div>
+    <div class="page-actions">
+        <button class="btn btn-primary" @onclick="RunChecksAsync" disabled="@_running">
+            @if (_running)
+            {
+                <span class="spinner"></span>
+            }
+            🔄 Yenidən yoxla
+        </button>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Server" Value="İşləyir" Icon="🖥️" Accent="green" Hint="Bu səhifə açıldı" />
+    <StatCard Label="Canlı Əlaqə" Value="@(_interactive ? "AKTİV" : "YOX")"
+              Icon="@(_interactive ? "🟢" : "🔴")"
+              Accent="@(_interactive ? "green" : "red")"
+              Hint="Düymələr bununla işləyir" />
+    <StatCard Label="Blazor Faylı" Value="@(_blazorJsOk ? "200 OK" : "404")"
+              Icon="@(_blazorJsOk ? "✅" : "❌")"
+              Accent="@(_blazorJsOk ? "green" : "red")"
+              Hint="blazor.web.js" />
+    <StatCard Label="Baza" Value="@_dbText" Icon="💾" Accent="blue" Hint="SQLite" />
+    <StatCard Label="Canlı Sinxronizasiya" Value="@(_syncRunning ? "AKTİV" : "YOX")"
+              Icon="@(_syncRunning ? "🔄" : "⛔")"
+              Accent="@(_syncRunning ? "green" : "red")"
+              Hint="@_syncHint" />
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <div class="card-title">📋 Yoxlama nəticələri</div>
+        <div class="muted" style="font-size:12px">@_checks.Count yoxlama</div>
+    </div>
+    <div class="card-body tight table-wrap">
+        <table class="grid">
+            <thead>
+                <tr>
+                    <th style="width:60px">Vəziyyət</th>
+                    <th style="width:240px">Yoxlama</th>
+                    <th>Nəticə</th>
+                    <th>Nə etməli</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_checks.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty-cell">Yoxlanılır…</td></tr>
+                }
+                @foreach (var check in _checks)
+                {
+                    <tr>
+                        <td style="font-size:17px">@(check.Ok ? "✅" : "❌")</td>
+                        <td class="strong">@check.Name</td>
+                        <td class="mono" style="font-size:12px">@check.Value</td>
+                        <td class="muted" style="font-size:12.5px">@check.Fix</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head"><div class="card-title">💡 Düymələr işləmirsə</div></div>
+    <div class="card-body">
+        <ol style="margin:0;padding-left:20px;line-height:2;font-size:13.5px">
+            <li>Yuxarı sağ küncdə <b>🟢 Onlayn</b> yazısı görünməlidir. <b>🟠 Qoşulur…</b> qalırsa — əlaqə yoxdur.</li>
+            <li>Brauzerdə <b>Ctrl + F5</b> basın (köhnə keşi təmizləyir).</li>
+            <li>Bütün <code>AvtoPark - Server</code> pəncərələrini bağlayın, sonra
+                <code>AVTOPARK.bat</code>-ı <b>admin</b> kimi yenidən işə salın.</li>
+            <li>Hələ də olmursa: <code>%LOCALAPPDATA%\EnterpriseAeroStudio\Logs\avtopark-web-*.log</code>
+                faylını göndərin.</li>
+        </ol>
+    </div>
+</div>
+
+@code {
+    private bool _running;
+    private bool _interactive;
+    private bool _blazorJsOk;
+    private bool _syncRunning;
+    private string _syncHint = "—";
+    private string _dbText = "—";
+    private readonly List<Check> _checks = new();
+
+    private sealed record Check(bool Ok, string Name, string Value, string Fix);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Bu metodun işə düşməsi = Blazor circuit QOŞULUB = düymələr işləyir.
+            _interactive = true;
+            await RunChecksAsync();
+        }
+    }
+
+    private async Task RunChecksAsync()
+    {
+        _running = true;
+        _checks.Clear();
+
+        try
+        {
+            // 1) Blazor circuit — ƏN VACİB yoxlama.
+            _checks.Add(new Check(
+                _interactive,
+                "Blazor canlı əlaqə (circuit)",
+                _interactive ? "QOŞULUB" : "YOXDUR",
+                _interactive
+                    ? "Düymələr işləyir"
+                    : "AVTOPARK.bat-ı yenidən işə salın + Ctrl+F5"));
+
+            // 2) blazor.web.js — olmasa HEÇ BİR düymə işləmir.
+            var status = await JS.InvokeAsync<int>("avtoparkFetchStatus", "_framework/blazor.web.js");
+            _blazorJsOk = status == 200;
+
+            _checks.Add(new Check(
+                _blazorJsOk,
+                "blazor.web.js (Blazor mühərriki)",
+                status.ToString(),
+                _blazorJsOk ? "Qaydasındadır" : "Server köhnə kodu işlədir — yenidən başladın"));
+
+            // 3) app.css — dizayn faylı.
+            var css = await JS.InvokeAsync<int>("avtoparkFetchStatus", "app.css");
+            _checks.Add(new Check(css == 200, "app.css (dizayn)", css.ToString(),
+                css == 200 ? "Qaydasındadır" : "Dizayn faylı tapılmadı"));
+
+            // 4) Server saatı.
+            _checks.Add(new Check(true, "Server saatı",
+                DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss"), "—"));
+
+            // 5) Verilənlər bazası.
+            var db = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EnterpriseAeroStudio", "avtopark.db");
+
+            var exists = File.Exists(db);
+            _dbText = exists ? $"{new FileInfo(db).Length / 1024} KB" : "yoxdur";
+
+            _checks.Add(new Check(exists, "Verilənlər bazası",
+                db,
+                exists ? "Qaydasındadır" : "Serveri bir dəfə işə salın"));
+
+            // 6) Canlı sinxronizasiya (masaüstü tətbiq ↔ veb sayt)
+            _syncRunning = DataChanges.IsRunning;
+            var changeCount = DataChanges.ChangeCount;
+            _syncHint = $"{changeCount} dəyişiklik";
+
+            _checks.Add(new Check(
+                _syncRunning,
+                "Canlı sinxronizasiya (masaüstü ↔ veb)",
+                _syncRunning
+                    ? $"{changeCount} dəyişiklik aşkarlandı"
+                    : "işləmir",
+                _syncRunning
+                    ? "Masaüstü tətbiqdəki dəyişikliklər dərhal görünür"
+                    : "Serveri yenidən başladın"));
+        }
+        catch (Exception ex)
+        {
+            _checks.Add(new Check(false, "Yoxlama xətası", ex.Message, "Səhifəni yeniləyin"));
+        }
+        finally
+        {
+            _running = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,684 @@
+﻿@page "/payment-schedule"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.AspNetCore.Components
+@using System.ComponentModel.DataAnnotations
+@inject ICreditService CreditService
+@inject UiState Ui
+
+<PageTitle>Ödəniş Qrafiki — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">📅 Ödəniş Qrafiki</div>
+        <div class="page-sub">Aylıq ödəniş = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət — möhlət və gecikmə qeydləri ilə</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="credits">🏦 Kreditlərə qayıt</a>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="toolbar">
+            <label style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:600">Kredit müqaviləsi:</label>
+            <select @bind="CreditId" style="flex:1 1 340px;max-width:520px">
+                <option value="">— Seçin —</option>
+                @foreach (var credit in _credits)
+                {
+                    <option value="@credit.Id">@credit.DisplayText</option>
+                }
+            </select>
+        </div>
+
+        @if (Selected is null)
+        {
+            <div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <h2>Kredit seçilməyib</h2>
+                <p>Ödəniş qrafikini görmək üçün yuxarıdan müqavilə seçin.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card-body" style="border-bottom:1px solid var(--border)">
+                <div style="display:flex;gap:30px;flex-wrap:wrap;font-size:13.5px">
+                    <span>Müştəri: <b>@AppFormat.Text(Selected.Mustəri)</b></span>
+                    <span>Məbləğ: <b>@AppFormat.Money(Selected.Mebleg)</b></span>
+                    <span>İlkin: <b>@AppFormat.Money(Selected.IlkinOdenis)</b></span>
+                    <span>Kreditləşdirilən: <b>@AppFormat.Money(Selected.Kreditlesdirilen)</b></span>
+                    <span>Faiz: <b>@AppFormat.Percent(Selected.FaizDerecesi)</b></span>
+                    <span>Müddət: <b>@Selected.MuddetAy ay</b></span>
+                    <span>Başlama: <b>@AppFormat.Date(Selected.BaslamaTarixi)</b></span>
+                </div>
+            </div>
+
+            <div class="card-body tight table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th style="width:52px">Ay №</th>
+                            <th>Plan tarixi</th>
+                            <th class="num">Ödəniş (plan)</th>
+                            <th class="num">Faktiki</th>
+                            <th class="num">Əsas borc</th>
+                            <th class="num">Faiz</th>
+                            <th class="num">Qalıq</th>
+                            <th>Möhlət / Gecikmə</th>
+                            <th>👥 Tərəfdaş bölgüsü</th>
+                            <th style="width:130px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_rows.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="empty-cell">
+                                    Qrafik qurula bilmədi (müddət və ya kreditləşdirilən məbləğ sıfırdır).
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var row in _rows)
+                        {
+                            <tr class="@(row.OutOfRange ? "row-warn" : row.DelayActive ? "row-danger" : row.Deferral ? "row-defer" : "")">
+                                <td class="mono">@row.NoText</td>
+                                <td class="mono nowrap">@AppFormat.Date(row.Date)</td>
+                                <td class="num strong">@AppFormat.Money(row.Planned)</td>
+                                <td class="num">
+                                    @if (row.Paid > 0m)
+                                    {
+                                        <span class="pos">@AppFormat.Money(row.Paid)</span>
+                                        @if (row.Paid < row.Planned && !row.OutOfRange)
+                                        {
+                                            <div class="muted" style="font-size:11px">
+                                                çatışmır @AppFormat.Money(row.Planned - row.Paid)
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td class="num muted">@AppFormat.Money(row.Principal)</td>
+                                <td class="num muted">@AppFormat.Money(row.Interest)</td>
+                                <td class="num strong">@AppFormat.Money(row.Balance)</td>
+                                <td>
+                                    @if (row.OutOfRange)
+                                    {
+                                        <span class="st mohlet">@row.Note</span>
+                                    }
+                                    @foreach (var line in row.DeferralLines)
+                                    {
+                                        <div><span class="st mohlet">⏳ Möhlət</span> <span class="muted">@line</span></div>
+                                    }
+                                    @foreach (var line in row.DelayLines)
+                                    {
+                                        <div><span class="st gecikme">⚠️ Gecikmə</span> <span class="muted">@line</span></div>
+                                    }
+                                </td>
+                                <td class="nowrap">
+                                    @foreach (var partner in row.PartnerLines)
+                                    {
+                                        <div><span class="st terefdas">👥</span> <span class="muted">@partner</span></div>
+                                    }
+                                </td>
+                                <td class="nowrap">
+                                    @if (!row.OutOfRange)
+                                    {
+                                        <button class="btn btn-sm" @onclick='() => OpenAdd(row, "Möhlət")' title="Möhlət ver">⏳</button>
+                                        <button class="btn btn-sm" @onclick='() => OpenAdd(row, "Gecikmə")' title="Gecikmə qeyd et">⚠️</button>
+                                        <button class="btn btn-sm" @onclick='() => OpenAdd(row, "Gəlir")' title="Ödəniş qeyd et">💰</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    @if (_rows.Count > 0)
+                    {
+                        <tfoot>
+                            <tr>
+                                <td colspan="2">CƏMİ</td>
+                                <td class="num">@AppFormat.Money(_rows.Sum(r => r.Planned))</td>
+                                <td class="num pos">@AppFormat.Money(_rows.Sum(r => r.Paid))</td>
+                                <td class="num">@AppFormat.Money(_rows.Sum(r => r.Principal))</td>
+                                <td class="num">@AppFormat.Money(_rows.Sum(r => r.Interest))</td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    }
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@* ------------------------------------------ SÜRƏTLİ ƏMƏLİYYAT (Möhlət/Gecikmə/Gəlir) --- *@
+@if (_entry is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _entry = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">
+                    @(_entry.Nov == "Möhlət" ? "⏳ Möhlət ver" : _entry.Nov == "Gecikmə" ? "⚠️ Gecikmə qeyd et" : "💰 Ödəniş qeyd et")
+                    — @(_entry.InstallmentNo). ay
+                </div>
+                <button type="button" class="modal-close" @onclick="() => _entry = null">✕</button>
+            </div>
+
+            <EditForm Model="_entry" OnValidSubmit="SaveEntryAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Məbləğ (₼) <span class="req">*</span></label>
+                            @if (_entry.Nov == "Gəlir")
+                            {
+                                <InputNumber @bind-Value="_entry.Mebleg" step="0.01" />
+                            }
+                            else
+                            {
+                                <input type="number" step="0.01" @bind="_entry.Mebleg" />
+                            }
+                            <ValidationMessage For="() => _entry.Mebleg" />
+                        </div>
+
+                        <div class="field">
+                            <label>Tarix</label>
+                            <InputDate @bind-Value="_entry.Tarix" />
+                        </div>
+
+                        @if (_entry.Nov == "Möhlət")
+                        {
+                            <div class="field span-2">
+                                <label>Möhlətin son tarixi</label>
+                                <InputDate @bind-Value="_entry.MohletTarixi" />
+                            </div>
+                        }
+
+                        @if (_entry.Nov == "Gecikmə")
+                        {
+                            <div class="field span-2">
+                                <label>Gecikmə tarixi</label>
+                                <InputDate @bind-Value="_entry.GecikmeTarixi" />
+                            </div>
+                        }
+
+                        <div class="field span-2">
+                            <label>Təsvir</label>
+                            <InputText @bind-Value="_entry.Tesvir" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _entry = null">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        Yadda saxla
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Ünvan sətrindən gələn kredit (?creditId=5).</summary>
+    [SupplyParameterFromQuery(Name = "creditId")]
+    public int? InitialCreditId { get; set; }
+
+    private bool _loading = true;
+    private List<Credit> _credits = new();
+    private List<CreditTransaction> _transactions = new();
+    private List<ScheduleRow> _rows = new();
+
+    private int? _creditId;
+    private Credit? _selected;
+    private EntryForm? _entry;
+    private bool _saving;
+    private string? _formError;
+
+    /// <summary>Seçilmiş kredit — dəyişdikdə qrafik yenidən qurulur.</summary>
+    private int? CreditId
+    {
+        get => _creditId;
+        set
+        {
+            _creditId = value;
+            _selected = value is int id ? _credits.FirstOrDefault(c => c.Id == id) : null;
+            BuildSchedule();
+        }
+    }
+
+    private Credit? Selected => _selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+
+        if (InitialCreditId is int id)
+        {
+            CreditId = id;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _credits = (await CreditService.GetCreditsAsync())
+                .OrderBy(c => c.MuqavileNomresi)
+                .ToList();
+
+            _transactions = (await CreditService.GetTransactionsAsync()).ToList();
+
+            if (_creditId is int current)
+            {
+                _selected = _credits.FirstOrDefault(c => c.Id == current);
+            }
+
+            BuildSchedule();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Ödəniş qrafiki yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Ödəniş qrafikinin bir sətri.</summary>
+    private sealed class ScheduleRow
+    {
+        public int No { get; init; }
+        public string NoText => OutOfRange ? "—" : No.ToString();
+        public DateTime Date { get; init; }
+        public decimal Planned { get; init; }
+        public decimal Paid { get; init; }
+        public decimal Principal { get; init; }
+        public decimal Interest { get; init; }
+        public decimal Balance { get; init; }
+
+        public bool OutOfRange { get; init; }
+        public string Note { get; init; } = string.Empty;
+
+        public bool Deferral { get; init; }
+        public List<string> DeferralLines { get; init; } = new();
+
+        public bool DelayActive { get; init; }
+        public List<string> DelayLines { get; init; } = new();
+
+        // ====================================================================
+        //  👥 TƏRƏFDAŞ PAYLARI  (bu ay «kimə nə qədər verildi»)
+        // --------------------------------------------------------------------
+        //  Həmin ayın «Kredit əlavə gəlir» qeydlərindəki tərəfdaş bölgüsü
+        //  burada da göstərilir — məs. «Asiman 79,50 ₼», «Zaur 95,40 ₼»…
+        // ====================================================================
+        public List<string> PartnerLines { get; init; } = new();
+
+        /// <summary>Bu ay üçün tərəfdaş bölgüsü varmı?</summary>
+        public bool HasPartners => PartnerLines.Count > 0;
+    }
+
+    // =========================================================================
+    //  ÖDƏNİŞ QRAFİKİ — masaüstü tətbiqdəki alqoritmin EYNİSİ
+    // =========================================================================
+
+    private void BuildSchedule()
+    {
+        _rows.Clear();
+
+        if (_selected is null || _selected.MuddetAy <= 0)
+        {
+            return;
+        }
+
+        var credit = _selected;
+        var total = credit.MuddetAy;
+
+        // ================================================================
+        //  SADƏ FAİZ: ümumi faiz bütün müddətə BƏRABƏR bölünür.
+        //  Aylıq faiz hissəsi = Kreditləşdirilən × Faiz% ÷ 100 ÷ Müddət
+        // ================================================================
+        var interestPerMonth = total > 0
+            ? Math.Round(credit.Kreditlesdirilen * credit.FaizDerecesi / 100m / total, 2)
+            : 0m;
+
+        // Qrafik yalnız KREDİTLƏŞDİRİLƏN məbləğ (Məbləğ − İlkin ödəniş) üzərindən qurulur.
+        var balance = credit.Kreditlesdirilen;
+        if (balance <= 0m)
+        {
+            return;
+        }
+
+        var payments  = Group(credit, "Gəlir",   total, includeOutOfRange: true);
+
+        // ✅ Möhlət və Gecikmə qeydləri müddətdən KƏNARDA olsa da ATILMIR ✗ →
+        //    ən yaxın taksitə BAĞLANIR ✓ və qrafikdə görünür ✓.
+        //    (əvvəl `false` idi → «Gecikmə» qeydi səssizcə itirdi ✗✓)
+        var deferrals = Group(credit, "Möhlət",  total, includeOutOfRange: true);
+        var delays    = Group(credit, "Gecikmə", total, includeOutOfRange: true);
+
+        // 1) Kredit başlamazdan ƏVVƏL edilmiş ödənişlər.
+        foreach (var group in payments.Where(p => p.Key <= 0).OrderBy(p => p.Key))
+        {
+            var paid = group.Value.Sum(t => t.Mebleg);
+            balance = Math.Max(0m, balance - paid);
+            _rows.Add(OutOfRangeRow(group.Key, group.Value, paid, balance, "Müddətdən əvvəl"));
+        }
+
+        for (var i = 1; i <= total; i++)
+        {
+            var interest = interestPerMonth;
+            // ✅ PLAN (AYLIQ) MƏBLƏĞ — **SABİT** ✓
+            //  (əvvəl `balance` ilə yenidən hesablanırdı ✗ → aylıq məbləğ
+            //   ay-ay sürüşürdü və gecikmə QİYMƏTİ avtomatik dəyişirdi ✗✓)
+            var planned = CalculateMonthly(credit.Kreditlesdirilen, credit.FaizDerecesi, total);
+            var planDate = credit.BaslamaTarixi.AddMonths(i - 1);
+
+            payments.TryGetValue(i, out var payList);
+            var paid = payList?.Sum(t => t.Mebleg) ?? 0m;
+            var shortfall = Math.Max(0m, planned - paid);
+
+            // ---- Möhlət sətirləri ----
+            deferrals.TryGetValue(i, out var mohletler);
+            var deferralLines = new List<string>();
+
+            foreach (var m in mohletler ?? new List<CreditTransaction>())
+            {
+                var amount = m.Mebleg > 0m ? m.Mebleg : shortfall;
+                deferralLines.Add(m.MohletTarixi is DateTime limit
+                    ? $"{AppFormat.Money(amount)} → {AppFormat.Date(limit)}"
+                    : AppFormat.Money(amount));
+            }
+
+            // ---- Gecikmə sətirləri ----
+            delays.TryGetValue(i, out var gecikmeler);
+            var delayLines = new List<string>();
+            var delayActive = false;
+
+            foreach (var g in gecikmeler ?? new List<CreditTransaction>())
+            {
+                if (!g.Odenilib)
+                {
+                    delayActive = true;
+                }
+
+                var details = new List<string>();
+
+                if (g.GecikmeTarixi is DateTime gecikmeTarix)
+                {
+                    var gun = Math.Max(0, (int)(gecikmeTarix.Date - planDate.Date).TotalDays);
+                    details.Add(gun > 0
+                        ? $"{gun} gün → {AppFormat.Date(gecikmeTarix)}"
+                        : AppFormat.Date(gecikmeTarix));
+                }
+
+                if (g.Mebleg > 0m)
+                {
+                    details.Add($"{AppFormat.Money(g.Mebleg)} cərimə");
+                }
+
+                details.Add(g.Odenilib ? "✔ ödənilib" : "⏳ gözləyir");
+                delayLines.Add(string.Join(" · ", details));
+            }
+
+            // Balans faktiki ödənişə görə azalır (ödənilməyibsə plana görə).
+            var effective = payList is not null ? paid : planned;
+            if (mohletler is not null)
+            {
+                effective = Math.Max(effective, planned);
+            }
+
+            var principal = Math.Round(effective - interest, 2);
+            balance = Math.Round(balance - principal, 2);
+
+            if (balance < 0m)
+            {
+                balance = 0m;
+            }
+
+            // 👥 TƏRƏFDAŞ PAYLARI — bu ayın «əlavə gəlir» qeydlərindən.
+            var partnerLines = (payList ?? new List<CreditTransaction>())
+                .Where(t => t.TerefdasPaylari.Count > 0)
+                .SelectMany(t => t.TerefdasPaylari.OrderBy(p => p.Sira))
+                .Select(p => $"{p.Terefdas} {AppFormat.Money(p.Mebleg)}")
+                .ToList();
+
+            _rows.Add(new ScheduleRow
+            {
+                No = i,
+                Date = planDate,
+                Planned = planned,
+                Paid = paid,
+                Principal = principal,
+                Interest = interest,
+                Balance = balance,
+                Deferral = mohletler is not null,
+                DeferralLines = deferralLines,
+                DelayActive = delayActive,
+                DelayLines = delayLines,
+                PartnerLines = partnerLines
+            });
+        }
+
+        // 3) Kredit müddəti BİTDİKDƏN SONRA edilmiş ödənişlər.
+        foreach (var group in payments.Where(p => p.Key > total).OrderBy(p => p.Key))
+        {
+            var paid = group.Value.Sum(t => t.Mebleg);
+            balance = Math.Max(0m, balance - paid);
+            _rows.Add(OutOfRangeRow(group.Key, group.Value, paid, balance, "Müddətdən sonra"));
+        }
+    }
+
+    /// <summary>Əməliyyatları taksit nömrəsinə görə qruplaşdırır.</summary>
+    private Dictionary<int, List<CreditTransaction>> Group(
+        Credit credit, string nov, int total, bool includeOutOfRange)
+    {
+        var result = new Dictionary<int, List<CreditTransaction>>();
+
+        foreach (var transaction in _transactions.Where(t => t.CreditId == credit.Id && t.Nov == nov))
+        {
+            var no = transaction.InstallmentNo ?? MonthOffset(transaction.Tarix, credit.BaslamaTarixi);
+
+            if (!includeOutOfRange && (no < 1 || no > total))
+            {
+                continue;
+            }
+
+            // ✅ Müddətdən kənar qeyd (məs. gecikmə 14.09.2026) İTMİR ✗ →
+            //    ən yaxın taksitə BAĞLANIR ✓ və qrafikdə görünür ✓
+            if (includeOutOfRange)
+            {
+                no = Math.Clamp(no, 1, total);
+            }
+
+            if (!result.TryGetValue(no, out var list))
+            {
+                list = new List<CreditTransaction>();
+                result[no] = list;
+            }
+
+            list.Add(transaction);
+        }
+
+        return result;
+    }
+
+    /// <summary>Müddətdən kənar ödəniş üçün sətir (plan məbləği yoxdur).</summary>
+    private static ScheduleRow OutOfRangeRow(
+        int installmentNo, List<CreditTransaction> payments, decimal paid, decimal balance, string note)
+    {
+        var ordered = payments.OrderBy(t => t.Tarix).ThenBy(t => t.Id).ToList();
+
+        return new ScheduleRow
+        {
+            No = installmentNo,
+            Date = ordered[^1].Tarix,
+            Planned = paid,
+            Paid = paid,
+            Principal = paid,
+            Interest = 0m,
+            Balance = balance,
+            OutOfRange = true,
+            Note = note
+        };
+    }
+
+    /// <summary>
+    /// İki tarix arasındakı TAKSİT NÖMRƏSİ.
+    /// <para>⚠ 1-ci taksit = başlama tarixinin özü ✓ → nəticəyə +1 əlavə olunur.</para>
+    /// </summary>
+    private static int MonthOffset(DateTime date, DateTime start)
+        => (((date.Year - start.Year) * 12) + (date.Month - start.Month)) + 1;
+
+    /// <summary>
+    /// AYLIK ÖDƏNİŞ = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət
+    /// <para>
+    /// Faiz əsas borcun ÜSTÜNƏ BİR DƏFƏ əlavə olunur, sonra bütün müddətə
+    /// bərabər bölünür. Masaüstü tətbiqlə EYNİ vahid düstur
+    /// (bax: <c>Services/CreditMath.cs</c>).
+    /// </para>
+    /// </summary>
+    private static decimal CalculateMonthly(decimal principal, decimal annualRate, int months)
+    {
+        if (principal <= 0m || months <= 0)
+        {
+            return 0m;
+        }
+
+        return CreditMath.MonthlyPayment(principal, annualRate, months);
+    }
+
+    /// <summary>Sətirdəki ⏳ / ⚠️ / 💰 düymələri üçün sürətli əməliyyat pəncərəsini açır.</summary>
+    private void OpenAdd(ScheduleRow row, string nov)
+    {
+        _formError = null;
+
+        var mebleg = nov switch
+        {
+            "Gəlir" => row.Planned,
+            "Möhlət" => Math.Max(0m, row.Planned - row.Paid),
+            _ => 0m
+        };
+
+        _entry = new EntryForm
+        {
+            CreditId = _selected?.Id,
+            InstallmentNo = row.No,
+            Nov = nov,
+            Tarix = nov == "Gəlir" ? DateTime.Today : row.Date,
+            Mebleg = mebleg,
+            MohletTarixi = nov == "Möhlət" ? DateTime.Today.AddMonths(1) : null,
+            GecikmeTarixi = nov == "Gecikmə" ? DateTime.Today : null
+        };
+    }
+
+    private async Task SaveEntryAsync()
+    {
+        if (_entry is null || _entry.CreditId is not int creditId)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            await CreditService.AddTransactionAsync(new CreditTransaction
+            {
+                CreditId = creditId,
+                Nov = _entry.Nov,
+                Tarix = _entry.Tarix,
+                Mebleg = _entry.Mebleg,
+                InstallmentNo = _entry.InstallmentNo,
+                MohletTarixi = _entry.Nov == "Möhlət" ? _entry.MohletTarixi : null,
+                GecikmeTarixi = _entry.Nov == "Gecikmə" ? _entry.GecikmeTarixi : null,
+                Odenilib = false,
+                Tesvir = _entry.Tesvir?.Trim() ?? string.Empty
+            });
+
+            Ui.Success($"{_entry.Nov} qeydi əlavə edildi ({_entry.InstallmentNo}. ay).");
+            _entry = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Yadda saxlana bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Sürətli əməliyyat forması.</summary>
+    private sealed class EntryForm
+    {
+        public int? CreditId { get; set; }
+        public int InstallmentNo { get; set; }
+        public string Nov { get; set; } = "Gəlir";
+        public DateTime Tarix { get; set; } = DateTime.Today;
+
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "Məbləğ mənfi ola bilməz.")]
+        public decimal Mebleg { get; set; }
+
+        public DateTime? MohletTarixi { get; set; }
+        public DateTime? GecikmeTarixi { get; set; }
+
+        [MaxLength(300)]
+        public string? Tesvir { get; set; } = string.Empty;
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

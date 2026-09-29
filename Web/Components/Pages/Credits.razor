@@ -1,0 +1,640 @@
+@page "/credits"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@using System.ComponentModel.DataAnnotations
+@inject ICreditService CreditService
+@inject ICarService CarService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Kreditlər — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🏦 Kreditlər</div>
+        <div class="page-sub">@_filtered.Count nəticə / @_credits.Count müqavilə</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="payment-schedule">📅 Ödəniş Qrafiki</a>
+        @if (CanWrite)
+        {
+            <button class="btn btn-primary" @onclick="OpenNew">➕ Yeni Kredit</button>
+        }
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Müqavilə Sayı" Value="@_credits.Count.ToString()" Icon="📋" Accent="blue" />
+    <StatCard Label="Aktiv Kreditlər" Value="@ActiveCount.ToString()" Icon="🟢" Accent="green" />
+    <StatCard Label="Kredit Portfeli"
+              Value="@AppFormat.Money(_credits.Where(c => c.Status != "Bağlı").Sum(c => c.Kreditlesdirilen))"
+              Icon="💳" Accent="violet" Hint="Ödənilməli əsas borc" />
+    <StatCard Label="Toplanmış Ödənişlər" Value="@AppFormat.Money(Collected)" Icon="✅" Accent="cyan"
+              Hint="@($"{_transactions.Count(t => t.Nov == "Gəlir")} ödəniş qeydi")" />
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Müqavilə, müştəri, avtomobil…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+            <select @bind="StatusFilter">
+                <option value="">Bütün statuslar</option>
+                @foreach (var status in Statuses)
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+            @if (HasFilter)
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="ClearFilters">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th>Müqavilə №</th>
+                        <th>Müştəri</th>
+                        <th>Avtomobil</th>
+                        <th class="num">Məbləğ</th>
+                        <th class="num">İlkin</th>
+                        <th class="num">Kreditləşdirilən</th>
+                        <th class="num">Faiz</th>
+                        <th class="num">Müddət</th>
+                        <th class="num">Aylıq</th>
+                        <th>Başlama</th>
+                        <th>Status</th>
+                        <th style="width:150px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="12" class="empty-cell">
+                                @(_credits.Count == 0 ? "Hələ kredit müqaviləsi yoxdur." : "Filtrə uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var credit in _filtered)
+                    {
+                        <tr>
+                            <td class="strong">@AppFormat.Text(credit.MuqavileNomresi)</td>
+                            <td>@AppFormat.Text(credit.Mustəri)</td>
+                            <td class="muted">@AppFormat.Text(credit.Car?.DisplayName)</td>
+                            <td class="num">@AppFormat.Money(credit.Mebleg)</td>
+                            <td class="num muted">@AppFormat.Money(credit.IlkinOdenis)</td>
+                            <td class="num strong">
+                                @AppFormat.Money(credit.Kreditlesdirilen)
+                                @* 🆕 FAİZ + KREDİTİN QİYMƏTİ — Kreditləşdirilənin ALTINDA *@
+                                <div class="muted" style="font-size:11px;font-weight:400;color:#fb923c"
+                                     title="Faiz = Kreditləşdirilən × Faiz% ÷ 100   ·   Qiymət = Kreditləşdirilən + Faiz">
+                                    faiz @AppFormat.Money(credit.FaizMeblegi)
+                                    · qiymət @AppFormat.Money(credit.KreditQiymeti)
+                                </div>
+                            </td>
+                            <td class="num mono">@AppFormat.Percent(credit.FaizDerecesi)</td>
+                            <td class="num mono">@credit.MuddetAy</td>
+                            <td class="num strong">@AppFormat.Money(credit.AylıqOdenis)</td>
+                            <td class="mono nowrap">@AppFormat.Date(credit.BaslamaTarixi)</td>
+                            <td><span class="@AppFormat.StatusClass(credit.Status)">@AppFormat.Text(credit.Status)</span></td>
+                            <td class="nowrap">
+                                <a class="btn btn-sm" href="@($"payment-schedule?creditId={credit.Id}")" title="Ödəniş qrafiki">📅</a>
+                                <a class="btn btn-sm" href="@($"credit-transactions?creditId={credit.Id}")" title="Əməliyyatlar">🧾</a>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => OpenEdit(credit)" title="Redaktə">✏️</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => _deleting = credit" title="Sil">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (_filtered.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="3">CƏMİ (@_filtered.Count)</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.Mebleg))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.IlkinOdenis))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.Kreditlesdirilen))</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(c => c.AylıqOdenis))</td>
+                            <td colspan="5"></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+}
+
+@* --------------------------------------------------------------- REDAKTƏ --- *@
+@if (_editing is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _editing = null">
+        <div class="modal wide" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">@(_editing.Id == 0 ? "➕ Yeni Kredit Müqaviləsi" : "✏️ Krediti Redaktə Et")</div>
+                <button type="button" class="modal-close" @onclick="() => _editing = null">✕</button>
+            </div>
+
+            <EditForm Model="_editing" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Müqavilə nömrəsi</label>
+                            <InputText @bind-Value="_editing.MuqavileNomresi" placeholder="Məs. KR-0001" />
+                        </div>
+
+                        <div class="field">
+                            <label>Başlama tarixi</label>
+                            <InputDate @bind-Value="_editing.BaslamaTarixi" />
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Müştəri (ad, soyad) <span class="req">*</span></label>
+                            <InputText @bind-Value="_editing.Mustəri" placeholder="Məs. Rəşad Məmmədov" />
+                            <ValidationMessage For="() => _editing.Mustəri" />
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Avtomobil</label>
+                            <InputSelect @bind-Value="_editing.CarId">
+                                <option value="">— Seçilməyib —</option>
+                                @foreach (var car in _cars)
+                                {
+                                    <option value="@car.Id">@car.DisplayName (@car.Status)</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label>Kredit məbləği (₼) <span class="req">*</span></label>
+                            <input type="number" step="0.01" @bind="_editing.Mebleg" @bind:after="Recalculate" />
+                            <ValidationMessage For="() => _editing.Mebleg" />
+                        </div>
+
+                        <div class="field">
+                            <label>İlkin ödəniş (₼)</label>
+                            <input type="number" step="0.01" @bind="_editing.IlkinOdenis" @bind:after="Recalculate" />
+                            <ValidationMessage For="() => _editing.IlkinOdenis" />
+                        </div>
+
+                        <div class="field">
+                            <label>İllik faiz dərəcəsi (%)</label>
+                            <input type="number" step="0.01" @bind="_editing.FaizDerecesi" @bind:after="Recalculate" />
+                            <ValidationMessage For="() => _editing.FaizDerecesi" />
+                        </div>
+
+                        <div class="field">
+                            <label>Müddət (ay)</label>
+                            <input type="number" step="1" @bind="_editing.MuddetAy" @bind:after="Recalculate" />
+                            <ValidationMessage For="() => _editing.MuddetAy" />
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin:16px 0 0;background:var(--panel-2)">
+                        <div class="card-body" style="padding:14px 16px">
+                            <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:center;font-size:13px">
+                                <span>Kreditləşdirilən: <b>@AppFormat.Money(_editing.Kreditlesdirilen)</b></span>
+                                <span>Aylıq: <b>@AppFormat.Money(MonthlyPay)</b></span>
+                                <span class="muted">
+                                    Ümumi ödəniş: @AppFormat.Money(MonthlyPay * Math.Max(_editing.MuddetAy, 0))
+                                </span>
+                                <span class="muted">
+                                    Faiz gəliri: @AppFormat.Money(MonthlyPay * Math.Max(_editing.MuddetAy, 0) - _editing.Kreditlesdirilen)
+                                </span>
+                                <button type="button" class="btn btn-sm" @onclick="Recalculate">🔁 Yenidən hesabla</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="margin-top:14px">
+                        <div class="field">
+                            <label>Aylıq ödəniş (₼)</label>
+                            <input type="number" step="0.01" @bind="_editing.AylıqOdenis" />
+                            <div class="muted" style="font-size:11.5px">Boş buraxsanız avtomatik hesablanır</div>
+                        </div>
+
+                        <div class="field">
+                            <label>Status</label>
+                            <InputSelect @bind-Value="_editing.Status">
+                                @foreach (var status in Statuses)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Qeyd</label>
+                            <InputTextArea @bind-Value="_editing.Qeyd" placeholder="Əlavə qeyd (istəyə bağlı)" />
+                        </div>
+                    </div>
+
+                    @if (_editing.Id != 0)
+                    {
+                        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                            <a class="btn btn-sm" href="@($"payment-schedule?creditId={_editing.Id}")">📅 Ödəniş Qrafiki</a>
+                            <a class="btn btn-sm" href="@($"credit-transactions?creditId={_editing.Id}")">🧾 Əməliyyatlar</a>
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _editing = null">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        @(_editing.Id == 0 ? "Əlavə et" : "Yadda saxla")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* ------------------------------------------------------------------- SİLMƏ --- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Silməni təsdiqlə</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0">
+                    <b>@AppFormat.Text(_deleting.MuqavileNomresi)</b> kredit müqaviləsi silinəcək.<br />
+                    <span class="muted">
+                        Diqqət: müqaviləyə bağlı əməliyyat qeydləri ayrıca silinmir —
+                        lazım gələrsə "Kredit Əməliyyatları" bölməsindən idarə edin.
+                    </span>
+                </p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_saving">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<Credit> _credits = new();
+    private List<Credit> _filtered = new();
+    private List<CarItem> _cars = new();
+    private List<CreditTransaction> _transactions = new();
+
+    private CreditForm? _editing;
+    private Credit? _deleting;
+    private bool _saving;
+    private string? _formError;
+    private string _search = string.Empty;
+    private string _statusFilter = string.Empty;
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Kredit statuslarının siyahısı.</summary>
+    private static IReadOnlyList<string> Statuses { get; } = new[] { "Aktiv", "Bağlı", "Gecikmiş" };
+
+    private int ActiveCount => _credits.Count(c => c.Status == "Aktiv");
+
+    private decimal Collected => _transactions.Where(t => t.Nov == "Gəlir").Sum(t => t.Mebleg);
+
+    /// <summary>Aylıq ödəniş = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət.</summary>
+    private decimal MonthlyPay => _editing is null
+        ? 0m
+        : CalculateMonthly(_editing.Kreditlesdirilen, _editing.FaizDerecesi, _editing.MuddetAy);
+
+    private bool HasFilter =>
+        !string.IsNullOrWhiteSpace(_search) || !string.IsNullOrWhiteSpace(_statusFilter);
+
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    private string StatusFilter
+    {
+        get => _statusFilter;
+        set { _statusFilter = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _credits = (await CreditService.GetCreditsAsync())
+                .OrderByDescending(c => c.BaslamaTarixi)
+                .ThenByDescending(c => c.Id)
+                .ToList();
+
+            _transactions = (await CreditService.GetTransactionsAsync()).ToList();
+
+            // Satılmış avtomobillər kreditə bağlana bilməz.
+            _cars = (await CarService.GetAllCarsAsync())
+                .Where(c => c.Status != Catalog.SoldStatus)
+                .OrderBy(c => c.SiraNomresi)
+                .ToList();
+
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kreditlər yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<Credit> query = _credits;
+
+        if (!string.IsNullOrWhiteSpace(_statusFilter))
+        {
+            query = query.Where(c => c.Status == _statusFilter);
+        }
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(c =>
+                Contains(c.MuqavileNomresi, term) ||
+                Contains(c.Mustəri, term) ||
+                Contains(c.Car?.DisplayName, term) ||
+                Contains(c.Qeyd, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _statusFilter = string.Empty;
+        ApplyFilter();
+    }
+
+    /// <summary>
+    /// AYLIK ÖDƏNİŞ = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət
+    /// <para>
+    /// Faiz əsas borcun ÜSTÜNƏ BİR DƏFƏ əlavə olunur, sonra bütün müddətə
+    /// bərabər bölünür. Masaüstü tətbiqlə EYNİ vahid düstur
+    /// (bax: <c>Services/CreditMath.cs</c>).
+    /// </para>
+    /// </summary>
+    private static decimal CalculateMonthly(decimal principal, decimal annualRate, int months)
+    {
+        if (principal <= 0m || months <= 0)
+        {
+            return 0m;
+        }
+
+        return CreditMath.MonthlyPayment(principal, annualRate, months);
+    }
+
+    /// <summary>Formadaki məbləğ/faiz/müddət dəyişdikdə aylıq ödənişi yeniləyir.</summary>
+    private void Recalculate()
+    {
+        if (_editing is not null)
+        {
+            _editing.AylıqOdenis = MonthlyPay;
+        }
+    }
+
+    private void OpenNew()
+    {
+        _formError = null;
+        _editing = new CreditForm
+        {
+            MuqavileNomresi = SuggestContractNumber(),
+            BaslamaTarixi = DateTime.Today
+        };
+    }
+
+    private void OpenEdit(Credit credit)
+    {
+        _formError = null;
+        _editing = new CreditForm
+        {
+            Id = credit.Id,
+            MuqavileNomresi = credit.MuqavileNomresi,
+            Mustəri = credit.Mustəri,
+            CarId = credit.CarId,
+            Mebleg = credit.Mebleg,
+            IlkinOdenis = credit.IlkinOdenis,
+            FaizDerecesi = credit.FaizDerecesi,
+            MuddetAy = credit.MuddetAy,
+            AylıqOdenis = credit.AylıqOdenis,
+            BaslamaTarixi = credit.BaslamaTarixi,
+            Status = string.IsNullOrWhiteSpace(credit.Status) ? "Aktiv" : credit.Status,
+            Qeyd = credit.Qeyd
+        };
+    }
+
+    /// <summary>Mövcud müqavilə nömrələrinə əsasən növbəti nömrəni təklif edir (KR-0001).</summary>
+    private string SuggestContractNumber()
+    {
+        var max = 0;
+
+        foreach (var credit in _credits)
+        {
+            var digits = new string(credit.MuqavileNomresi.Where(char.IsDigit).ToArray());
+            if (int.TryParse(digits, out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return "KR-" + (max + 1).ToString("D4");
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            // Aylıq ödəniş boşdursa avtomatik hesablanır.
+            var monthly = _editing.AylıqOdenis > 0m ? _editing.AylıqOdenis : MonthlyPay;
+
+            var payload = new Credit
+            {
+                Id = _editing.Id,
+                MuqavileNomresi = _editing.MuqavileNomresi?.Trim() ?? string.Empty,
+                Mustəri = _editing.Mustəri.Trim(),
+                CarId = _editing.CarId,
+                Mebleg = _editing.Mebleg,
+                IlkinOdenis = _editing.IlkinOdenis,
+                FaizDerecesi = _editing.FaizDerecesi,
+                MuddetAy = _editing.MuddetAy,
+                AylıqOdenis = monthly,
+                BaslamaTarixi = _editing.BaslamaTarixi,
+                Status = _editing.Status,
+                Qeyd = _editing.Qeyd?.Trim() ?? string.Empty
+            };
+
+            if (_editing.Id == 0)
+            {
+                await CreditService.AddCreditAsync(payload);
+                Ui.Success($"Kredit müqaviləsi əlavə edildi: {payload.Mustəri}");
+            }
+            else
+            {
+                await CreditService.UpdateCreditAsync(payload);
+                Ui.Success($"Kredit müqaviləsi yeniləndi: {payload.Mustəri}");
+            }
+
+            _editing = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Yadda saxlana bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await CreditService.DeleteCreditAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success("Kredit müqaviləsi silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Kredit redaktə forması.</summary>
+    private sealed class CreditForm
+    {
+        public int Id { get; set; }
+
+        [MaxLength(60)]
+        public string? MuqavileNomresi { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Müştəri adı tələb olunur.")]
+        [MaxLength(150, ErrorMessage = "Müştəri adı 150 simvoldan çox ola bilməz.")]
+        public string Mustəri { get; set; } = string.Empty;
+
+        public int? CarId { get; set; }
+
+        [Range(typeof(decimal), "0.01", "999999999", ErrorMessage = "Kredit məbləği 0-dan böyük olmalıdır.")]
+        public decimal Mebleg { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999", ErrorMessage = "İlkin ödəniş mənfi ola bilməz.")]
+        public decimal IlkinOdenis { get; set; }
+
+        [Range(typeof(decimal), "0", "1000000", ErrorMessage = "Faiz dərəcəsi mənfi ola bilməz.")]
+        public decimal FaizDerecesi { get; set; } = 12m;
+
+        [Range(1, 600, ErrorMessage = "Müddət 1–600 ay aralığında olmalıdır.")]
+        public int MuddetAy { get; set; } = 12;
+
+        [Range(typeof(decimal), "0", "999999999")]
+        public decimal AylıqOdenis { get; set; }
+
+        public DateTime BaslamaTarixi { get; set; } = DateTime.Today;
+
+        public string Status { get; set; } = "Aktiv";
+
+        [MaxLength(400)]
+        public string? Qeyd { get; set; } = string.Empty;
+
+        /// <summary>Kreditləşdirilən məbləğ = məbləğ − ilkin ödəniş.</summary>
+        public decimal Kreditlesdirilen => Mebleg - IlkinOdenis;
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

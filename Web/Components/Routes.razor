@@ -1,0 +1,18 @@
+@*  Marşrutlaşdırıcı — bütün səhifələr MainLayout daxilində göstərilir. *@
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Səhifə tapılmadı</PageTitle>
+        <LayoutView Layout="typeof(MainLayout)">
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <h2>Səhifə tapılmadı</h2>
+                <p>Axtardığınız ünvan mövcud deyil.</p>
+                <a class="btn btn-primary" href="/">İdarə panelinə qayıt</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

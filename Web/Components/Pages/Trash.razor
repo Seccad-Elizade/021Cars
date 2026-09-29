@@ -1,0 +1,281 @@
+@page "/trash"
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@inject ITrashService TrashService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+
+<PageTitle>Silinənlər — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🗑 Silinənlər</div>
+        <div class="page-sub">
+            Səhvən silinmiş qeydləri geri qaytara bilərsiniz — @_entries.Count qeyd
+        </div>
+    </div>
+    <div class="page-actions">
+        <button class="btn" @onclick="LoadAsync" disabled="@_busy">🔄 Yenilə</button>
+        @if (CanWrite && _entries.Count > 0)
+        {
+            <button class="btn btn-primary" @onclick="RestoreLastAsync" disabled="@_busy">
+                ↩️ Ən sonuncunu geri qaytar
+            </button>
+        }
+    </div>
+</div>
+
+@if (_busy)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Əməliyyat icra olunur…</div></div>
+}
+else if (_entries.Count == 0)
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <div class="empty-icon">🗑</div>
+                <p>Silinmiş qeyd yoxdur.</p>
+                <p class="muted" style="font-size:12.5px">
+                    Avtomobil, xərc, satış və ya kredit silindikdə onların surəti
+                    burada saxlanılır və istənilən vaxt geri qaytarıla bilər.
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">Silinmiş qeydlər (ən yenisi əvvəldə)</div>
+            <div class="muted" style="font-size:12px">
+                Surətlər: @TrashService.Folder
+            </div>
+        </div>
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:110px">Əməliyyat</th>
+                        <th style="width:120px">Növ</th>
+                        <th>Ad</th>
+                        <th>Məlumat</th>
+                        <th class="num">Məbləğ</th>
+                        <th style="width:140px">Vaxt</th>
+                        <th style="width:200px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in _entries)
+                    {
+                        <tr>
+                            <td>
+                                <span class="@(entry.IsEdit ? "st mohlet" : "st kredit")">
+                                    @(entry.IsEdit ? "✏️ Dəyişiklik" : "🗑 Silinmə")
+                                </span>
+                            </td>
+                            <td>
+                                <span class="st kredit">@KindIcon(entry.Kind) @entry.Kind</span>
+                            </td>
+                            <td class="strong">@entry.Title</td>
+                            <td class="muted" style="font-size:12.5px">@entry.Summary</td>
+                            <td class="num">@AppFormat.Money(entry.Amount)</td>
+                            <td class="mono nowrap" style="font-size:12px">
+                                @entry.DeletedAt.ToString("dd.MM.yyyy HH:mm")
+                            </td>
+                            <td class="nowrap">
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm btn-primary" @onclick="() => RestoreAsync(entry)"
+                                            title="Geri qaytar">↩️ Bərpa et</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => AskPurge(entry)"
+                                            title="Birdəfəlik sil">🗑</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@* ------------------------------------------------------------- TƏSDİQ --- *@
+@if (_purging is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _purging = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑 Birdəfəlik silmə</div>
+                <button type="button" class="modal-close" @onclick="() => _purging = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0 0 10px">
+                    <b>@_purging.Title</b> surəti birdəfəlik silinəcək.
+                </p>
+                <div style="background:rgba(239,68,68,.12);border-left:3px solid #ef4444;border-radius:8px;
+                            padding:10px 13px;font-size:12.5px">
+                    ⚠️ Bundan sonra bu məlumatı <b>geri qaytarmaq MÜMKÜN OLMAYACAQ</b>.
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _purging = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="PurgeAsync">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _busy;
+    private List<TrashSnapshot> _entries = new();
+    private TrashSnapshot? _purging;
+
+    /// <summary>Veb interfeysdən yazmağa icazə varmı (appsettings.json).</summary>
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _entries = (await TrashService.GetEntriesAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinənlər yüklənə bilmədi: " + ex.Message);
+        }
+    }
+
+    /// <summary>Növə uyğun ikon.</summary>
+    private static string KindIcon(string kind) => kind switch
+    {
+        "Avtomobil" => "🚗",
+        "Xərc" => "📉",
+        "Satış" => "💰",
+        "Kredit" => "🏦",
+        _ => "📄"
+    };
+
+    /// <summary>Ən son silinəni geri qaytarır (Ctrl+Z ekvivalenti).</summary>
+    private async Task RestoreLastAsync()
+    {
+        _busy = true;
+
+        try
+        {
+            var restored = await TrashService.RestoreLastAsync();
+
+            if (restored is null)
+            {
+                Ui.Error("Geri qaytarılacaq qeyd tapılmadı.");
+            }
+            else
+            {
+                Ui.Success($"«{restored.Title}» geri qaytarıldı ({restored.Summary}).");
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Geri qaytarıla bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Seçilmiş surəti geri qaytarır.</summary>
+    private async Task RestoreAsync(TrashSnapshot entry)
+    {
+        _busy = true;
+
+        try
+        {
+            var restored = await TrashService.RestoreAsync(entry.FileName);
+
+            if (restored is null)
+            {
+                Ui.Error("Geri qaytarıla bilmədi — surət oxunmadı.");
+            }
+            else
+            {
+                Ui.Success($"«{restored.Title}» geri qaytarıldı ({restored.Summary}).");
+            }
+
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Geri qaytarıla bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void AskPurge(TrashSnapshot entry) => _purging = entry;
+
+    /// <summary>Surəti birdəfəlik silir (bərpa mümkün olmayacaq).</summary>
+    private async Task PurgeAsync()
+    {
+        if (_purging is null)
+        {
+            return;
+        }
+
+        var title = _purging.Title;
+        _busy = true;
+
+        try
+        {
+            await TrashService.DeletePermanentlyAsync(_purging.FileName);
+            _purging = null;
+            Ui.Success($"«{title}» birdəfəlik silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // ========================================================================
+    //   CANLI SİNXRONİZASİYA  -  masaustu tetbiq  <->  veb sayt
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

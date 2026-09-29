@@ -1,0 +1,115 @@
+<Window x:Class="EnterpriseAeroStudio.Views.ArchiveWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Header}" Height="560" Width="880"
+        WindowStartupLocation="CenterOwner" Background="#0B0F17" Foreground="#F8FAFC"
+        FontFamily="Segoe UI, Inter, sans-serif">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{Binding Header}" Style="{StaticResource SectionTitle}" Margin="0,0,0,12"/>
+
+        <Border Grid.Row="1" Style="{StaticResource GlassCard}" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Marka / Model" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.Marka}" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Dövlət Nömrəsi" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.QeydiyyatNisani}" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="VIN Kod" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.Vin}" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="Maya Dəyəri" Style="{StaticResource StatLabel}"/>
+                    <TextBlock Text="{Binding Car.MayaDeyeri, Converter={StaticResource Currency}}" FontSize="16" FontWeight="SemiBold" Foreground="#C084FC" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ==================== XƏRC TARİXÇƏSİ ==================== -->
+            <DockPanel Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock DockPanel.Dock="Top" Text="🗂️ Xərc Tarixçəsi" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+                <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937" BorderThickness="1" Padding="6">
+                    <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Tarix" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="95" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Qrup" Binding="{Binding Qrup}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Kateqoriya" Binding="{Binding Kategoriya}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+
+            <!-- ==================== SƏNƏD & MEDIA ==================== -->
+            <DockPanel Grid.Column="1">
+                <TextBlock DockPanel.Dock="Top" Text="📎 Sənəd &amp; Media" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="📎 Fayl Əlavə Et" Style="{StaticResource iOSButton}"
+                            Background="#2563EB" Foreground="White" Margin="0,0,6,0"
+                            ToolTip="Şəkil, çek, qaimə, müqavilə (PDF / Word / Excel / JPG / PNG) əlavə edin"
+                            Command="{Binding AddFilesCommand}"/>
+                    <Button Grid.Column="1" Content="📂 Qovluğu Aç" Style="{StaticResource iOSButton}"
+                            Background="#7C3AED" Foreground="White" Margin="0,0,6,0"
+                            ToolTip="Bu avtomobilin sənədlərinin saxlandığı qovluğu birbaşa açır"
+                            Command="{Binding OpenFolderCommand}"/>
+                    <Button Grid.Column="2" Content="👁 Aç" Style="{StaticResource iOSButton}"
+                            Background="#0EA5E9" Foreground="White" Margin="0,0,6,0"
+                            Command="{Binding OpenAttachmentCommand}"/>
+                    <Button Grid.Column="3" Content="🗑 Sil" Style="{StaticResource iOSButton}"
+                            Background="#EF4444" Foreground="White"
+                            Command="{Binding DeleteAttachmentCommand}"/>
+                </Grid>
+
+                <TextBlock DockPanel.Dock="Top" Text="{Binding AttachmentInfo}" FontSize="11"
+                           Foreground="#9CA3AF" Margin="2,0,2,6" TextWrapping="Wrap"/>
+                <TextBlock DockPanel.Dock="Top" Text="PDF · Word · Excel · şəkillər (JPG, PNG) · çek, qaimə, müqavilə — sətirə iki dəfə klikləyərək açın"
+                           FontSize="10" Foreground="#6B7280" Margin="2,0,2,8" TextWrapping="Wrap"/>
+
+                <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937" BorderThickness="1" Padding="6">
+                    <DataGrid ItemsSource="{Binding Attachments}" SelectedItem="{Binding SelectedAttachment}"
+                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                              RowHeight="34" ColumnHeaderHeight="38"
+                              MouseDoubleClick="AttachmentGrid_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Fayl" Binding="{Binding DisplayText}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Növ" Binding="{Binding Extension}" Width="65" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Ölçü" Binding="{Binding SizeText}" Width="80" ElementStyle="{StaticResource GridCellText}"/>
+                            <DataGridTextColumn Header="Tarix" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="95" ElementStyle="{StaticResource GridCellText}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</Window>

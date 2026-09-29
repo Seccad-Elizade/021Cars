@@ -1,0 +1,1165 @@
+@page "/expenses"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@using System.ComponentModel.DataAnnotations
+@inject IExpenseService ExpenseService
+@inject ICarService CarService
+@inject IExpenseCatalogService CatalogService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Xərclər — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">💸 Xərc Qeydləri</div>
+        <div class="page-sub">@_filtered.Count nəticə / @_expenses.Count qeyd</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="/api/export/expenses">⬇ CSV İxrac</a>
+        @if (CanWrite)
+        {
+            <button class="btn btn-primary" @onclick="OpenNew">➕ Yeni Xərc</button>
+        }
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Ümumi Xərc" Value="@AppFormat.Money(_stats.Total)" Icon="💸" Accent="red" />
+    <StatCard Label="Avtomobil Xərcləri" Value="@AppFormat.Money(_stats.CarTotal)" Icon="🚗" Accent="blue" />
+    <StatCard Label="Ofis Xərcləri" Value="@AppFormat.Money(_stats.OfficeTotal)" Icon="🏢" Accent="violet" />
+    <StatCard Label="Bu Ay" Value="@AppFormat.Money(_stats.MonthTotal)" Icon="📅" Accent="amber"
+              Hint="@DateTime.Today.ToString("MMMM yyyy")" />
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Qrup, kateqoriya, avtomobil, qeyd…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+            <select @bind="DestinationFilter">
+                <option value="">Bütün təyinatlar</option>
+                @foreach (var item in Catalog.ExpenseDestinations)
+                {
+                    <option value="@item">@item</option>
+                }
+            </select>
+            <select @bind="GroupFilter">
+                <option value="">Bütün qruplar</option>
+                @foreach (var group in _groups)
+                {
+                    <option value="@group">@group</option>
+                }
+            </select>
+            @if (HasFilter)
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="ClearFilters">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Təyinat</th>
+                        <th>Qrup</th>
+                        <th>Kateqoriya</th>
+                        <th>Avtomobil</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Ödəniş</th>
+                        <th>Qeyd</th>
+                        <th style="width:110px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="empty-cell">
+                                @(_expenses.Count == 0 ? "Hələ xərc qeydi yoxdur." : "Filtrə uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var expense in _filtered)
+                    {
+                        <tr>
+                            <td class="mono nowrap">@AppFormat.Date(expense.Tarix)</td>
+                            <td>
+                                <span class="@(Catalog.IsOffice(expense.Teyinat) ? "st kredit" : "st satis")">
+                                    @(Catalog.IsOffice(expense.Teyinat) ? "Ofis" : "Avtomobil")
+                                </span>
+                            </td>
+                            <td>@AppFormat.Text(expense.Qrup)</td>
+                            <td class="strong">@AppFormat.Text(expense.Kategoriya)</td>
+                            <td class="muted">@AppFormat.Text(expense.CarInfo)</td>
+                            <td class="num strong">@AppFormat.Money(expense.Mebleg)</td>
+                            <td class="muted nowrap">@AppFormat.Text(expense.OdenisUsulu)</td>
+                            <td class="muted">@AppFormat.Text(expense.Qeyd)</td>
+                            <td class="nowrap">
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => OpenEdit(expense)" title="Redaktə">✏️</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => _deleting = expense" title="Sil">🗑️</button>
+                                }
+                                else
+                                {
+                                    <span class="muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (_filtered.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">CƏMİ (@_filtered.Count qeyd)</td>
+                            <td class="num">@AppFormat.Money(_filtered.Sum(e => e.Mebleg))</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+}
+
+@* ---------------------------------------------------------------- REDAKTƏ --- *@
+@if (_editing is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _editing = null">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">@(_editing.Id == 0 ? "➕ Yeni Xərc" : "✏️ Xərci Redaktə Et")</div>
+                <button type="button" class="modal-close" @onclick="() => _editing = null">✕</button>
+            </div>
+
+            <EditForm Model="_editing" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Tarix <span class="req">*</span></label>
+                            <InputDate @bind-Value="_editing.Tarix" />
+                        </div>
+
+                        <div class="field">
+                            <label>Təyinat <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.Teyinat" @bind-Value:after="OnDestinationChangedAsync">
+                                @foreach (var item in Catalog.ExpenseDestinations)
+                                {
+                                    <option value="@item">@item</option>
+                                }
+                            </InputSelect>
+                            <div class="muted" style="font-size:11.5px">
+                                Dəyişdikdə qrup siyahısı yenilənir
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>Xərc qrupu <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.Qrup" @bind-Value:after="OnGroupChangedAsync">
+                                @foreach (var group in _destGroups)
+                                {
+                                    <option value="@group">@group</option>
+                                }
+                                <option value="@AddGroupOption">@AddGroupOption</option>
+                                <option value="@DeleteGroupOption">@DeleteGroupOption</option>
+                            </InputSelect>
+
+                            @if (_addingGroup)
+                            {
+                                <div class="inline-add">
+                                    <input type="text" @bind="_newGroupName" @bind:event="oninput"
+                                           placeholder="Yeni qrup adı…" />
+                                    <button type="button" class="btn btn-sm btn-primary"
+                                            @onclick="ConfirmAddGroupAsync"
+                                            disabled="@(string.IsNullOrWhiteSpace(_newGroupName))">✔ Əlavə et</button>
+                                    <button type="button" class="btn btn-sm" @onclick="CancelAddGroup">✕</button>
+                                </div>
+                            }
+
+                            @if (_confirmDeleteGroup is not null)
+                            {
+                                <div class="inline-warn">
+                                    <span>«@_confirmDeleteGroup» qrupu və bütün kateqoriyaları silinsin?</span>
+                                    <button type="button" class="btn btn-sm btn-danger"
+                                            @onclick="DeleteSelectedGroupAsync" disabled="@(_saving)">Bəli, sil</button>
+                                    <button type="button" class="btn btn-sm" @onclick="CancelDeleteGroup">İmtina</button>
+                                </div>
+                            }
+
+                            <div class="muted" style="font-size:11.5px">
+                                @_destGroups.Count qrup — «@_editing.Teyinat» üzrə
+                            </div>
+                        </div>
+
+                        @* ============================================================
+                            🔍 SÜRƏTLİ XƏRC ADI AXTARIŞI
+                            BÜTÜN qrupların kateqoriyaları arasından axtarır.
+                            Birini seçəndə həm QRUP, həm KATEQORİYA avtomatik dolur.
+                           ============================================================ *@
+                        <div class="field span-2 cat-search-box">
+                            <label>🔍 Sürətli xərc adı axtarışı</label>
+
+                            <div class="cat-search">
+                                <input type="search"
+                                       placeholder="Xərc adını yazın — bütün qruplar axtarılır… (məs. «dəmirçi»)"
+                                       @bind="_categorySearch" @bind:event="oninput"
+                                       @bind:after="ApplySuggestionFilter" />
+                                @if (!string.IsNullOrWhiteSpace(_categorySearch))
+                                {
+                                    <button type="button" class="btn btn-sm btn-ghost" @onclick="ClearCategorySearch">✕</button>
+                                }
+                            </div>
+
+                            @if (_suggestions.Count > 0)
+                            {
+                                <div class="cat-suggest">
+                                    @foreach (var s in _suggestions)
+                                    {
+                                        <button type="button" class="cat-item" @onclick="() => PickSuggestionAsync(s)">
+                                            <span class="cat-name">@s.Kategoriya</span>
+                                            <span class="cat-group">@s.Qrup</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(_categorySearch))
+                            {
+                                <div class="muted" style="font-size:11.5px;padding:6px 2px">
+                                    Uyğun xərc adı tapılmadı — aşağıdakı siyahılardan seçə bilərsiniz.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="muted" style="font-size:11.5px;padding:6px 2px">
+                                    Yazmağa başlayın — bütün qrupların xərc adları burada görünəcək.
+                                </div>
+                            }
+                        </div>
+
+                        <div class="field">
+                            <label>Kateqoriya <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.Kategoriya" @bind-Value:after="OnCategoryChangedAsync"
+                                         disabled="@(string.IsNullOrWhiteSpace(_editing.Qrup))">
+                                @foreach (var category in _groupCategories)
+                                {
+                                    <option value="@category">@category</option>
+                                }
+                                <option value="@AddCategoryOption">@AddCategoryOption</option>
+                                <option value="@DeleteCategoryOption">@DeleteCategoryOption</option>
+                            </InputSelect>
+
+                            @if (_addingCategory)
+                            {
+                                <div class="inline-add">
+                                    <input type="text" @bind="_newCategoryName" @bind:event="oninput"
+                                           placeholder="Yeni kateqoriya adı…" />
+                                    <button type="button" class="btn btn-sm btn-primary"
+                                            @onclick="ConfirmAddCategoryAsync"
+                                            disabled="@(string.IsNullOrWhiteSpace(_newCategoryName))">✔ Əlavə et</button>
+                                    <button type="button" class="btn btn-sm" @onclick="CancelAddCategory">✕</button>
+                                </div>
+                            }
+
+                            @if (_confirmDeleteCategory is not null)
+                            {
+                                <div class="inline-warn">
+                                    <span>«@_confirmDeleteCategory» kateqoriyası silinsin?</span>
+                                    <button type="button" class="btn btn-sm btn-danger"
+                                            @onclick="DeleteSelectedCategoryAsync" disabled="@(_saving)">Bəli, sil</button>
+                                    <button type="button" class="btn btn-sm" @onclick="CancelDeleteCategory">İmtina</button>
+                                </div>
+                            }
+
+                            <div class="muted" style="font-size:11.5px">
+                                @if (string.IsNullOrWhiteSpace(_editing.Qrup))
+                                {
+                                    <span>Əvvəlcə qrup seçin</span>
+                                }
+                                else
+                                {
+                                    <span>@_groupCategories.Count kateqoriya — «@_editing.Qrup» qrupundan</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>Avtomobil (ofis xərclərində boş)</label>
+                            <InputSelect @bind-Value="_editing.CarId">
+                                <option value="">— Seçilməyib —</option>
+                                @foreach (var car in _cars)
+                                {
+                                    <option value="@car.Id">@car.DisplayName</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label>Məbləğ (₼) <span class="req">*</span></label>
+                            <InputNumber @bind-Value="_editing.Mebleg" step="0.01" />
+                            <ValidationMessage For="() => _editing.Mebleg" />
+                        </div>
+
+                        <div class="field">
+                            <label>Ödəniş üsulu</label>
+                            <InputSelect @bind-Value="_editing.OdenisUsulu">
+                                @foreach (var method in Catalog.PaymentMethods)
+                                {
+                                    <option value="@method">@method</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field span-2">
+                            <label>Qeyd</label>
+                            <InputTextArea @bind-Value="_editing.Qeyd" placeholder="Əlavə qeyd (istəyə bağlı)" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _editing = null">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        @(_editing.Id == 0 ? "Əlavə et" : "Yadda saxla")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* ------------------------------------------------------------------- SİLMƏ --- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Silməni təsdiqlə</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0">
+                    <b>@AppFormat.Text(_deleting.Kategoriya)</b> —
+                    @AppFormat.Money(_deleting.Mebleg) məbləğində xərc qeydi silinəcək.<br />
+                    <span class="muted">Bu əməliyyat geri qaytarıla bilməz.</span>
+                </p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_saving">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<ExpenseItem> _expenses = new();
+    private List<ExpenseItem> _filtered = new();
+    private List<CarItem> _cars = new();
+    private List<string> _groups = new();
+    private List<string> _allGroups = new();
+    private List<string> _allCategories = new();
+
+    /// <summary>Seçilmiş TƏYİNATA aid qruplar (WPF ilə eyni məntiq).</summary>
+    private List<string> _destGroups = new();
+
+    /// <summary>Seçilmiş QRUP-a aid kateqoriyalar (WPF ilə eyni məntiq).</summary>
+    private List<string> _groupCategories = new();
+
+    // ========================================================================
+    //  🔍 SÜRƏTLİ XƏRC ADI AXTARIŞI
+    // ------------------------------------------------------------------------
+    //  BÜTÜN qrupların kateqoriyaları bir siyahıda toplanır. İstifadəçi yazır,
+    //  uyğun olanlar süzülür; seçəndə həm QRUP, həm KATEQORİYA avtomatik dolur.
+    // ========================================================================
+
+    /// <summary>Bütün qrupların bütün kateqoriyaları (axtarış mənbəyi).</summary>
+    private List<CategorySuggestion> _allSuggestions = new();
+
+    /// <summary>Süzülmüş təkliflər (ekranda göstərilən).</summary>
+    private List<CategorySuggestion> _suggestions = new();
+
+    /// <summary>Sürətli axtarışa yazılan mətn.</summary>
+    private string _categorySearch = string.Empty;
+
+    /// <summary>Axtarış siyahısında göstərilən maksimum təklif sayı.</summary>
+    private const int MaxSuggestions = 200;
+
+    // ---- "➕ Yeni əlavə et" / "🗑 Sil" vəziyyəti (WPF ilə eyni) ----------------
+
+    /// <summary>Qrup üçün "yeni ad" sətri açıqdırmı?</summary>
+    private bool _addingGroup;
+
+    /// <summary>Kateqoriya üçün "yeni ad" sətri açıqdırmı?</summary>
+    private bool _addingCategory;
+
+    /// <summary>Daxil edilən yeni qrup adı.</summary>
+    private string _newGroupName = string.Empty;
+
+    /// <summary>Daxil edilən yeni kateqoriya adı.</summary>
+    private string _newCategoryName = string.Empty;
+
+    /// <summary>Sonuncu REAL seçilmiş qrup ("Sil" əməliyyatı üçün).</summary>
+    private string _lastGroup = string.Empty;
+
+    /// <summary>Sonuncu REAL seçilmiş kateqoriya ("Sil" əməliyyatı üçün).</summary>
+    private string _lastCategory = string.Empty;
+
+    /// <summary>Silmə təsdiqi gözləyən qrup adı.</summary>
+    private string? _confirmDeleteGroup;
+
+    /// <summary>Silmə təsdiqi gözləyən kateqoriya adı.</summary>
+    private string? _confirmDeleteCategory;
+
+    private ExpenseForm? _editing;
+    private ExpenseItem? _deleting;
+    private bool _saving;
+    private string? _formError;
+
+    private ExpenseStats _stats = new(0m, 0m, 0m, 0m);
+
+    private string _search = string.Empty;
+    private string _destinationFilter = string.Empty;
+    private string _groupFilter = string.Empty;
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    private bool HasFilter =>
+        !string.IsNullOrWhiteSpace(_search) ||
+        !string.IsNullOrWhiteSpace(_destinationFilter) ||
+        !string.IsNullOrWhiteSpace(_groupFilter);
+
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    private string DestinationFilter
+    {
+        get => _destinationFilter;
+        set { _destinationFilter = value; ApplyFilter(); }
+    }
+
+    private string GroupFilter
+    {
+        get => _groupFilter;
+        set { _groupFilter = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _expenses = (await ExpenseService.GetExpensesAsync())
+                .OrderByDescending(e => e.Tarix)
+                .ThenByDescending(e => e.Id)
+                .ToList();
+
+            _cars = (await CarService.GetAllCarsAsync())
+                .OrderBy(c => c.SiraNomresi)
+                .ToList();
+
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            _groups = _expenses
+                .Select(e => e.Qrup)
+                .Where(g => !string.IsNullOrWhiteSpace(g))
+                .Distinct()
+                .OrderBy(g => g)
+                .ToList();
+
+            _stats = ExpenseService.BuildStats(_expenses);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Xərclər yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<ExpenseItem> query = _expenses;
+
+        if (!string.IsNullOrWhiteSpace(_destinationFilter))
+        {
+            query = query.Where(e => e.Teyinat == _destinationFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_groupFilter))
+        {
+            query = query.Where(e => e.Qrup == _groupFilter);
+        }
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(e =>
+                Contains(e.Qrup, term) ||
+                Contains(e.Kategoriya, term) ||
+                Contains(e.CarInfo, term) ||
+                Contains(e.Qeyd, term) ||
+                Contains(e.OdenisUsulu, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _destinationFilter = string.Empty;
+        _groupFilter = string.Empty;
+        ApplyFilter();
+    }
+
+    // ========================================================================
+    //  🔍 SÜRƏTLİ XƏRC ADI AXTARIŞI  -  metodlar
+    // ========================================================================
+
+    /// <summary>BÜTÜN qrupların kateqoriyalarını axtarış üçün yükləyir.</summary>
+    private async Task LoadSuggestionsAsync()
+    {
+        try
+        {
+            var entries = await CatalogService.GetAllEntriesAsync();
+
+            _allSuggestions = entries
+                .Select(e => new CategorySuggestion
+                {
+                    Teyinat = e.Teyinat,
+                    Qrup = e.Qrup,
+                    Kategoriya = e.Kategoriya
+                })
+                .ToList();
+
+            ApplySuggestionFilter();
+        }
+        catch
+        {
+            // Axtarış siyahısı alınmasa forma yenə işləyir.
+            _allSuggestions = new List<CategorySuggestion>();
+        }
+    }
+
+    /// <summary>
+    /// Yazılan mətnə görə təklifləri süzür. Mətn boşdursa BÜTÜN kateqoriyalar
+    /// göstərilir — istifadəçi açılan siyahıdan dərhal seçim edə bilir.
+    /// </summary>
+    private void ApplySuggestionFilter()
+    {
+        var term = _categorySearch?.Trim() ?? string.Empty;
+
+        var matches = string.IsNullOrEmpty(term)
+            ? _allSuggestions
+            : _allSuggestions
+                .Where(s => s.SearchKey.Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        _suggestions = matches.Take(MaxSuggestions).ToList();
+    }
+
+    /// <summary>Axtarışı və nəticələri təmizləyir.</summary>
+    private void ClearCategorySearch()
+    {
+        _categorySearch = string.Empty;
+        ApplySuggestionFilter();
+    }
+
+    /// <summary>
+    /// Sürətli axtarışdan xərc adı seçildi — TƏYİNAT, QRUP və KATEQORİYA
+    /// avtomatik doldurulur; siyahılar yeni təyinata uyğun yenilənir.
+    /// </summary>
+    private async Task PickSuggestionAsync(CategorySuggestion suggestion)
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.Teyinat = suggestion.Teyinat;
+        _editing.Qrup = suggestion.Qrup;
+        _editing.Kategoriya = suggestion.Kategoriya;
+
+        _lastGroup = suggestion.Qrup;
+        _lastCategory = suggestion.Kategoriya;
+
+        // Ofis xərci avtomobilə bağlana bilməz.
+        if (Catalog.IsOffice(suggestion.Teyinat))
+        {
+            _editing.CarId = null;
+        }
+
+        try
+        {
+            // Siyahılar yeni təyinat/qrup üzrə bazadan təzələnir.
+            _destGroups = (await CatalogService.GetGroupsAsync(suggestion.Teyinat)).ToList();
+            _groupCategories = (await CatalogService.GetCategoriesAsync(suggestion.Qrup)).ToList();
+        }
+        catch
+        {
+            // Siyahılar yenilənməsə də seçim qüvvədə qalır.
+        }
+
+        _categorySearch = suggestion.Display;
+        ApplySuggestionFilter();
+
+        Ui.Success($"«{suggestion.Kategoriya}» seçildi — qrup: {suggestion.Qrup}");
+    }
+
+    private async Task OpenNew()
+    {
+        _formError = null;
+        _editing = new ExpenseForm();
+
+        // WPF ilə eyni: əvvəlcə təyinat üzrə qruplar, sonra ilk qrupun kateqoriyaları.
+        await ReloadCatalogAsync(selectFirstGroup: true);
+
+        // Sürətli axtarış təzələnir və mətni sıfırlanır.
+        _categorySearch = string.Empty;
+        await LoadSuggestionsAsync();
+    }
+
+    private async Task OpenEdit(ExpenseItem expense)
+    {
+        _formError = null;
+        _editing = new ExpenseForm
+        {
+            Id = expense.Id,
+            Tarix = expense.Tarix,
+            Teyinat = string.IsNullOrWhiteSpace(expense.Teyinat) ? Catalog.CarDestination : expense.Teyinat,
+            Qrup = expense.Qrup,
+            Kategoriya = expense.Kategoriya,
+            CarId = expense.CarId,
+            Mebleg = expense.Mebleg,
+            OdenisUsulu = string.IsNullOrWhiteSpace(expense.OdenisUsulu)
+                ? Catalog.PaymentMethods[0]
+                : expense.OdenisUsulu,
+            Qeyd = expense.Qeyd
+        };
+
+        // Mövcud qrup/kateqoriya saxlanılır, yalnız siyahılar bazadan yenilənir.
+        await ReloadCatalogAsync(selectFirstGroup: false);
+
+        // Axtarış sətri mövcud seçimi göstərir (istifadəçi dərhal görsün).
+        await LoadSuggestionsAsync();
+        _categorySearch = $"{_editing.Kategoriya}  —  {_editing.Qrup}";
+        ApplySuggestionFilter();
+    }
+
+    /// <summary>
+    /// Kataloq siyahılarını BAZADAN yeniləyir — WPF-dəki
+    /// <c>ExpenseEditorViewModel.LoadCatalogAsync</c> ilə tam eyni məntiq:
+    ///   • Qruplar  → seçilmiş TƏYİNATA görə
+    ///   • Kateqoriyalar → seçilmiş QRUP-a görə
+    /// Beləliklə istifadəçinin sonradan əlavə etdiyi qrup/kateqoriya
+    /// həm masaüstü tətbiqdə, həm də saytda EYNİ görünür.
+    /// </summary>
+    private async Task ReloadCatalogAsync(bool selectFirstGroup)
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _destGroups = (await CatalogService.GetGroupsAsync(_editing.Teyinat)).ToList();
+
+        var keepCurrent = !selectFirstGroup
+                          && !string.IsNullOrWhiteSpace(_editing.Qrup)
+                          && _destGroups.Contains(_editing.Qrup);
+
+        if (!keepCurrent)
+        {
+            _editing.Qrup = _destGroups.FirstOrDefault() ?? string.Empty;
+            _editing.Kategoriya = string.Empty;
+        }
+
+        await LoadGroupCategoriesAsync();
+
+        // "Sil" əməliyyatı üçün sonuncu REAL seçimlər yadda saxlanılır.
+        _lastGroup = _editing.Qrup ?? string.Empty;
+        _lastCategory = _editing.Kategoriya ?? string.Empty;
+    }
+
+    /// <summary>Seçilmiş qrupun kateqoriyalarını bazadan yükləyir.</summary>
+    private async Task LoadGroupCategoriesAsync()
+    {
+        _groupCategories = _editing is null || string.IsNullOrWhiteSpace(_editing.Qrup)
+            ? new List<string>()
+            : (await CatalogService.GetCategoriesAsync(_editing.Qrup)).ToList();
+
+        if (_editing is not null)
+        {
+            _lastCategory = _editing.Kategoriya ?? string.Empty;
+        }
+    }
+
+    /// <summary>Təyinat dəyişdi — qruplar yenidən yüklənir, ofisdə avtomobil sıfırlanır.</summary>
+    private async Task OnDestinationChangedAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        if (Catalog.IsOffice(_editing.Teyinat))
+        {
+            _editing.CarId = null;
+        }
+
+        await ReloadCatalogAsync(selectFirstGroup: true);
+    }
+
+    // ========================================================================
+    //   QRUP / KATEQORİYA SEÇİMİ — WPF ilə EYNİ məntiq
+    // ------------------------------------------------------------------------
+    //   Siyahıların ən sonunda iki xüsusi seçim var:
+    //       "➕ Yeni qrup əlavə et…"      "🗑 Seçilmiş qrupu sil…"
+    //   Onlar seçildikdə adi seçim kimi qəbul edilmir — müvafiq əməliyyat açılır.
+    // ========================================================================
+
+    /// <summary>Qrup siyahısının sonundaki "əlavə et" seçimi.</summary>
+    private const string AddGroupOption = "➕ Yeni qrup əlavə et…";
+
+    /// <summary>Qrup siyahısının sonundaki "sil" seçimi.</summary>
+    private const string DeleteGroupOption = "🗑 Seçilmiş qrupu sil…";
+
+    /// <summary>Kateqoriya siyahısının sonundaki "əlavə et" seçimi.</summary>
+    private const string AddCategoryOption = "➕ Yeni kateqoriya əlavə et…";
+
+    /// <summary>Kateqoriya siyahısının sonundaki "sil" seçimi.</summary>
+    private const string DeleteCategoryOption = "🗑 Seçilmiş kateqoriyanı sil…";
+
+    /// <summary>Qrup dəyişdi — "➕/🗑" seçimləri xüsusi emal olunur.</summary>
+    private async Task OnGroupChangedAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        var value = _editing.Qrup;
+
+        if (value == AddGroupOption)
+        {
+            _editing.Qrup = _lastGroup;          // müvəqqəti seçim geri qaytarılır
+            _addingGroup = true;
+            _confirmDeleteGroup = null;
+            _newGroupName = string.Empty;
+            return;
+        }
+
+        if (value == DeleteGroupOption)
+        {
+            _editing.Qrup = _lastGroup;
+            _addingGroup = false;
+            _confirmDeleteGroup = string.IsNullOrWhiteSpace(_lastGroup) ? null : _lastGroup;
+            return;
+        }
+
+        // Adi seçim
+        _lastGroup = value ?? string.Empty;
+        _addingGroup = false;
+        _confirmDeleteGroup = null;
+
+        await LoadGroupCategoriesAsync();
+    }
+
+    /// <summary>Kateqoriya dəyişdi — "➕/🗑" seçimləri xüsusi emal olunur.</summary>
+    private async Task OnCategoryChangedAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        var value = _editing.Kategoriya;
+
+        if (value == AddCategoryOption)
+        {
+            _editing.Kategoriya = _lastCategory;
+            _addingCategory = true;
+            _confirmDeleteCategory = null;
+            _newCategoryName = string.Empty;
+            return;
+        }
+
+        if (value == DeleteCategoryOption)
+        {
+            _editing.Kategoriya = _lastCategory;
+            _addingCategory = false;
+            _confirmDeleteCategory = string.IsNullOrWhiteSpace(_lastCategory) ? null : _lastCategory;
+            return;
+        }
+
+        _lastCategory = value ?? string.Empty;
+        _addingCategory = false;
+        _confirmDeleteCategory = null;
+    }
+
+    /// <summary>Yeni qrup əlavə edir və dərhal seçir (WPF ilə eyni davranış).</summary>
+    private async Task ConfirmAddGroupAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        var name = _newGroupName.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await CatalogService.AddGroupAsync(_editing.Teyinat, name);
+
+            _addingGroup = false;
+            _newGroupName = string.Empty;
+
+            // Qruplar yenidən oxunur və yeni qrup SEÇİLİR.
+            _destGroups = (await CatalogService.GetGroupsAsync(_editing.Teyinat)).ToList();
+            _editing.Qrup = name;
+            _lastGroup = name;
+
+            await LoadGroupCategoriesAsync();
+
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            Ui.Success($"\"{name}\" qrupu əlavə edildi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Qrup əlavə edilə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void CancelAddGroup()
+    {
+        _addingGroup = false;
+        _newGroupName = string.Empty;
+    }
+
+    /// <summary>Seçilmiş qrupu (və bütün kateqoriyalarını) silir.</summary>
+    private async Task DeleteSelectedGroupAsync()
+    {
+        if (_editing is null || string.IsNullOrWhiteSpace(_confirmDeleteGroup))
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            var name = _confirmDeleteGroup;
+            await CatalogService.DeleteGroupAsync(_editing.Teyinat, name);
+
+            _confirmDeleteGroup = null;
+
+            _destGroups = (await CatalogService.GetGroupsAsync(_editing.Teyinat)).ToList();
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            _editing.Qrup = _destGroups.FirstOrDefault() ?? string.Empty;
+            _lastGroup = _editing.Qrup;
+            _editing.Kategoriya = string.Empty;
+            _lastCategory = string.Empty;
+
+            await LoadGroupCategoriesAsync();
+
+            Ui.Success($"\"{name}\" qrupu silindi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Qrup silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void CancelDeleteGroup()
+    {
+        _confirmDeleteGroup = null;
+        _editing!.Qrup = _lastGroup;
+    }
+
+    /// <summary>Yeni kateqoriya əlavə edir və dərhal seçir (WPF ilə eyni davranış).</summary>
+    private async Task ConfirmAddCategoryAsync()
+    {
+        if (_editing is null || string.IsNullOrWhiteSpace(_editing.Qrup))
+        {
+            Ui.Warn("Əvvəlcə qrup seçin.");
+            return;
+        }
+
+        var name = _newCategoryName.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await CatalogService.AddCategoryAsync(_editing.Teyinat, _editing.Qrup, name);
+
+            _addingCategory = false;
+            _newCategoryName = string.Empty;
+
+            await LoadGroupCategoriesAsync();
+
+            _editing.Kategoriya = name;
+            _lastCategory = name;
+
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            Ui.Success($"\"{name}\" kateqoriyası əlavə edildi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kateqoriya əlavə edilə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void CancelAddCategory()
+    {
+        _addingCategory = false;
+        _newCategoryName = string.Empty;
+    }
+
+    /// <summary>Seçilmiş kateqoriyanı silir.</summary>
+    private async Task DeleteSelectedCategoryAsync()
+    {
+        if (_editing is null
+            || string.IsNullOrWhiteSpace(_editing.Qrup)
+            || string.IsNullOrWhiteSpace(_confirmDeleteCategory))
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            var name = _confirmDeleteCategory;
+            await CatalogService.DeleteCategoryAsync(_editing.Qrup, name);
+
+            _confirmDeleteCategory = null;
+            await LoadGroupCategoriesAsync();
+
+            _editing.Kategoriya = _groupCategories.FirstOrDefault() ?? string.Empty;
+            _lastCategory = _editing.Kategoriya;
+
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            Ui.Success($"\"{name}\" kateqoriyası silindi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kateqoriya silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void CancelDeleteCategory()
+    {
+        _confirmDeleteCategory = null;
+        _editing!.Kategoriya = _lastCategory;
+    }
+
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            var payload = new ExpenseItem
+            {
+                Id = _editing.Id,
+                Tarix = _editing.Tarix,
+                Teyinat = _editing.Teyinat,
+                Qrup = _editing.Qrup?.Trim() ?? string.Empty,
+                Kategoriya = _editing.Kategoriya?.Trim() ?? string.Empty,
+                // Ofis xərci avtomobilə bağlana bilməz.
+                CarId = Catalog.IsOffice(_editing.Teyinat) ? null : _editing.CarId,
+                Mebleg = _editing.Mebleg,
+                OdenisUsulu = _editing.OdenisUsulu,
+                Qeyd = _editing.Qeyd?.Trim() ?? string.Empty
+            };
+
+            if (_editing.Id == 0)
+            {
+                await ExpenseService.AddExpenseAsync(payload);
+                Ui.Success("Xərc qeydi əlavə edildi.");
+            }
+            else
+            {
+                await ExpenseService.UpdateExpenseAsync(payload);
+                Ui.Success("Xərc qeydi yeniləndi.");
+            }
+
+            _editing = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Yadda saxlana bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await ExpenseService.DeleteExpenseAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success("Xərc qeydi silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>Xərc redaktə forması.</summary>
+    private sealed class ExpenseForm
+    {
+        public int Id { get; set; }
+
+        public DateTime Tarix { get; set; } = DateTime.Today;
+
+        [Required(ErrorMessage = "Təyinat tələb olunur.")]
+        public string Teyinat { get; set; } = Catalog.CarDestination;
+
+        [MaxLength(120)]
+        public string? Qrup { get; set; } = string.Empty;
+
+        [MaxLength(120)]
+        public string? Kategoriya { get; set; } = string.Empty;
+
+        public int? CarId { get; set; }
+
+        [Range(typeof(decimal), "0.01", "999999999", ErrorMessage = "Məbləğ 0-dan böyük olmalıdır.")]
+        public decimal Mebleg { get; set; }
+
+        public string OdenisUsulu { get; set; } = Catalog.PaymentMethods[0];
+
+        [MaxLength(400)]
+        public string? Qeyd { get; set; } = string.Empty;
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

@@ -1,0 +1,616 @@
+@page "/partners"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@inject IPartnerService PartnerService
+@inject IExportService ExportService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Tərəfdaşlar — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">👥 Tərəfdaş Bölgüsü</div>
+        <div class="page-sub">
+            Bütün bölgülər avtomatik toplanır — satış, kredit və kredit əlavə gəlir ·
+            dövr: @_from.ToString("dd.MM.yyyy") — @_to.ToString("dd.MM.yyyy")
+        </div>
+    </div>
+    <div class="page-actions">
+        <button class="btn btn-ghost" @onclick="LoadAsync">↻ Yenilə</button>
+        <button class="btn btn-ghost" @onclick="ExportCsv">📊 Excel</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="stat-grid">
+        <StatCard Label="Tərəfdaş sayı" Value="@_totals.TerefdasSayi.ToString()" Icon="👥" Accent="blue"
+                  Hint="dövrdə payı olan" />
+        <StatCard Label="Bölgü sayı" Value="@_totals.BolguSayi.ToString()" Icon="📒" Accent="violet"
+                  Hint="bütün mənbələrdən" />
+        <StatCard Label="Qazanılmış" Value="@AppFormat.Money(_totals.Qazanilmis)" Icon="✅" Accent="green"
+                  Hint="cəmi bölünən mənfəət" />
+        <StatCard Label="Xaric edilən" Value="@AppFormat.Money(_totals.Verilmis)" Icon="💸" Accent="amber"
+                  Hint="tərəfdaşlara verilən pul" />
+        <StatCard Label="Qalıq" Value="@AppFormat.Money(_totals.Qaliq)" Icon="⚖️"
+                  Accent="@(_totals.Qaliq >= 0 ? "green" : "red")" Hint="ödənilməli məbləğ" />
+    </div>
+
+    @* ==================== DÖVR FİLTRİ ==================== *@
+    <div class="card">
+        <div class="card-head">🗓️ Dövr filtri</div>
+        <div class="form-row">
+            <label class="field">
+                <span>Dövr</span>
+                <select @bind="_range" @bind:after="LoadAsync">
+                    @foreach (var option in RangeOptions)
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>Başlanğıc</span>
+                <input type="date" @bind="_fromDate" @bind:after="LoadAsync" disabled="@(_range != "Fərdi aralıq")" />
+            </label>
+            <label class="field">
+                <span>Son</span>
+                <input type="date" @bind="_toDate" @bind:after="LoadAsync" disabled="@(_range != "Fərdi aralıq")" />
+            </label>
+            <label class="field">
+                <span>Tərəfdaş</span>
+                <select @bind="_filterTerefdas">
+                    <option value="">Hamısı</option>
+                    @foreach (var ad in _names)
+                    {
+                        <option value="@ad">@ad</option>
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>Mənbə</span>
+                <select @bind="_filterMenbe">
+                    <option value="">Bütün mənbələr</option>
+                    <option value="Satış">💰 Satış</option>
+                    <option value="Kredit">💳 Kredit</option>
+                    <option value="Kredit Əlavə Gəlir">🏷️ Kredit Gəliri</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Axtarış (maşın / müqavilə)</span>
+                <input type="text" @bind="_axtaris" @bind:event="oninput" placeholder="Malibu, M-0001…" />
+            </label>
+        </div>
+    </div>
+    @* ==================== TƏRƏFDAŞ İDARƏSİ ==================== *@
+    <div class="card">
+        <div class="card-head">👤 Tərəfdaş idarəsi — şəxs əlavə et · sil · standart faiz təyin et</div>
+
+        <div class="form-row">
+            <label class="field">
+                <span>Ad</span>
+                <input type="text" @bind="_newAd" placeholder="Kamran" />
+            </label>
+            <label class="field">
+                <span>Faiz %</span>
+                <input type="number" step="0.5" @bind="_newFaiz" />
+            </label>
+            <label class="field">
+                <span>Qalıq payçısı?</span>
+                <input type="checkbox" @bind="_newQalig" style="width:22px;height:22px;" />
+            </label>
+            <label class="field">
+                <span>Qeyd</span>
+                <input type="text" @bind="_newQeyd" />
+            </label>
+            <button class="btn btn-primary" @onclick="AddPartnerAsync" disabled="@(!CanWrite)">➕ Əlavə et</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aktiv</th>
+                        <th>Ad</th>
+                        <th>Faiz %</th>
+                        <th>Qalıq payçısı</th>
+                        <th>Qeyd</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var partner in _partners)
+                    {
+                        <tr>
+                            <td><input type="checkbox" checked="@partner.Aktiv" disabled /></td>
+                            <td><b>@partner.Ad</b></td>
+                            <td>@partner.FaizMetni</td>
+                            <td>@(partner.QaligPayi ? "✅" : "—")</td>
+                            <td>@partner.Qeyd</td>
+                            <td>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeletePartnerAsync(partner)">
+                                        🗑️ Sil
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== PUL VERİLMƏSİ ==================== *@
+    <div class="card">
+        <div class="card-head">💸 Tərəfdaşa pul verilməsi — xaric edilən pullar</div>
+
+        <div class="form-row">
+            <label class="field">
+                <span>Tərəfdaş</span>
+                <input type="text" list="partner-names" @bind="_payTerefdas" />
+                <datalist id="partner-names">
+                    @foreach (var ad in _names)
+                    {
+                        <option value="@ad"></option>
+                    }
+                </datalist>
+            </label>
+            <label class="field">
+                <span>Məbləğ (₼)</span>
+                <input type="number" step="0.01" @bind="_payMebleg" />
+            </label>
+            <label class="field">
+                <span>Tarix</span>
+                <input type="date" @bind="_payTarix" />
+            </label>
+            <label class="field">
+                <span>Ödəniş üsulu</span>
+                <select @bind="_payUsul">
+                    <option value="Nağd">Nağd</option>
+                    <option value="Kart / Köçürmə">Kart / Köçürmə</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Qeyd</span>
+                <input type="text" @bind="_payQeyd" placeholder="sentyabr payı" />
+            </label>
+            <button class="btn btn-primary" @onclick="AddPaymentAsync" disabled="@(!CanWrite)">💸 Qeyd et</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Dövr</th>
+                        <th>Tərəfdaş</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Üsul</th>
+                        <th>Qeyd</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var payment in _payments)
+                    {
+                        <tr>
+                            <td>@payment.TarixMetni</td>
+                            <td>@payment.AyMetni</td>
+                            <td><b>@payment.Terefdas</b></td>
+                            <td class="num">@AppFormat.Money(payment.Mebleg)</td>
+                            <td>@payment.OdenisUsulu</td>
+                            <td>@payment.Qeyd</td>
+                            <td>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeletePaymentAsync(payment)">
+                                        🗑️
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @* ==================== TƏRƏFDAŞ KARTLARI ==================== *@
+    <div class="card">
+        <div class="card-head">👥 Tərəfdaş kartları — qazanılmış · verilmiş · qalıq · dövriyyə</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tərəfdaş</th>
+                        <th>Faiz</th>
+                        <th class="num">Satışdan</th>
+                        <th class="num">Kreditdən</th>
+                        <th class="num">Əlavə gəlirdən</th>
+                        <th class="num">Qazanılmış</th>
+                        <th class="num">Verilmiş</th>
+                        <th class="num">Qalıq</th>
+                        <th class="num">Bölgü</th>
+                        <th>Dövriyyə</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var card in FilteredCards)
+                    {
+                        <tr>
+                            <td><b>@card.Terefdas</b></td>
+                            <td>@card.FaizMetni</td>
+                            <td class="num">@AppFormat.Money(card.SatisQazanc)</td>
+                            <td class="num">@AppFormat.Money(card.KreditQazanc)</td>
+                            <td class="num">@AppFormat.Money(card.GelirQazanc)</td>
+                            <td class="num"><b>@AppFormat.Money(card.Qazanilmis)</b></td>
+                            <td class="num">@AppFormat.Money(card.Verilmis)</td>
+                            <td class="num @(card.Qaliq >= 0 ? "pos" : "neg")"><b>@AppFormat.Money(card.Qaliq)</b></td>
+                            <td class="num">@card.BolguSayi</td>
+                            <td>@card.DonemMetni</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== AYLIK DÖVRİYYƏ ==================== *@
+    <div class="card">
+        <div class="card-head">📅 Aylıq dövriyyə — hansı ayda kimə nə qədər</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dövr</th>
+                        <th>Tərəfdaş</th>
+                        <th class="num">Bölgü</th>
+                        <th class="num">Qazanılmış</th>
+                        <th class="num">Verilmiş</th>
+                        <th class="num">Qalıq</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in FilteredMonthly)
+                    {
+                        <tr>
+                            <td>@row.AyMetni</td>
+                            <td><b>@row.Terefdas</b></td>
+                            <td class="num">@row.BolguSayi</td>
+                            <td class="num">@AppFormat.Money(row.Qazanilmis)</td>
+                            <td class="num">@AppFormat.Money(row.Odenilmis)</td>
+                            <td class="num @(row.Qaliq >= 0 ? "pos" : "neg")">@AppFormat.Money(row.Qaliq)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== BÖLGÜ JURNALI ==================== *@
+    <div class="card">
+        <div class="card-head">📒 Bölgü jurnalı — hansı maşından · hansı ayda · kimə nə qədər</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Dövr</th>
+                        <th>Mənbə</th>
+                        <th>Avtomobil</th>
+                        <th>Müqavilə / Müştəri</th>
+                        <th>Tərəfdaş</th>
+                        <th>Faiz</th>
+                        <th class="num">Xeyir (baza)</th>
+                        <th class="num">Pay</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (FilteredLedger.Count == 0)
+                    {
+                        <tr><td colspan="9" class="empty">Bu dövrdə bölgü qeydi yoxdur.</td></tr>
+                    }
+                    @foreach (var row in FilteredLedger)
+                    {
+                        <tr>
+                            <td>@row.TarixMetni</td>
+                            <td>@row.AyMetni</td>
+                            <td>@row.MenbeNisani</td>
+                            <td>@row.Avtomobil</td>
+                            <td>@row.SenedMetni</td>
+                            <td><b>@row.Terefdas</b></td>
+                            <td>@row.FaizMetni</td>
+                            <td class="num">@AppFormat.Money(row.Baza)</td>
+                            <td class="num"><b>@AppFormat.Money(row.Mebleg)</b></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="card"><div class="empty">@_message</div></div>
+    }
+}
+
+@code {
+    private static readonly string[] RangeOptions =
+    {
+        "Bu ay", "Keçən ay", "Bu il", "Son 12 ay", "Bütün vaxt", "Fərdi aralıq"
+    };
+
+    private bool _loading = true;
+    private string _message = string.Empty;
+
+    private List<Partner> _partners = new();
+    private List<PartnerCardRow> _cards = new();
+    private List<PartnerLedgerRow> _ledger = new();
+    private List<PartnerMonthlyRow> _monthly = new();
+    private List<PartnerPayment> _payments = new();
+    private List<string> _names = new();
+    private PartnerPortfolioTotals _totals = new(0m, 0m, 0, 0);
+
+    private DateTime _from = DateTime.Today;
+    private DateTime _to = DateTime.Today;
+
+    // ---- Filtrlər ----
+    private string _range = "Bu ay";   // default: BU AY ✓
+    private DateTime _fromDate = new(DateTime.Today.Year, 1, 1);
+    private DateTime _toDate = DateTime.Today;
+    private string _filterTerefdas = string.Empty;
+    private string _filterMenbe = string.Empty;
+    private string _axtaris = string.Empty;
+
+    // ---- Yeni tərəfdaş ----
+    private string _newAd = string.Empty;
+    private decimal _newFaiz = 5m;
+    private bool _newQalig;
+    private string _newQeyd = string.Empty;
+
+    // ---- Yeni ödəniş ----
+    private string _payTerefdas = string.Empty;
+    private decimal _payMebleg;
+    private DateTime _payTarix = DateTime.Today;
+    private string _payUsul = "Nağd";
+    private string _payQeyd = string.Empty;
+
+    /// <summary>Yazma icazəsi var? (yalnız oxuma rejimində düymələr bağlanır)</summary>
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    // ====================================================================
+    //  FİLTRLƏNMİŞ SİYAHILAR
+    // ====================================================================
+
+    private IEnumerable<PartnerCardRow> FilteredCards => string.IsNullOrEmpty(_filterTerefdas)
+        ? _cards
+        : _cards.Where(c => c.Terefdas.Equals(_filterTerefdas, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<PartnerMonthlyRow> FilteredMonthly => string.IsNullOrEmpty(_filterTerefdas)
+        ? _monthly
+        : _monthly.Where(m => m.Terefdas.Equals(_filterTerefdas, StringComparison.OrdinalIgnoreCase));
+
+    private List<PartnerLedgerRow> FilteredLedger
+    {
+        get
+        {
+            var rows = _ledger.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(_filterTerefdas))
+            {
+                rows = rows.Where(r => r.Terefdas.Equals(_filterTerefdas, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrEmpty(_filterMenbe))
+            {
+                rows = rows.Where(r => r.Menbe == _filterMenbe);
+            }
+
+            var search = (_axtaris ?? string.Empty).Trim();
+            if (search.Length > 0)
+            {
+                rows = rows.Where(r =>
+                    r.Avtomobil.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    r.SenedMetni.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    r.Terefdas.Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return rows.ToList();
+        }
+    }
+
+    // ====================================================================
+    //  DÖVR + YÜKLƏMƏ
+    // ====================================================================
+
+    private (DateTime From, DateTime To) GetRange()
+    {
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+
+        return _range switch
+        {
+            "Bu ay" => (monthStart, today),
+            "Keçən ay" => (monthStart.AddMonths(-1), monthStart.AddDays(-1)),
+            "Bu il" => (new DateTime(today.Year, 1, 1), today),
+            "Son 12 ay" => (monthStart.AddMonths(-11), today),
+            "Fərdi aralıq" => (_fromDate, _toDate),
+            _ => (new DateTime(2000, 1, 1), today)
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            var (from, to) = GetRange();
+            _from = from;
+            _to = to;
+
+            _partners = (await PartnerService.GetPartnersAsync()).ToList();
+            _ledger = (await PartnerService.BuildLedgerAsync(from, to)).ToList();
+            _cards = (await PartnerService.BuildCardsAsync(from, to)).ToList();
+            _monthly = (await PartnerService.BuildMonthlyAsync(from, to)).ToList();
+            _payments = (await PartnerService.GetPaymentsAsync()).ToList();
+            _totals = await PartnerService.BuildTotalsAsync(from, to);
+
+            _names = _partners.Select(p => p.Ad)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            _message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _message = "Yükləmə xətası: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ====================================================================
+    //  TƏRƏFDAŞ ƏMƏLİYYATLARI
+    // ====================================================================
+
+    private async Task AddPartnerAsync()
+    {
+        var ad = (_newAd ?? string.Empty).Trim();
+
+        if (ad.Length == 0)
+        {
+            _message = "Tərəfdaşın adını yazın.";
+            return;
+        }
+
+        try
+        {
+            await PartnerService.AddPartnerAsync(ad, _newFaiz, _newQalig, _newQeyd);
+
+            _newAd = string.Empty;
+            _newFaiz = 5m;
+            _newQalig = false;
+            _newQeyd = string.Empty;
+
+            await LoadAsync();
+            _message = $"✅ «{ad}» tərəfdaşlar siyahısına əlavə olundu.";
+        }
+        catch (Exception ex)
+        {
+            _message = "Xəta: " + ex.Message;
+        }
+    }
+
+    private async Task DeletePartnerAsync(Partner partner)
+    {
+        try
+        {
+            await PartnerService.DeletePartnerAsync(partner.Id);
+            await LoadAsync();
+            _message = $"🗑️ «{partner.Ad}» silindi (keçmiş bölgülər tarixçədə qaldı).";
+        }
+        catch (Exception ex)
+        {
+            _message = "Xəta: " + ex.Message;
+        }
+    }
+
+    // ====================================================================
+    //  ÖDƏNİŞ ƏMƏLİYYATLARI
+    // ====================================================================
+
+    private async Task AddPaymentAsync()
+    {
+        if (_payTerefdas.Trim().Length == 0 || _payMebleg <= 0m)
+        {
+            _message = "Ödəniş üçün tərəfdaş və sıfırdan böyük məbləğ lazımdır.";
+            return;
+        }
+
+        try
+        {
+            await PartnerService.AddPaymentAsync(new PartnerPayment
+            {
+                Terefdas = _payTerefdas,
+                Mebleg = _payMebleg,
+                Tarix = _payTarix,
+                OdenisUsulu = _payUsul,
+                Qeyd = _payQeyd
+            });
+
+            _payMebleg = 0m;
+            _payQeyd = string.Empty;
+
+            await LoadAsync();
+            _message = "💸 Ödəniş qeydə alındı.";
+        }
+        catch (Exception ex)
+        {
+            _message = "Xəta: " + ex.Message;
+        }
+    }
+
+    private async Task DeletePaymentAsync(PartnerPayment payment)
+    {
+        try
+        {
+            await PartnerService.DeletePaymentAsync(payment.Id);
+            await LoadAsync();
+            _message = "🗑️ Ödəniş silindi.";
+        }
+        catch (Exception ex)
+        {
+            _message = "Xəta: " + ex.Message;
+        }
+    }
+
+    // ====================================================================
+    //  İXRAC
+    // ====================================================================
+
+    private async Task ExportCsv()
+    {
+        try
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"Terefdas-Bolgusu-{DateTime.Now:yyyy-MM-dd_HHmm}.csv");
+
+            await ExportService.ExportPartnersAsync(_cards, _ledger, _payments, path);
+            _message = "📊 Hesabat hazırlandı: " + path;
+        }
+        catch (Exception ex)
+        {
+            _message = "İxrac xətası: " + ex.Message;
+        }
+    }
+
+    // ====================================================================
+    //  XARİCİ DƏYİŞİKLİK  (masaüstü ↔ veb sinxronizasiya)
+    // ====================================================================
+
+    private void OnExternalChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(LoadAsync);
+
+    public void Dispose() => DataChanges.Changed -= OnExternalChange;
+}

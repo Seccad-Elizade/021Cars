@@ -1,0 +1,313 @@
+@page "/archive"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@inject ICarService CarService
+@inject ICreditService CreditService
+@inject ISaleService SaleService
+@inject UiState Ui
+
+<PageTitle>Arxiv — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🗄️ Arxiv</div>
+        <div class="page-sub">Satılmış avtomobillər və bitmiş kredit müqavilələri</div>
+    </div>
+    <div class="page-actions">
+        <button class="btn" @onclick="LoadAsync" disabled="@_loading">🔄 Yenilə</button>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Satılmış Avtomobil" Value="@_soldCars.Count.ToString()" Icon="✅" Accent="green" />
+    <StatCard Label="Satış Gəliri" Value="@AppFormat.Money(_soldSales.Sum(s => s.SatisQiymeti))" Icon="💰" Accent="cyan" />
+    <StatCard Label="Bağlı Kredit" Value="@_closedCredits.Count.ToString()" Icon="🏦" Accent="violet" />
+    <StatCard Label="Bitmiş Müqavilə Həcmi"
+              Value="@AppFormat.Money(_closedCredits.Sum(c => c.Kreditlesdirilen))" Icon="📋" Accent="slate" />
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="tabs">
+            <button class="tab @(_tab == 0 ? "active" : "")" @onclick="() => _tab = 0">
+                ✅ Satılmış Avtomobillər (@_soldCars.Count)
+            </button>
+            <button class="tab @(_tab == 1 ? "active" : "")" @onclick="() => _tab = 1">
+                🏦 Bağlı Kreditlər (@_closedCredits.Count)
+            </button>
+        </div>
+
+        @if (_tab == 0)
+        {
+            <div class="toolbar">
+                <div class="search">
+                    <input type="search" placeholder="Marka, nömrə, müştəri…"
+                           @bind="Search" @bind:event="oninput" />
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_search))
+                {
+                    <button class="btn btn-sm btn-ghost" @onclick="ClearSearch">✕ Təmizlə</button>
+                }
+            </div>
+
+            <div class="card-body tight table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Avtomobil</th>
+                            <th>Status</th>
+                            <th>Nömrə</th>
+                            <th>İl</th>
+                            <th class="num">Alış</th>
+                            <th class="num">Maya</th>
+                            <th>Satış tarixi</th>
+                            <th>Müştəri</th>
+                            <th class="num">Satış qiyməti</th>
+                            <th class="num">Mənfəət</th>
+                            <th style="width:120px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_filteredCars.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="12" class="empty-cell">
+                                    @(_soldCars.Count == 0 ? "Hələ satılmış avtomobil yoxdur." : "Axtarışa uyğun nəticə yoxdur.")
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var car in _filteredCars)
+                        {
+                            var sale = _soldSales.FirstOrDefault(s => s.CarId == car.Id);
+                            var isBarter = string.Equals(car.Status, Catalog.BarterGivenStatus, StringComparison.Ordinal);
+
+                            <tr>
+                                <td class="muted mono">@car.SiraNomresi</td>
+                                <td class="strong">
+                                    @car.Marka
+                                    @if (isBarter && !string.IsNullOrWhiteSpace(car.BarterCarInfo))
+                                    {
+                                        <div class="muted" style="font-size:11px;font-weight:400">
+                                            🔄 verilib: @car.BarterCarInfo
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="@AppFormat.StatusClass(car.Status)">
+                                        @(isBarter ? "🔄 Barter edildi" : "✅ Satıldı")
+                                    </span>
+                                </td>
+                                <td class="mono">@AppFormat.Text(car.QeydiyyatNisani)</td>
+                                <td class="mono">@car.Il</td>
+                                <td class="num muted">@AppFormat.Money(car.AlisQiymeti)</td>
+                                <td class="num">@AppFormat.Money(car.MayaDeyeri)</td>
+                                <td class="mono nowrap">@AppFormat.Date(sale?.SatisTarixi)</td>
+                                <td>@AppFormat.Text(sale?.Mustəri)</td>
+                                <td class="num strong">
+                                    @if (sale is not null)
+                                    {
+                                        @AppFormat.Money(sale.SatisQiymeti)
+                                    }
+                                    else if (isBarter && car.BarterDeyeri > 0m)
+                                    {
+                                        <span title="Barter əvəzi kimi verilib — dəyəri">🔄 @AppFormat.Money(car.BarterDeyeri)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td class="num @((sale?.Menfeet ?? 0m) >= 0 ? "pos" : "neg")">
+                                    @(sale is null ? "—" : AppFormat.MoneySigned(sale.Menfeet))
+                                </td>
+                                <td class="nowrap">
+                                    <button class="btn btn-sm" @onclick="() => ShowInfo(car)"
+                                            title="Tam məlumat — hansı maşınla barter edilib, qiymətlər və s.">ℹ</button>
+                                    <a class="btn btn-sm" href="@($"media?type={MediaRefTypes.Car}&id={car.Id}")" title="Sənədlər">📎</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="card-body tight table-wrap">
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th>Müqavilə №</th>
+                            <th>Müştəri</th>
+                            <th>Avtomobil</th>
+                            <th class="num">Kreditləşdirilən</th>
+                            <th class="num">Faiz</th>
+                            <th class="num">Müddət</th>
+                            <th class="num">Aylıq</th>
+                            <th>Başlama</th>
+                            <th style="width:110px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_closedCredits.Count == 0)
+                        {
+                            <tr><td colspan="9" class="empty-cell">Hələ bağlanmış kredit yoxdur.</td></tr>
+                        }
+                        @foreach (var credit in _closedCredits)
+                        {
+                            <tr>
+                                <td class="strong">@AppFormat.Text(credit.MuqavileNomresi)</td>
+                                <td>@AppFormat.Text(credit.Mustəri)</td>
+                                <td class="muted">@AppFormat.Text(credit.Car?.DisplayName)</td>
+                                <td class="num strong">@AppFormat.Money(credit.Kreditlesdirilen)</td>
+                                <td class="num mono">@AppFormat.Percent(credit.FaizDerecesi)</td>
+                                <td class="num mono">@credit.MuddetAy ay</td>
+                                <td class="num">@AppFormat.Money(credit.AylıqOdenis)</td>
+                                <td class="mono nowrap">@AppFormat.Date(credit.BaslamaTarixi)</td>
+                                <td>
+                                    <a class="btn btn-sm" href="@($"payment-schedule?creditId={credit.Id}")" title="Qrafik">📅</a>
+                                    <a class="btn btn-sm" href="@($"credit-transactions?creditId={credit.Id}")" title="Əməliyyatlar">🧾</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@* ---------------------------------- AVTOMOBİL MƏLUMAT PƏNCƏRƏSİ (ℹ) --- *@
+<CarInfoDialog Car="_infoCar"
+               Sale="SaleFor(_infoCar)"
+               Credit="CreditFor(_infoCar)"
+               OnClose="() => _infoCar = null" />
+
+@code {
+    private bool _loading = true;
+    private int _tab;
+
+    /// <summary>ℹ düyməsi ilə açılan məlumat pəncərəsinin avtomobili.</summary>
+    private CarItem? _infoCar;
+
+    private void ShowInfo(CarItem car) => _infoCar = car;
+
+    /// <summary>Avtomobilin satış qeydi.</summary>
+    private Sale? SaleFor(CarItem? car)
+        => car is null ? null : _soldSales.FirstOrDefault(s => s.CarId == car.Id);
+
+    /// <summary>Avtomobilin kredit qeydi.</summary>
+    private Credit? CreditFor(CarItem? car)
+        => car is null ? null : _closedCredits.FirstOrDefault(c => c.Car?.Id == car.Id);
+
+    private List<CarItem> _soldCars = new();
+    private List<CarItem> _filteredCars = new();
+    private List<Sale> _soldSales = new();
+    private List<Credit> _closedCredits = new();
+
+    private string _search = string.Empty;
+
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _soldCars = (await CarService.GetSoldCarsAsync())
+                .OrderBy(c => c.SiraNomresi)
+                .ToList();
+
+            var sales = await SaleService.GetSalesAsync();
+            _soldSales = sales.ToList();
+
+            _closedCredits = (await CreditService.GetCreditsAsync())
+                .Where(c => c.Status == "Bağlı")
+                .OrderByDescending(c => c.BaslamaTarixi)
+                .ToList();
+
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Arxiv yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<CarItem> query = _soldCars;
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(c =>
+                Contains(c.Marka, term) ||
+                Contains(c.QeydiyyatNisani, term) ||
+                Contains(_soldSales.FirstOrDefault(s => s.CarId == c.Id)?.Mustəri, term));
+        }
+
+        _filteredCars = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearSearch()
+    {
+        _search = string.Empty;
+        ApplyFilter();
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>EnterpriseAeroStudio.Web</RootNamespace>
+    <AssemblyName>EnterpriseAeroStudio.Web</AssemblyName>
+    <ApplicationTitle>Avtomobil Parkı v6.0 — Veb</ApplicationTitle>
+    <Version>6.0.0</Version>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>az;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!--
+    ============================================================================
+    PAYLAŞILAN MƏNBƏ KODU
+    ============================================================================
+    Aşağıdakı üç qovluq WPF ("Autocode") layihəsi ilə EYNİ FİZİKİ FAYLLARDIR.
+    Burada yenidən kompilyasiya olunur — kod dublikatı YOXDUR.
+    WPF tərəfindəki heç bir fayl dəyişdirilmir.
+
+    Xaric edilir:
+      • DialogService.cs / IDialogService.cs — WPF MessageBox & fayl dialoqları
+        (veb tərəfdə bunlara ehtiyac yoxdur, Services qatı onları çağırmır)
+      • DesignTimeDbContextFactory.cs — `dotnet ef` alətləri üçündür, runtime-a
+        daxil deyil (bax: Data/Migrations — miqrasiyalar DAXİLDİR, çünki tətbiq
+        işə düşərkən Database.MigrateAsync() çağırılır)
+  -->
+  <ItemGroup>
+    <Compile Include="..\Models\**\*.cs" LinkBase="Shared\Models" />
+    <Compile Include="..\Data\**\*.cs" LinkBase="Shared\Data"
+             Exclude="..\Data\DesignTimeDbContextFactory.cs" />
+    <Compile Include="..\Services\**\*.cs" LinkBase="Shared\Services"
+             Exclude="..\Services\DialogService.cs;..\Services\IDialogService.cs" />
+  </ItemGroup>
+
+  <!--
+    PAYLAŞILAN MƏNBƏ İZLƏMƏSİ: yuxarıdakı fayllardan hər hansı biri dəyişsə,
+    veb layihə avtomatik yenidən qurulur (Visual Studio / dotnet watch üçün).
+  -->
+  <ItemGroup>
+    <Watch Include="..\Models\**\*.cs" />
+    <Watch Include="..\Data\**\*.cs" />
+    <Watch Include="..\Services\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WPF layihəsi ilə EYNİ versiyalar — eyni verilənlər bazası sxemi -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+
+    <!-- Models/PaymentRow.cs (ödəniş qrafiki modeli) CommunityToolkit.Mvvm istifadə edir -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+
+    <!-- NU1903 təhlükəsizlik xəbərdarlığının düzəldilməsi (transitiv 2.1.6 → 2.1.13) -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+
+    <PackageReference Include="Serilog" Version="4.0.2" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>

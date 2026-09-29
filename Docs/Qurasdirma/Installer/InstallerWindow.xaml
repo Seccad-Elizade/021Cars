@@ -1,0 +1,76 @@
+<Window x:Class="Cas0201.Setup.InstallerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="021Cars — Quraşdırıcı" Height="460" Width="660"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#0B0F17" Foreground="#F8FAFC" FontFamily="Segoe UI">
+
+    <Grid Margin="26">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══ BAŞLIQ ═══ -->
+        <StackPanel Grid.Row="0">
+            <TextBlock x:Name="BasliqText" Text="☁️  021Cars — Avtomobil Parkı"
+                       FontSize="25" FontWeight="Bold" Foreground="#38BDF8"/>
+            <TextBlock x:Name="AltBasliqText"
+                       Text="📦 Quraşdırma — bütün fayllar (baza · log · media · yedək) seçdiyiniz qovluqda saxlanılacaq ✓"
+                       FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <!-- ═══ YER SEÇİMİ ═══ -->
+        <StackPanel x:Name="YerPaneli" Grid.Row="1" Margin="0,20,0,0">
+            <TextBlock Text="📂 Quraşdırma yeri:" FontSize="12.5" Foreground="#E2E8F0"/>
+            <Grid Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="YerQutusu" Text="C:\Program Files\021Cars" Height="34"
+                         Background="#111827" Foreground="#F8FAFC" BorderBrush="#334155"
+                         Padding="8,4" VerticalContentAlignment="Center" FontSize="13"/>
+                <Button Grid.Column="1" Content="📁  Göz at…" Width="120" Height="34" Margin="8,0,0,0"
+                        Background="#1F2937" Foreground="#F8FAFC" Cursor="Hand"
+                        BorderBrush="#334155" BorderThickness="1" Click="GozAt_Click"/>
+            </Grid>
+            <CheckBox x:Name="MasaustuQutusu" Content="🖥️  Masaüstündə qısayol yarat"
+                      IsChecked="True" Foreground="#E2E8F0" Margin="0,12,0,0" FontSize="12.5"/>
+            <CheckBox x:Name="QisaBaslatQutusu" Content="▶️  Quraşdırma bitəndə proqramı işə sal"
+                      IsChecked="True" Foreground="#E2E8F0" Margin="0,6,0,0" FontSize="12.5"/>
+        </StackPanel>
+
+        <!-- ═══ DÜYMƏ ═══ -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,22,0,0">
+            <Button x:Name="QurasdirDugmesi" Content="📦   QURAŞDIR" Width="210" Height="46"
+                    FontSize="15" FontWeight="Bold" Cursor="Hand"
+                    Background="#16A34A" Foreground="White" BorderThickness="0"
+                    Click="Qurasdir_Click"/>
+            <Button x:Name="SilDugmesi" Content="❌   SİL" Width="150" Height="46" Margin="10,0,0,0"
+                    FontSize="15" FontWeight="Bold" Cursor="Hand" Visibility="Collapsed"
+                    Background="#B91C1C" Foreground="White" BorderThickness="0"
+                    Click="Sil_Click"/>
+            <Button x:Name="BaglaDugmesi" Content="🚪   Bağla" Width="120" Height="46" Margin="10,0,0,0"
+                    FontSize="14" Cursor="Hand" Background="#1F2937" Foreground="#E2E8F0"
+                    BorderBrush="#334155" BorderThickness="1" Click="Bagla_Click"/>
+        </StackPanel>
+
+        <!-- ═══ PROGRESS ═══ -->
+        <ProgressBar x:Name="Zolaq" Grid.Row="3" Height="8" Margin="0,18,0,0"
+                     Minimum="0" Maximum="100" Value="0"
+                     Background="#111827" Foreground="#38BDF8" BorderThickness="0"/>
+
+        <!-- ═══ STATUS ═══ -->
+        <Border Grid.Row="4" Background="#111827" CornerRadius="10" BorderBrush="#1F2937"
+                BorderThickness="1" Padding="14,12" Margin="0,14,0,0" VerticalAlignment="Top">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="StatusText" Text="✅ Hazırdır — «QURAŞDIR» düyməsini basın ✓"
+                           FontSize="12.5" Foreground="#4ADE80" TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

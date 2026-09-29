@@ -1,0 +1,106 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject UiState Ui
+
+<div class="app-shell">
+    <NavMenu />
+
+    <div class="app-main">
+        <header class="topbar">
+            <div class="topbar-brand">
+                <span class="brand-dot"></span>
+                <span>Avtomobil Parkı <b>v6.0</b></span>
+            </div>
+            <div class="topbar-actions">
+                @if (_interactive)
+                {
+                    <span class="conn-badge conn-ok"
+                          title="Server ilə canlı əlaqə qurulub — bütün düymələr işləyir">
+                        🟢 Onlayn
+                    </span>
+                }
+                else
+                {
+                    <span class="conn-badge conn-wait"
+                          title="Brauzer serverə qoşulur — bir neçə saniyə gözləyin">
+                        <span class="spinner"></span> Qoşulur…
+                    </span>
+                }
+                <span class="clock" title="Server vaxtı">@_now.ToString("dd.MM.yyyy HH:mm")</span>
+                <a class="btn btn-ghost btn-sm" href="/logout">⏻ Çıxış</a>
+            </div>
+        </header>
+
+        @if (Ui.Message is not null)
+        {
+            <div class="toast toast-@Ui.Kind">
+                <span class="toast-text">@Ui.Message</span>
+                <button class="toast-close" type="button" @onclick="Ui.Clear" title="Bağla">✕</button>
+            </div>
+        }
+
+        <main class="content">
+            @Body
+        </main>
+
+        <footer class="footer">
+            <span>© @DateTime.Now.Year — Avtomobil Parkı İdarəetmə Sistemi</span>
+            <span class="footer-sep">•</span>
+            <span>021cars.az</span>
+        </footer>
+    </div>
+</div>
+
+@code {
+    private DateTime _now = DateTime.Now;
+    private Timer? _clock;
+    private bool _disposed;
+
+    /// <summary>
+    /// Brauzer serverə qoşulubmu (Blazor circuit aktiv)?
+    /// <c>OnAfterRenderAsync</c> YALNIZ interaktiv rejimdə işə düşür —
+    /// prerender zamanı çağırılmır. Ona görə bu, əlaqə indikatoru üçün
+    /// ən etibarlı üsuldur: istifadəçi düymələrin işlədiyini dərhal görür.
+    /// </summary>
+    private bool _interactive;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_interactive)
+        {
+            _interactive = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Ui.Changed += OnUiChanged;
+
+        // Saat sahəsini 30 saniyədən bir yeniləyir.
+        _clock = new Timer(
+            _ => InvokeAsync(() =>
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _now = DateTime.Now;
+                StateHasChanged();
+            }),
+            null,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(30));
+    }
+
+    private void OnUiChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Ui.Changed -= OnUiChanged;
+        _clock?.Dispose();
+        _clock = null;
+    }
+}

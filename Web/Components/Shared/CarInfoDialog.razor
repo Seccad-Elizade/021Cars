@@ -1,0 +1,210 @@
+@*  ==========================================================================
+    AVTOMOBİL HAQQINDA TAM MƏLUMAT PƏNCƏRƏSİ  (ℹ düyməsi)
+    --------------------------------------------------------------------------
+    «Avto Park & Arxiv» və «Arxiv» səhifələrindəki ℹ düyməsi bu pəncərəni açır.
+    Alış, barter əvəzi, xərclər, maya, satış və kredit — hamısı bir yerdə.
+    ========================================================================== *@
+@namespace EnterpriseAeroStudio.Web.Components.Shared
+
+@if (Car is not null)
+{
+    <div class="modal-backdrop" @onclick="CloseAsync">
+        <div class="modal" @onclick:stopPropagation="true" style="max-width:860px">
+            <div class="modal-head">
+                <div class="modal-title">
+                    ℹ @Car.Marka
+                    @if (!string.IsNullOrWhiteSpace(Car.QeydiyyatNisani))
+                    {
+                        <span class="muted">· @Car.QeydiyyatNisani</span>
+                    }
+                </div>
+                <button type="button" class="modal-close" @onclick="CloseAsync">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 6px">
+                    <span class="@AppFormat.StatusClass(Car.Status)">@StatusText</span>
+                    @if (Car.SiraNomresi > 0)
+                    {
+                        <span class="muted" style="font-size:12.5px">Sıra № @Car.SiraNomresi</span>
+                    }
+                    @if (Car.IsBarter)
+                    {
+                        <span class="st kredit">🔄 Barter alışı</span>
+                    }
+                </div>
+
+                @Section("🚗 Avtomobil")
+                <div class="info-grid">
+                    @Row("Marka / Model", Car.Marka)
+                    @Row("Dövlət nömrəsi", Car.QeydiyyatNisani)
+                    @Row("VIN kod", Car.Vin)
+                    @Row("Buraxılış ili", Car.Il.ToString())
+                    @Row("Yürüş", $"{Car.Yurus:N0} km".Replace(",", " "))
+                    @Row("Yanacaq", Car.Yanacaq)
+                    @Row("Sistemə daxil edilib", AppFormat.DateTimeText(Car.YaradilmaTarixi))
+                </div>
+
+                @Section("🛒 Alış")
+                <div class="info-grid">
+                    @Row("Alış tarixi", AppFormat.Date(Car.AlisTarixi))
+                    @Row("Alış saatı", Car.AlisSaati)
+                    @Row("Alış üsulu", Car.IsBarter ? "🔄 Barter (əvəzləmə)" : "💵 Nağd")
+                    @Row("Alış qiyməti", AppFormat.Money(Car.AlisQiymeti), strong: true)
+                </div>
+
+                @if (Car.IsBarter)
+                {
+                    @Section("🔄 Barter əvəzi — hansı maşınla dəyişdirilib")
+                    <div class="info-grid">
+                        @Row("Əvəzə verilən maşın", Car.BarterCarInfo, strong: true)
+                        @Row("Verilən maşının dəyəri", AppFormat.Money(Car.BarterDeyeri))
+                        @Row("Alınan maşının qiyməti", AppFormat.Money(Car.AlisQiymeti))
+                        @Row("Hesablaşma fərqi", Car.BarterFerqiMetni, strong: true)
+                        @Row("Qeyd", Car.BarterTesviri, wide: true)
+                    </div>
+                }
+
+                @if (Car.IsFromBarterSale)
+                {
+                    @Section("📥 Barter satışından gəlib")
+                    <div class="info-grid">
+                        @Row("Mənbə", Car.BarterTesviri, wide: true)
+                        @Row("MAYA DƏYƏRİ (barter payı)", AppFormat.Money(Car.AlisQiymeti), strong: true)
+                        @Row("Nəzərdə tutulan satış", AppFormat.Money(Car.SatisQiymeti))
+                        @if (Car.SatisQiymeti > 0m)
+                        {
+                            @Row("Gözlənilən mənfəət",
+                                AppFormat.MoneySigned(Car.SatisQiymeti - Car.MayaDeyeri), strong: true)
+                        }
+                    </div>
+                }
+
+                @Section("🧮 Maya dəyəri")
+                <div class="info-grid">
+                    @Row("Alış qiyməti", AppFormat.Money(Car.AlisQiymeti))
+                    @Row("Əlavə xərclər", AppFormat.Money(Car.Xercler))
+                    @Row("Ümumi maya dəyəri", AppFormat.Money(Car.MayaDeyeri), strong: true)
+                    @Row("Nəzərdə tutulan satış", AppFormat.Money(Car.SatisQiymeti))
+                </div>
+
+                @if (Sale is not null)
+                {
+                    @Section("💰 Satış")
+                    <div class="info-grid">
+                        @Row("Müqavilə №", Sale.MuqavileNomresi)
+                        @Row("Satış tarixi", AppFormat.Date(Sale.SatisTarixi))
+                        @Row("Müştəri", Sale.Mustəri, strong: true)
+                        @Row("Satış qiyməti", AppFormat.Money(Sale.SatisQiymeti), strong: true)
+                        @Row("Maya dəyəri (satış anında)", AppFormat.Money(Sale.MayaDeyeri))
+                        @Row("Mənfəət", AppFormat.MoneySigned(Sale.Menfeet), strong: true)
+                        @Row("Ödəniş üsulu", Sale.OdenisUsuluMetni)
+                    </div>
+
+                    @if (Sale.IsBarter)
+                    {
+                        <div class="info-grid" style="margin-top:4px">
+                            @Row("🔄 Barter hissəsi (maşınla)", AppFormat.Money(Sale.BarterMebleg), strong: true)
+                            @Row("💵 Nağd / köçürmə hissəsi", AppFormat.Money(Sale.NagdMebleg), strong: true)
+                            @Row("Alıcının verdiyi maşın", Sale.BarterTesviri, wide: true)
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Sale.Qeyd))
+                    {
+                        <div class="info-grid" style="margin-top:4px">
+                            @Row("Qeyd", Sale.Qeyd, wide: true)
+                        </div>
+                    }
+                }
+
+                @if (Credit is not null)
+                {
+                    @Section("🏦 Kredit")
+                    <div class="info-grid">
+                        @Row("Müqavilə №", Credit.MuqavileNomresi)
+                        @Row("Müştəri", Credit.Mustəri)
+                        @Row("Kreditləşdirilən", AppFormat.Money(Credit.Kreditlesdirilen), strong: true)
+                        @Row("İlkin ödəniş", AppFormat.Money(Credit.IlkinOdenis))
+                        @Row("Faiz dərəcəsi", AppFormat.Percent(Credit.FaizDerecesi))
+                        @Row("Müddət", $"{Credit.MuddetAy} ay")
+                        @Row("Aylıq ödəniş", AppFormat.Money(Credit.AylıqOdenis), strong: true)
+                        @Row("Başlama tarixi", AppFormat.Date(Credit.BaslamaTarixi))
+                        @Row("Status", Credit.Status)
+                    </div>
+                }
+
+                @if (Sale is null && Credit is null)
+                {
+                    <div class="muted" style="font-size:12.5px;margin-top:16px">
+                        @if (Car.IsBarter)
+                        {
+                            <span>Bu avtomobil barter əvəzi kimi VERİLİB — parkda yoxdur.</span>
+                        }
+                        else
+                        {
+                            <span>Bu avtomobil hələ satılmayıb və kreditə verilməyib.</span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="modal-foot">
+                <a class="btn" href="@($"media?type={MediaRefTypes.Car}&id={Car.Id}")" target="_blank">
+                    📎 Sənəd &amp; Media (@(Car.SenedSayi > 0 ? Car.SenedSayi.ToString() : "0"))
+                </a>
+                <button type="button" class="btn btn-primary" @onclick="CloseAsync">Bağla</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Məlumatı göstərilən avtomobil.</summary>
+    [Parameter] public CarItem? Car { get; set; }
+
+    /// <summary>Avtomobilin satış qeydi (varsa).</summary>
+    [Parameter] public Sale? Sale { get; set; }
+
+    /// <summary>Avtomobilin kredit qeydi (varsa).</summary>
+    [Parameter] public Credit? Credit { get; set; }
+
+    /// <summary>Pəncərə bağlananda çağırılır.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    /// <summary>Status mətnini emoji ilə göstərir.</summary>
+    private string StatusText => Car?.Status switch
+    {
+        "Stokda" => "📦 Stokda",
+        "Satışda" => "🏷️ Satışda",
+        "Kreditdə" => "🏦 Kreditdə",
+        "Satıldı" => "✅ Satıldı",
+        "Barter edildi" => "🔄 Barter edildi",
+        "Təmirdə" => "🔧 Təmirdə",
+        var other => AppFormat.Text(other)
+    };
+
+    /// <summary>Bölmə başlığı.</summary>
+    private static MarkupString Section(string title)
+        => new(
+            "<div style=\"margin:20px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.7px;" +
+            "text-transform:uppercase;color:#cbd5e1\">" +
+            System.Net.WebUtility.HtmlEncode(title) + "</div>");
+
+    /// <summary>Bir «ad : dəyər» sətri.</summary>
+    private static MarkupString Row(string label, string? value, bool strong = false, bool wide = false)
+    {
+        var text = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(value) ? "—" : value);
+        var open = strong ? "<b>" : string.Empty;
+        var close = strong ? "</b>" : string.Empty;
+        var span = wide ? "grid-column:1/-1;" : string.Empty;
+
+        return new MarkupString(
+            "<div style=\"display:flex;justify-content:space-between;gap:16px;padding:7px 0;" +
+            span + "border-bottom:1px solid rgba(148,163,184,.14);font-size:13px\">" +
+            "<span style=\"color:#94a3b8\">" + System.Net.WebUtility.HtmlEncode(label) + "</span>" +
+            "<span style=\"text-align:right;word-break:break-word\">" + open + text + close + "</span></div>");
+    }
+}

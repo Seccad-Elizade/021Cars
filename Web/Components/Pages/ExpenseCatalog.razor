@@ -1,0 +1,434 @@
+@page "/expense-catalog"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@inject IExpenseCatalogService CatalogService
+@inject IExpenseService ExpenseService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Xərc Kataloqu — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🗂️ Xərc Kataloqu</div>
+        <div class="page-sub">Xərc qruplarını və kateqoriyalarını idarə edin</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="expenses">💸 Xərclərə keç</a>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="tabs">
+            @foreach (var dest in Catalog.ExpenseDestinations)
+            {
+                <button class="tab @(_destination == dest ? "active" : "")"
+                        @onclick="() => SelectDestination(dest)">
+                    @(Catalog.IsOffice(dest) ? "🏢" : "🚗") @dest
+                </button>
+            }
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(320px,1.4fr);gap:18px;align-items:start">
+
+        @* ------------------------------------------------ QRUP LİSTİ *@
+        <div class="card" style="margin:0">
+            <div class="card-head">
+                <div class="card-title">📁 Qruplar</div>
+                <div class="muted" style="font-size:12px">@_groups.Count</div>
+            </div>
+
+            @if (CanWrite)
+            {
+                <div class="toolbar" style="border-bottom:1px solid var(--border)">
+                    <input type="text" placeholder="Yeni qrup adı…" @bind="_newGroup"
+                           @bind:after="() => { }" style="flex:1 1 150px" />
+                    <button class="btn btn-sm btn-primary" @onclick="AddGroupAsync"
+                            disabled="@(string.IsNullOrWhiteSpace(_newGroup))">➕ Əlavə et</button>
+                </div>
+            }
+
+            <div class="card-body tight">
+                @if (_groups.Count == 0)
+                {
+                    <div class="empty-cell">Hələ qrup yoxdur.</div>
+                }
+                @foreach (var group in _groups)
+                {
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;
+                                @(group == _selectedGroup ? "background:#eff6ff;border-left:3px solid var(--accent)" : "")"
+                         @onclick="() => SelectGroup(group)">
+                        <span style="flex:1;font-size:13.5px;font-weight:@(group == _selectedGroup ? "700" : "500")">
+                            @group
+                        </span>
+                        @if (CanWrite)
+                        {
+                            <button class="btn btn-sm btn-danger" title="Qrupu sil"
+                                    @onclick:stopPropagation="true"
+                                    @onclick="() => _deletingGroup = group">🗑️</button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ------------------------------------------------ KATEQORİYA LİSTİ *@
+        <div class="card" style="margin:0">
+            <div class="card-head">
+                <div class="card-title">🏷️ Kateqoriyalar</div>
+                <div class="muted" style="font-size:12px">@_selectedGroup</div>
+            </div>
+
+            @if (CanWrite)
+            {
+                <div class="toolbar" style="border-bottom:1px solid var(--border)">
+                    <input type="text" placeholder="Yeni kateqoriya adı…" @bind="_newCategory"
+                           style="flex:1 1 150px" />
+                    <button class="btn btn-sm btn-primary" @onclick="AddCategoryAsync"
+                            disabled="@(string.IsNullOrWhiteSpace(_newCategory))">➕ Əlavə et</button>
+                </div>
+            }
+
+            <div class="card-body tight">
+                @if (_categories.Count == 0)
+                {
+                    <div class="empty-cell">Bu qrupda kateqoriya yoxdur.</div>
+                }
+                @foreach (var category in _categories)
+                {
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)">
+                        <span style="flex:1;font-size:13.5px">@category</span>
+                        @if (CanWrite)
+                        {
+                            <button class="btn btn-sm btn-danger" title="Kateqoriyanı sil"
+                                    @onclick="() => _deletingCategory = category">🗑️</button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ------------------------------------------------ İSTATİSTİKA *@
+    <div class="card">
+        <div class="card-head"><div class="card-title">📊 Ümumi məlumat</div></div>
+        <div class="card-body">
+            <div style="display:flex;gap:28px;flex-wrap:wrap;font-size:13.5px">
+                <span>Ümumi qrup sayı: <b>@_allGroups.Count</b></span>
+                <span>Ümumi kateqoriya sayı: <b>@_allCategories.Count</b></span>
+                <span>Xərc qeydi: <b>@_expenseCount</b></span>
+            </div>
+        </div>
+    </div>
+
+    @* ------------------------------------------------ SİLMƏ TƏSDİQİ: QRUP *@
+    @if (_deletingGroup is not null)
+    {
+        <div class="modal-backdrop" @onclick="() => _deletingGroup = null">
+            <div class="modal narrow" @onclick:stopPropagation="true">
+                <div class="modal-head">
+                    <div class="modal-title">🗑️ Qrupu sil</div>
+                    <button type="button" class="modal-close" @onclick="() => _deletingGroup = null">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin:0">
+                        <b>@_deletingGroup</b> qrupu və ona aid <b>bütün kateqoriyalar</b> silinəcək.<br />
+                        <span class="muted">Mövcud xərc qeydlərinə toxunulmur — yalnız kataloq dəyişir.</span>
+                    </p>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _deletingGroup = null">İmtina</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteGroupAsync" disabled="@_busy">
+                        Bəli, sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ------------------------------------------------ SİLMƏ TƏSDİQİ: KATEQORİYA *@
+    @if (_deletingCategory is not null)
+    {
+        <div class="modal-backdrop" @onclick="() => _deletingCategory = null">
+            <div class="modal narrow" @onclick:stopPropagation="true">
+                <div class="modal-head">
+                    <div class="modal-title">🗑️ Kateqoriyanı sil</div>
+                    <button type="button" class="modal-close" @onclick="() => _deletingCategory = null">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin:0">
+                        <b>@_deletingCategory</b> kateqoriyası <b>@_selectedGroup</b> qrupundan silinəcək.
+                    </p>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _deletingCategory = null">İmtina</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteCategoryAsync" disabled="@_busy">
+                        Bəli, sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private bool _busy;
+
+    private string _destination = Catalog.CarDestination;
+    private string? _selectedGroup;
+    private string _newGroup = string.Empty;
+    private string _newCategory = string.Empty;
+
+    private string? _deletingGroup;
+    private string? _deletingCategory;
+
+    private List<string> _groups = new();
+    private List<string> _categories = new();
+    private List<string> _allGroups = new();
+    private List<string> _allCategories = new();
+    private int _expenseCount;
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    /// <summary>Bütün kataloqu və xərc sayını yükləyir.</summary>
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+            _expenseCount = (await ExpenseService.GetExpensesAsync()).Count;
+
+            await LoadDestinationAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kataloq yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Seçilmiş təyinat üzrə qrupları yükləyir.</summary>
+    private async Task LoadDestinationAsync()
+    {
+        _groups = (await CatalogService.GetGroupsAsync(_destination)).ToList();
+
+        if (_groups.Count == 0)
+        {
+            _selectedGroup = null;
+            _categories.Clear();
+            return;
+        }
+
+        if (_selectedGroup is null || !_groups.Contains(_selectedGroup))
+        {
+            _selectedGroup = _groups[0];
+        }
+
+        await LoadCategoriesAsync();
+    }
+
+    /// <summary>Seçilmiş qrup üzrə kateqoriyaları yükləyir.</summary>
+    private async Task LoadCategoriesAsync()
+    {
+        _categories = _selectedGroup is null
+            ? new List<string>()
+            : (await CatalogService.GetCategoriesAsync(_selectedGroup)).ToList();
+    }
+
+    private async Task SelectDestination(string destination)
+    {
+        _destination = destination;
+        _selectedGroup = null;
+        await LoadDestinationAsync();
+    }
+
+    private async Task SelectGroup(string group)
+    {
+        _selectedGroup = group;
+        await LoadCategoriesAsync();
+    }
+
+    private async Task AddGroupAsync()
+    {
+        var name = _newGroup.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            await CatalogService.AddGroupAsync(_destination, name);
+            _newGroup = string.Empty;
+
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            await LoadDestinationAsync();
+            _selectedGroup = _groups.Contains(name) ? name : _selectedGroup;
+            await LoadCategoriesAsync();
+
+            Ui.Success($"\"{name}\" qrupu əlavə edildi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Qrup əlavə edilə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task AddCategoryAsync()
+    {
+        if (_selectedGroup is null)
+        {
+            Ui.Warn("Əvvəlcə qrup seçin.");
+            return;
+        }
+
+        var name = _newCategory.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            await CatalogService.AddCategoryAsync(_destination, _selectedGroup, name);
+            _newCategory = string.Empty;
+
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+            await LoadCategoriesAsync();
+
+            Ui.Success($"\"{name}\" kateqoriyası əlavə edildi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kateqoriya əlavə edilə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteGroupAsync()
+    {
+        if (_deletingGroup is null)
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            var name = _deletingGroup;
+            await CatalogService.DeleteGroupAsync(_destination, name);
+
+            _deletingGroup = null;
+            _selectedGroup = null;
+
+            _allGroups = (await CatalogService.GetAllGroupsAsync()).ToList();
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+
+            await LoadDestinationAsync();
+            Ui.Success($"\"{name}\" qrupu silindi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Qrup silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteCategoryAsync()
+    {
+        if (_deletingCategory is null || _selectedGroup is null)
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            var name = _deletingCategory;
+            await CatalogService.DeleteCategoryAsync(_selectedGroup, name);
+
+            _deletingCategory = null;
+            _allCategories = (await CatalogService.GetAllCategoriesAsync()).ToList();
+            await LoadCategoriesAsync();
+
+            Ui.Success($"\"{name}\" kateqoriyası silindi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kateqoriya silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

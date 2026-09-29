@@ -1,0 +1,31 @@
+@*  Yenidən istifadə olunan KPI (göstərici) kartı. *@
+@namespace EnterpriseAeroStudio.Web.Components.Shared
+
+<div class="stat @Accent">
+    <div class="stat-icon">@Icon</div>
+    <div class="stat-body">
+        <div class="stat-label">@Label</div>
+        <div class="stat-value">@Value</div>
+        @if (!string.IsNullOrWhiteSpace(Hint))
+        {
+            <div class="stat-hint">@Hint</div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Kartın başlığı (məs. "Ümumi Maya Dəyəri").</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    /// <summary>Əsas dəyər (artıq formatlaşdırılmış mətn).</summary>
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+
+    /// <summary>Emoji ikon.</summary>
+    [Parameter] public string Icon { get; set; } = "📊";
+
+    /// <summary>Alt mətn (əlavə izah).</summary>
+    [Parameter] public string? Hint { get; set; }
+
+    /// <summary>Rəng variantı: blue | green | red | amber | violet | slate.</summary>
+    [Parameter] public string Accent { get; set; } = "blue";
+}

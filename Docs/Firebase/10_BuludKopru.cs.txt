@@ -1,0 +1,1398 @@
+﻿// ============================================================================
+//  🌉 021Cars — BULUD KÖRPÜSÜ (10)  ★ TƏLƏB: «HƏR ŞEY 5 SANİYƏDƏN BİR BULUDA» ★
+// ----------------------------------------------------------------------------
+//  ✅ Tətbiqin SQLite-daki BÜTÜN məlumatını oxuyur ✓
+//  ✅ Dəyişəni Firebase-ə PUT edir ✓ — HƏR 5 SANİYƏDƏN BİR ✓✓✓
+//  ✅ Yalnız DƏYİŞƏNLƏR göndərilir ✓ (JSON hash müqayisəsi ✓ — trafik yox ✗)
+//  ✅ SQLite-dan silinən sətir → Firebase-də SOFT-DELETE ✓ (isDeleted=true ✓)
+//  ✅ 📎 PDF/ŞƏKİL/MEDIA GÖNDƏRİLMİR ✗✓✓ — onlar YALNIZ fləşkartda qalır ✓
+//  ✅ Xəta → app_errors.log ✓ — körpü heç vaxt proqramı çökdürmür ✗
+// ============================================================================
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using EnterpriseAeroStudio.Data;
+using EnterpriseAeroStudio.Models;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Cas0201.Firebase
+{
+    /// <summary>
+    /// 🌉 <b>SQLite → FIREBASE KÖRPÜSÜ</b> ✓✓✓
+    /// <para>
+    /// Hər <see cref="FasileSaniye"/> saniyədən bir (default <b>5</b> ✓) bütün cədvəlləri oxuyur ✓,
+    /// dəyişənləri buluda PUT edir ✓, silinənləri soft-delete edir ✓.
+    /// </para>
+    /// </summary>
+    public sealed class BuludKopru : IDisposable
+    {
+        private readonly IServiceProvider _srv;
+        private readonly FirebaseRestClient _klient;
+        private readonly FirebaseOptions _o;
+        private readonly CancellationTokenSource _cts = new();
+
+        /// <summary>🧠 Son göndərilən halların hash-i ✓ («cars/12» → hash ✓)</summary>
+        private readonly Dictionary<string, string> _sonHash = new();
+
+        /// <summary>🧠 Buludda mövcud olan açarlar ✓ (silmə aşkarlaması üçün ✓)</summary>
+        private readonly Dictionary<string, HashSet<string>> _sonAçarlar = new();
+
+        /// <summary>⏱️ Sinxron fasiləsi (saniyə ✓) — <b>5</b> ✓</summary>
+        public int FasileSaniye { get; set; } = 5;
+
+        /// <summary>
+        /// 🗑️ <b>FİZİKİ SİLİNƏ?</b> ✓✓✓ — <c>true</c> (default ✓):
+        /// SQLite-dan silinən qeyd buluddan <b>TAM SİLİNİR</b> ✓ (yer tutmur ✗ ✓)
+        /// <para><c>false</c> → yalnız soft-delete ✓ (isDeleted = true ✓)</para>
+        /// </summary>
+        public bool FizikiSil { get; set; } = true;
+
+        /// <summary>🔄 Hazırda sinxron gedir? ✓ (nazik loading bar üçün ✓)</summary>
+        public bool SinxronGedir { get; private set; }
+
+        /// <summary>
+        /// 🔢 <b>MƏLUMAT VERSİYASI</b> ✓✓✓ — hər REAL dəyişiklikdə artır ✓
+        /// <para>
+        /// UI bunu müqayisə edir ✓: <b>versiya dəyişməyibsə → HEÇ BİR yeniləmə edilmir</b> ✗✓✓✓
+        /// (buna görə formalarda seçilmiş variantlar / yazılan məlumat SİLİNMİR ✗)
+        /// </para>
+        /// </summary>
+        public long Versiya { get; private set; }
+
+        /// <summary>🕒 Cari dövrün başlama vaxtı ✓ (loading bar üçün ✓)</summary>
+        public DateTime? DovruBaslama { get; private set; }
+
+        /// <summary>
+        /// 💾 <b>FLƏŞKART HAZIRDIR?</b> ✓✓✓ — <b>CANLI YOXLAMA</b> ✗✓✓
+        /// <para>
+        /// ⚠ Əvvəl keşlənmiş vəziyyətə baxırdı ✗ → fləşkart çıxarılsa da
+        /// <c>true</c> qalırdı ✗ → status dairəsi QIRMIZI yerinə NARINCI olurdu ✗✓✓
+        /// </para>
+        /// <para>✅ İndi hər dəfə diskin HƏQİQƏTƏN mövcudluğu yoxlanılır ✓</para>
+        /// </summary>
+        public bool UsbHazir
+        {
+            get
+            {
+                try
+                {
+                    if (_usb is null || !_usb.Hazir) return false;
+
+                    // 🔌 CANLI: fləşkartın kökü HƏQİQƏTƏN varmı? ✓
+                    return _usb.KokYol is not null && Directory.Exists(_usb.KokYol);
+                }
+                catch
+                {
+                    return false;   // 🔴 çıxarılıb ✗
+                }
+            }
+        }
+
+        /// <summary>🔥 Bulud bağlantısı varmı? ✓ (status dairəsi üçün ✓)</summary>
+        public bool Onlayn => _klient.Onlayn;
+
+        /// <summary>💾 USB-yə JSON yedək fasiləsi — <b>SANİYƏ</b> ✓ — <b>30</b> ✓</summary>
+        public int YedekSaniye { get; set; } = 30;
+
+        /// <summary>🖥️ Kompüterə (yerli) yedək fasiləsi — <b>SANİYƏ</b> ✓ — <b>60</b> ✓</summary>
+        public int YerliYedekSaniye { get; set; } = 60;
+
+        /// <summary>🕒 Son USB yedəyi vaxtı ✓</summary>
+        public DateTime? SonYedek { get; private set; }
+
+        /// <summary>🕒 Son kompüter yedəyi vaxtı ✓</summary>
+        public DateTime? SonYerliYedek { get; private set; }
+
+        /// <summary>🗑️ Bu sessiyada buluddan silinən qeyd sayı ✓</summary>
+        public int SilinenSayi { get; private set; }
+
+        /// <summary>✅ Körpü işləyir? ✓</summary>
+        public bool Isleyir { get; private set; }
+
+        /// <summary>🕒 Son uğurlu sinxron vaxtı ✓</summary>
+        public DateTime? SonUgur { get; private set; }
+
+        /// <summary>📊 Son dövrdə göndərilən qeyd sayı ✓</summary>
+        public int SonPushSayi { get; private set; }
+
+        /// <summary>📊 Ümumi göndərilən qeyd sayı ✓</summary>
+        public long UmumiPush { get; private set; }
+
+        /// <summary>🗑️ Soft-delete edilənlərin sayı ✓</summary>
+        public int SonSilmeSayi { get; private set; }
+
+        /// <summary>❌ Son xəta mətni ✓ (UI üçün ✓)</summary>
+        public string? SonXeta { get; private set; }
+
+        /// <summary>📣 Vəziyyət dəyişdi ✓ (UI yeniləsin ✓)</summary>
+        public event Action? VeziyyetDeyisdi;
+
+        public BuludKopru(
+            IServiceProvider srv,
+            FirebaseRestClient klient,
+            FirebaseOptions options)
+        {
+            _srv = srv ?? throw new ArgumentNullException(nameof(srv));
+            _klient = klient ?? throw new ArgumentNullException(nameof(klient));
+            _o = options ?? throw new ArgumentNullException(nameof(options));
+        }
+
+        // --------------------------------------------------------------------
+        //  🚀 BAŞLAT / DAYANDIR ✓
+        // --------------------------------------------------------------------
+
+        /// <summary>🚀 Körpünü arxa fonda işə salır ✓ (UI donmur ✗ ✓)</summary>
+        public void Basla()
+        {
+            if (Isleyir) return;
+
+            Isleyir = true;
+            VeziyyetDeyisdi?.Invoke();
+
+            AppLogger.Melumat(
+                $"🌉 BULUD KÖRPÜSÜ BAŞLADI ✓ — hər {FasileSaniye} saniyədən bir ✓ " +
+                "(📎 PDF/media XARİCDİR ✗ — onlar fləşkartda qalır ✓)");
+
+            _ = Task.Run(() => DovruAsync(_cts.Token));
+        }
+
+        /// <summary>🛑 Körpünü dayandırır ✓</summary>
+        public void Dayandir()
+        {
+            try
+            {
+                if (!_cts.IsCancellationRequested) _cts.Cancel();
+                Isleyir = false;
+                VeziyyetDeyisdi?.Invoke();
+                AppLogger.Melumat("🛑 Bulud körpüsü dayandırıldı ✓");
+            }
+            catch (Exception ex) { AppLogger.Xeta(ex, "körpü dayandırma"); }
+        }
+
+        /// <summary>🔁 Əsas dövr — 5 saniyə ✓✓✓</summary>
+        private async Task DovruAsync(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    // 🔄 İKİ TƏRƏFLİ: əvvəl buluddan çək ✓ → sonra buluda göndər ✓
+                    await SinxronDovruAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    // 🛡️ Heç bir halda proqram çökmür ✗✓✓
+                    SonXeta = ex.Message;
+                    AppLogger.Xeta(ex, "körpü dövrü");
+                }
+
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(2, FasileSaniye)), ct)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { break; }
+            }
+        }
+
+        /// <summary>
+        /// 🔄 <b>İKİ TƏRƏFLİ SİNXRON DÖVRÜ</b> ✓✓✓
+        /// <list type="number">
+        ///   <item>① ☁️ <b>BULUDDAN ÇƏK</b> — LWW: yalnız <b>daha təzə</b> olanlar yerli bazaya tətbiq olunur ✓</item>
+        ///   <item>② 🗑️ <b>TOMBSTONE</b> — başqa kompüter silibsə → yerli bazadan da SİLİNİR ✓✓✓ (BMW ssenarisi ✓)</item>
+        ///   <item>③ ⬆️ <b>BULUDA GÖNDƏR</b> — yerli daha təzədirsə ✓ + yerli silinmələr → tombstone ✓</item>
+        /// </list>
+        /// </summary>
+        public async Task SinxronDovruAsync(CancellationToken ct = default)
+        {
+            SinxronGedir = true;          // 📊 nazik loading bar üçün ✓
+            DovruBaslama = DateTime.Now;  // 🕒 dövr başladı ✓
+
+            try
+            {
+                using var qap = _srv.CreateScope();
+                using var db = qap.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                using var cx = new SqliteConnection(db.Database.GetConnectionString());
+                cx.Open();
+                CedveliYarat(cx);
+
+                // ⚙️ TƏNZİMLƏMƏLƏRİ CANLI TƏTBİQ ET ✓ (Seccad/Asif dəyişəndə dərhal qüvvəyə minir ✓)
+                BuludAyarlari.TətbiqEt(this);
+
+                // ☁️ ① BULUDDAN OXU ✓ (hər kolleksiya BİR dəfə ✓)
+                var bulud = new Dictionary<string, JsonObject?>(StringComparer.Ordinal);
+
+                foreach (var k in Kolleksiyalar)
+                {
+                    bulud[k] = await _klient.OxuAsync(k, ct).ConfigureAwait(false);
+                }
+
+                var zibil = await _klient.OxuAsync("_zibil", ct).ConfigureAwait(false);
+
+                // 🔄 ② HƏR CƏDVƏL: ÇƏK + TƏTBİQ (LWW ✓)
+                var çekilen = 0;
+
+                var işlər = new Func<Task<int>>[]
+                {
+                    async () => await CədvəliSinxronlaAsync(db, cx, "cars",
+                        await db.Cars.ToListAsync(ct),
+                        a => a.Id.ToString(CultureInfo.InvariantCulture),
+                        CarNode, bulud["cars"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "expenses",
+                        await db.Expenses.ToListAsync(ct),
+                        e => e.Id.ToString(CultureInfo.InvariantCulture),
+                        XercNode, bulud["expenses"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "sales",
+                        await db.Sales.ToListAsync(ct),
+                        s => s.Id.ToString(CultureInfo.InvariantCulture),
+                        SatisNode, bulud["sales"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "credits",
+                        await db.Credits.ToListAsync(ct),
+                        k => k.Id.ToString(CultureInfo.InvariantCulture),
+                        KreditNode, bulud["credits"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "creditTransactions",
+                        await db.CreditTransactions.ToListAsync(ct),
+                        t => t.Id.ToString(CultureInfo.InvariantCulture),
+                        EmeliyyatNode, bulud["creditTransactions"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "partners",
+                        await db.Partners.ToListAsync(ct),
+                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        TerefdasNode, bulud["partners"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "partnerShares",
+                        await db.PartnerShares.ToListAsync(ct),
+                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        PayNode, bulud["partnerShares"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "partnerPayments",
+                        await db.PartnerPayments.ToListAsync(ct),
+                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        OdenisNode, bulud["partnerPayments"], zibil, ct)
+                };
+
+                foreach (var iş in işlər)
+                {
+                    çekilen += await iş().ConfigureAwait(false);
+                }
+
+                await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+                // ⬆️ ③ YERLİ → BULUD (dəyişənlər ✓ + silinənlər → tombstone ✓)
+                await BirDovruAsync(ct).ConfigureAwait(false);
+
+                if (çekilen > 0)
+                {
+                    AppLogger.Melumat($"⬇️ BULUDDAN: {çekilen} dəyişiklik yerli bazaya tətbiq olundu ✓");
+                }
+
+                // 🔢 REAL dəyişiklik oldusa → VERSİYANI ARTIR ✓✓✓
+                //    (yalnız bundan sonra UI yeniləmə edir ✓ — boş dövrlərdə UI-a TOXUNULMUR ✗)
+                if (çekilen > 0 || SonPushSayi > 0 || SonSilmeSayi > 0)
+                {
+                    Versiya++;
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                SonXeta = ex.Message;
+                AppLogger.Xeta(ex, "iki tərəfli sinxron");
+            }
+            finally
+            {
+                SinxronGedir = false; // 📊 loading bar gizlədilsin ✓
+                VeziyyetDeyisdi?.Invoke();
+            }
+        }
+
+        /// <summary>🔁 Bir dövrdə BÜTÜN cədvəlləri buluda göndərir ✓✓✓</summary>
+        public async Task BirDovruAsync(CancellationToken ct = default)
+        {
+            var push = 0;
+            var silme = 0;
+            void Say(int x) => silme += x;
+
+            try
+            {
+                using var qap = _srv.CreateScope();
+                using var db = qap.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                push += await CədvəlGonderAsync("cars",
+                    await db.Cars.AsNoTracking().ToListAsync(ct), a => a.Id.ToString(), CarNode, ct, Say);
+
+                push += await CədvəlGonderAsync("expenses",
+                    await db.Expenses.AsNoTracking().ToListAsync(ct), e => e.Id.ToString(), XercNode, ct, Say);
+
+                push += await CədvəlGonderAsync("sales",
+                    await db.Sales.AsNoTracking().ToListAsync(ct), s => s.Id.ToString(), SatisNode, ct, Say);
+
+                push += await CədvəlGonderAsync("credits",
+                    await db.Credits.AsNoTracking().ToListAsync(ct), k => k.Id.ToString(), KreditNode, ct, Say);
+
+                push += await CədvəlGonderAsync("creditTransactions",
+                    await db.CreditTransactions.AsNoTracking().ToListAsync(ct),
+                    t => t.Id.ToString(), EmeliyyatNode, ct, Say);
+
+                push += await CədvəlGonderAsync("partners",
+                    await db.Partners.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), TerefdasNode, ct, Say);
+
+                push += await CədvəlGonderAsync("partnerShares",
+                    await db.PartnerShares.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), PayNode, ct, Say);
+
+                push += await CədvəlGonderAsync("partnerPayments",
+                    await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), OdenisNode, ct, Say);
+
+                // 📎 ❌ MEDIA / PDF / ŞƏKİL GÖNDƏRİLMİR ✗✓✓ — YALNIZ fləşkartda qalır ✓
+                // 🏷️ Xərc kataloqu buluda getmir ✗ (lokal arayış cədvəlidir ✓)
+
+                await MetaYazAsync(push, silme, ct).ConfigureAwait(false);
+
+                // 🧹 ① Köhnə SOFT-DELETE qalıqlarını buluddan SİL ✓ (yalnız BİR dəfə ✓)
+                if (!_zibilTemizlendi)
+                {
+                    await ZibiliTemizleAsync(ct).ConfigureAwait(false);
+                    _zibilTemizlendi = true;
+                }
+
+                // 💾 ② USB-yə JSON yedəyi + SON_SINXRON.txt ✓ (SANİYƏ ✓)
+                await UsbYedekAsync(ct).ConfigureAwait(false);
+
+                // 🖥️ ③ Kompüterə JSON yedəyi + SON_SINXRON.txt ✓ (SANİYƏ ✓)
+                await YerliYedekAsync(ct).ConfigureAwait(false);
+
+                SonPushSayi = push;
+                SonSilmeSayi = silme;
+                UmumiPush += push;
+                SonUgur = DateTime.Now;
+                SonXeta = null;
+
+                if (push > 0 || silme > 0)
+                {
+                    AppLogger.Melumat($"☁️ BULUD: {push} qeyd göndərildi ✓ · 🗑️ {silme} soft-silindi ✓");
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                SonXeta = ex.Message;
+                AppLogger.Xeta(ex, "körpü dövrü");
+            }
+            finally
+            {
+                VeziyyetDeyisdi?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 📤 Bir cədvəli göndərir ✓ — <b>YALNIZ DƏYİŞƏNLƏR</b> ✓✓✓
+        /// <para>
+        /// ① Məzmun hash-ı dəyişməyibsə → <b>göndərilmir</b> ✗ (trafik qənaəti ✓)<br/>
+        /// ② Dəyişibsə → PUT + `updatedAt` yenilənir ✓<br/>
+        /// ③ SQLite-dan silinənlər → buludda <b>SOFT-DELETE</b> ✓ (isDeleted = true ✓)
+        /// </para>
+        /// </summary>
+        private async Task<int> CədvəlGonderAsync<T>(
+            string kolleksiya,
+            IReadOnlyList<T> sətirlər,
+            Func<T, string> açarAl,
+            Func<T, Dictionary<string, object?>> nodeAl,
+            CancellationToken ct,
+            Action<int> silmeSayğacı)
+        {
+            var göndərilən = 0;
+            var indiki = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var sətr in sətirlər)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var açar = açarAl(sətr);
+                indiki.Add(açar);
+
+                Dictionary<string, object?> node;
+
+                try { node = nodeAl(sətr); }
+                catch (Exception ex) { AppLogger.Xeta(ex, "xəritə: " + kolleksiya); continue; }
+
+                var tamYol = kolleksiya + "/" + açar;
+
+                // 🔑 HASH — audit sahələri DAXİL DEYİL ✗✓✓ (yalnız məzmun ✓)
+                var hash = Hesabla(System.Text.Json.JsonSerializer
+                    .Serialize(node, FirebaseOptions.Json));
+
+                if (_sonHash.TryGetValue(tamYol, out var köhnə) &&
+                    string.Equals(köhnə, hash, StringComparison.Ordinal))
+                {
+                    continue; // 🔁 dəyişməyib ✓
+                }
+
+                // ⏱️ AUDİT — yalnız HƏQİQİ dəyişiklikdə ✓
+                node["updatedAt"] = FirebaseOptions.UtcIndi();
+                node["updatedBy"] = _o.CihazAdi;
+                node["isDeleted"] = false;
+                node["deletedAt"] = null;
+
+                var json = System.Text.Json.JsonSerializer.Serialize(node, FirebaseOptions.Json);
+
+                if (!await _klient.XamYazAsync(tamYol, json, ct).ConfigureAwait(false))
+                {
+                    AppLogger.Xeberdarliq(
+                        $"🔌 Bulud əlçatmazdır ✗ — {kolleksiya} göndərilmədi ✓ (növbəti dövrdə təkrar ✓)");
+                    break;
+                }
+
+                _sonHash[tamYol] = hash;
+                göndərilən++;
+            }
+
+            // 🗑️ SQLite-dan SİLİNƏNLƏR → BULUDDAN SİLİNİR ✓✓✓ (yer tutmasın ✓)
+            if (_sonAçarlar.TryGetValue(kolleksiya, out var əvvəlki))
+            {
+                foreach (var itmiş in əvvəlki.Except(indiki))
+                {
+                    var uğur = FizikiSil
+                        ? await _klient.FizikiSilAsync(kolleksiya + "/" + itmiş, ct)
+                            .ConfigureAwait(false)
+                        : await SoftSilAsync(kolleksiya + "/" + itmiş, ct)
+                            .ConfigureAwait(false);
+
+                    if (!uğur) break; // 🔌 offline ✓ → növbəti dövrdə ✓
+
+                    _sonHash.Remove(kolleksiya + "/" + itmiş);
+                    SilinenSayi++;
+                    silmeSayğacı(1);
+                }
+            }
+
+            _sonAçarlar[kolleksiya] = indiki;
+            return göndərilən;
+        }
+
+        /// <summary>🗑️ Buludda <b>SOFT-DELETE</b> ✓✓✓ (SQLite-dan silinən sətirlər üçün ✓)</summary>
+        private async Task<bool> SoftSilAsync(string yol, CancellationToken ct)
+        {
+            try
+            {
+                var indi = FirebaseOptions.UtcIndi();
+
+                return await _klient.YenileAsync(yol, new Dictionary<string, object?>
+                {
+                    ["isDeleted"] = true,
+                    ["deletedAt"] = indi,
+                    ["updatedAt"] = indi,
+                    ["updatedBy"] = _o.CihazAdi
+                }, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "soft-sil: " + yol);
+                return false;
+            }
+        }
+
+        /// <summary>🔑 Məzmun hash-ı ✓ (SHA-256 · hex ✓) — dəyişiklik aşkarlama ✓</summary>
+        private static string Hesabla(string məzmun)
+        {
+            try
+            {
+                var baytlar = System.Text.Encoding.UTF8.GetBytes(məzmun);
+                var hash = System.Security.Cryptography.SHA256.HashData(baytlar);
+                return Convert.ToHexString(hash.AsSpan(0, 16));
+            }
+            catch
+            {
+                return məzmun.Length.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>📊 Status nodu ✓ (<c>021Cars/_meta</c> ✓ — konsolda görünür ✓)</summary>
+        private async Task MetaYazAsync(int push, int silme, CancellationToken ct)
+        {
+            try
+            {
+                var meta = new Dictionary<string, object?>
+                {
+                    ["cihaz"] = _o.CihazAdi,
+                    ["sonSinxron"] = FirebaseOptions.UtcIndi(),
+                    ["fasileSaniye"] = FasileSaniye,
+                    ["gonderilen"] = push,
+                    ["silinen"] = silme,
+                    ["veziyyet"] = _klient.Onlayn ? "onlayn ✓" : "oflayn ✗",
+                    ["sayi"] = new Dictionary<string, object?>
+                    {
+                        ["cars"] = _sonAçarlar.TryGetValue("cars", out var c) ? c.Count : 0,
+                        ["credits"] = _sonAçarlar.TryGetValue("credits", out var k) ? k.Count : 0,
+                        ["sales"] = _sonAçarlar.TryGetValue("sales", out var s) ? s.Count : 0,
+                        ["expenses"] = _sonAçarlar.TryGetValue("expenses", out var e) ? e.Count : 0,
+                        ["partnerShares"] = _sonAçarlar.TryGetValue("partnerShares", out var p) ? p.Count : 0
+                    }
+                };
+
+                await _klient.YenileAsync("_meta", meta, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "meta yazma");
+            }
+        }
+
+        /// <summary>🧹 Resursları azad edir ✓ (exception ATILMIR ✗)</summary>
+        public void Dispose()
+        {
+            try { Dayandir(); _cts.Dispose(); } catch { }
+        }
+
+        /// <summary>💾 Fləşkart (tənbəl yaradılır ✓)</summary>
+        private UsbDriveDetector? _usb;
+
+        /// <summary>🧹 Köhnə soft-delete qalıqları yalnız BİR DƏFƏ təmizlənir ✓</summary>
+        private bool _zibilTemizlendi;
+
+        /// <summary>
+        /// 🧹 Buluddaki köhnə <b>SOFT-DELETE qalıqlarını FİZİKİ SİLİR</b> ✓✓✓
+        /// <para>Yerli bazada olmayan + <c>isDeleted = true</c> olan qeydlər → silinir ✓ (yer boşalır ✓)</para>
+        /// </summary>
+        public async Task<int> ZibiliTemizleAsync(CancellationToken ct = default)
+        {
+            var say = 0;
+
+            if (!FizikiSil) return 0;
+
+            try
+            {
+                foreach (var kolleksiya in Kolleksiyalar)
+                {
+                    var xam = await _klient.OxuAsync(kolleksiya, ct).ConfigureAwait(false);
+
+                    if (xam is null) continue;
+
+                    foreach (var cüt in xam)
+                    {
+                        if (cüt.Value is not JsonObject o) continue;
+                        if (o["isDeleted"]?.GetValue<bool>() != true) continue;
+
+                        // ⚠ Yerli bazada VARDIRSA toxunmuruq ✗
+                        if (_sonAçarlar.TryGetValue(kolleksiya, out var yerli) &&
+                            yerli.Contains(cüt.Key))
+                        {
+                            continue;
+                        }
+
+                        if (await _klient.FizikiSilAsync(kolleksiya + "/" + cüt.Key, ct)
+                            .ConfigureAwait(false))
+                        {
+                            say++;
+                        }
+                    }
+                }
+
+                if (say > 0)
+                {
+                    AppLogger.Melumat($"🧹 Köhnə soft-delete qalıqları silindi ✓ — {say} qeyd ✓ (yer boşaldı ✓)");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "zibil təmizləmə");
+            }
+
+            return say;
+        }
+
+        /// <summary>
+        /// 📦 <b>YERLİ MƏLUMATI JSON-A ÇEVİRİR</b> ✓✓✓ — 🔥 BULUD LAZIM DEYİL ✗
+        /// <para>⚠ İnternet olmasa da yedək YAZILIR ✓ (yerli SQLite-dan oxunur ✓✓✓)</para>
+        /// </summary>
+        private async Task<Dictionary<string, JsonArray>> YerliJsonAsync(
+            AppDbContext db, CancellationToken ct)
+        {
+            var nəticə = new Dictionary<string, JsonArray>(StringComparer.Ordinal);
+
+            nəticə["cars"] = Çevir(await db.Cars.AsNoTracking().ToListAsync(ct), CarNode);
+            nəticə["expenses"] = Çevir(await db.Expenses.AsNoTracking().ToListAsync(ct), XercNode);
+            nəticə["sales"] = Çevir(await db.Sales.AsNoTracking().ToListAsync(ct), SatisNode);
+            nəticə["credits"] = Çevir(await db.Credits.AsNoTracking().ToListAsync(ct), KreditNode);
+            nəticə["creditTransactions"] =
+                Çevir(await db.CreditTransactions.AsNoTracking().ToListAsync(ct), EmeliyyatNode);
+            nəticə["partners"] = Çevir(await db.Partners.AsNoTracking().ToListAsync(ct), TerefdasNode);
+            nəticə["partnerShares"] =
+                Çevir(await db.PartnerShares.AsNoTracking().ToListAsync(ct), PayNode);
+            nəticə["partnerPayments"] =
+                Çevir(await db.PartnerPayments.AsNoTracking().ToListAsync(ct), OdenisNode);
+
+            return nəticə;
+        }
+
+        /// <summary>🔁 Sətirləri JSON massivinə çevirir ✓</summary>
+        private static JsonArray Çevir<T>(
+            IEnumerable<T> sətirlər,
+            Func<T, Dictionary<string, object?>> nodeAl)
+        {
+            var massiv = new JsonArray();
+
+            foreach (var sətr in sətirlər)
+            {
+                try
+                {
+                    massiv.Add(System.Text.Json.JsonSerializer
+                        .SerializeToNode(nodeAl(sətr), FirebaseOptions.Json));
+                }
+                catch { }
+            }
+
+            return massiv;
+        }
+
+        /// <summary>
+        /// 📎 <b>MEDIA FAYLLARINI USB-YƏ KÖÇÜRÜR</b> ✓✓✓
+        /// <para>
+        /// ⚠ <b>SƏBƏB:</b> fləşkart yoxkən əlavə olunan PDF/şəkil
+        /// <c>%LocalAppData%\EnterpriseAeroStudio\Media</c>-də qalır ✗ →
+        /// fləşkart taxılsa da USB-yə <b>HEÇ NƏ KÖÇÜRÜLMÜRDÜ</b> ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ <b>HƏLL:</b> fləşkart hazır olan kimi bütün media qeydləri yoxlanılır ✓,
+        /// USB-də olmayanlar <b>eynistrukturla</b> kopyalanır ✓
+        /// (<c>{Fləşkart}:\021Cars\Media\{RefType}\{qovluq}\{fayl}</c> ✓)
+        /// </para>
+        /// <para>📌 Yerli surət SİLİNMİR ✗ → fayl HƏM kompüterdə ✓ HƏM USB-də ✓ olur ✓✓✓</para>
+        /// </summary>
+        public async Task<int> MedianiKocurAsync(CancellationToken ct = default)
+        {
+            if (!UsbHazir || _usb?.KokYol is null) return 0;   // 🔌 fləşkart yoxdur ✗
+
+            var say = 0;
+
+            try
+            {
+                using var qap = _srv.CreateScope();
+                using var db = qap.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var usbMediaKök = Path.Combine(_usb.KokYol, "Media");
+                Directory.CreateDirectory(usbMediaKök);
+
+                var yerliKök = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "EnterpriseAeroStudio", "Media");
+
+                var sətirlər = await db.Attachments.AsNoTracking().ToListAsync(ct).ConfigureAwait(false);
+
+                foreach (var m in sətirlər)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    if (string.IsNullOrWhiteSpace(m.StoredPath)) continue;
+                    if (!File.Exists(m.StoredPath)) continue;   // 📄 fayl yoxdur ✗
+
+                    // ✅ artıq USB-dədirsə keç ✗
+                    if (m.StoredPath.StartsWith(_usb.KokYol, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        // 📁 EYNİ struktur: Media\{RefType}\{qovluq}\{fayl} ✓✓✓
+                        var nisbi = m.StoredPath.StartsWith(yerliKök, StringComparison.OrdinalIgnoreCase)
+                            ? Path.GetRelativePath(yerliKök, m.StoredPath)
+                            : Path.Combine(string.IsNullOrWhiteSpace(m.RefType) ? "Diger" : m.RefType,
+                                           Path.GetFileName(m.StoredPath));
+
+                        if (nisbi.StartsWith("..", StringComparison.Ordinal))
+                        {
+                            nisbi = Path.Combine(string.IsNullOrWhiteSpace(m.RefType) ? "Diger" : m.RefType,
+                                                 Path.GetFileName(m.StoredPath));
+                        }
+
+                        var hedef = Path.Combine(usbMediaKök, nisbi);
+
+                        if (File.Exists(hedef))
+                        {
+                            continue;   // ✅ artıq kopyalanıb ✓
+                        }
+
+                        Directory.CreateDirectory(Path.GetDirectoryName(hedef) ?? usbMediaKök);
+                        File.Copy(m.StoredPath, hedef, overwrite: false);
+
+                        say++;
+                        AppLogger.Melumat($"📎 USB-yə köçürüldü ✓ → {nisbi}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogger.Xeberdarliq($"📎 «{m.FileName}» köçürülmədi ✗ — {ex.Message}");
+                    }
+                }
+
+                if (say > 0)
+                {
+                    AppLogger.Melumat($"📎 {say} media faylı USB-yə köçürüldü ✓ → {usbMediaKök} ✓✓✓");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "media köçürmə");
+            }
+
+            return say;
+        }
+
+        /// <summary>
+        /// 🖥️ <b>KOMPÜTERƏ YEDƏK</b> ✓✓✓ — məlumat yerli fayllara yazılır ✓
+        /// <para>📂 <c>%LOCALAPPDATA%\EnterpriseAeroStudio\Yedekler\Json\*.json</c> ✓ + <c>SON_SINXRON.txt</c> ✓</para>
+        /// <para>⏱️ Fasilə: <see cref="YerliYedekSaniye"/> <b>SANİYƏ</b> ✓ (👑 Seccad / 🛡️ Asif dəyişir ✓)</para>
+        /// </summary>
+        public async Task YerliYedekAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                if (SonYerliYedek.HasValue &&
+                    (DateTime.Now - SonYerliYedek.Value).TotalSeconds <
+                    Math.Max(5, YerliYedekSaniye))
+                {
+                    return;
+                }
+
+                var tam = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "EnterpriseAeroStudio", "Yedekler", "Json");
+
+                Directory.CreateDirectory(tam);
+
+                var qeyd = 0;
+
+                // 📦 YERLİ BAZADAN oxunur ✓✓✓ (🔥 bulud LAZIM DEYİL ✗ — offline də işləyir ✓)
+                using (var qap = _srv.CreateScope())
+                using (var db = qap.ServiceProvider.GetRequiredService<AppDbContext>())
+                {
+                    var məlumat = await YerliJsonAsync(db, ct).ConfigureAwait(false);
+
+                    foreach (var cüt in məlumat)
+                    {
+                        await File.WriteAllTextAsync(
+                            Path.Combine(tam, cüt.Key + ".json"),
+                            cüt.Value.ToJsonString(new System.Text.Json.JsonSerializerOptions
+                            {
+                                WriteIndented = true
+                            }), ct).ConfigureAwait(false);
+
+                        qeyd += cüt.Value.Count;
+                    }
+                }
+
+                // 🫀 ÜRƏK DÖYÜNTÜSÜ ✓ (faylın tarixi HƏMİŞƏ TƏZƏ ✓)
+                await File.WriteAllTextAsync(
+                    Path.Combine(tam, "SON_SINXRON.txt"),
+                    "021Cars — KOMPÜTER YEDƏYİ ✓" + Environment.NewLine +
+                    "═══════════════════════════════════════" + Environment.NewLine +
+                    $"📅 Tarix      : {DateTime.Now:dd.MM.yyyy HH:mm:ss}" + Environment.NewLine +
+                    $"🖥️ Cihaz     : {_o.CihazAdi}" + Environment.NewLine +
+                    $"⏱️ Fasilə    : {YerliYedekSaniye} saniyə ✓" + Environment.NewLine +
+                    $"📦 Kolleksiya: {Kolleksiyalar.Length}" + Environment.NewLine +
+                    $"📊 Qeyd sayı : {qeyd}" + Environment.NewLine,
+                    ct).ConfigureAwait(false);
+
+                SonYerliYedek = DateTime.Now;
+                AppLogger.Melumat($"🖥️ Kompüter yedəyi yazıldı ✓ → {tam} · {qeyd} qeyd ✓");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "kompüter yedəyi");
+            }
+        }
+
+        /// <summary>
+        /// 💾 <b>USB-YƏ YEDƏK + ÜRƏK DÖYÜNTÜSÜ</b> ✓✓✓
+        /// <para>
+        /// Hər <see cref="YedekDakkasi"/> dəqiqədə buluddaki məlumat
+        /// <c>{Fləşkart}\021Cars\Yedekler\Json\*.json</c> fayllarına yazılır ✓ +
+        /// <c>SON_SINXRON.txt</c> yenilənir ✓ → faylların <b>tarixi həmişə təzə</b> olur ✓
+        /// </para>
+        /// 🔌 Fləşkart yoxdursa səssiz keçir ✓ (çökmə YOX ✗)
+        /// </summary>
+        public async Task UsbYedekAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                if (SonYedek.HasValue &&
+                    (DateTime.Now - SonYedek.Value).TotalSeconds < Math.Max(5, YedekSaniye))
+                {
+                    return;
+                }
+
+                _usb ??= new UsbDriveDetector();
+
+                if (!_usb.Hazir) _usb.SkanEt();
+                if (!_usb.Hazir) return; // 🔌 fləşkart yoxdur ✗
+
+                if (!_usb.QovluqYarat(@"Yedekler\Json", out var tam) || tam is null) return;
+
+                var qeyd = 0;
+
+                // 📦 YERLİ BAZADAN oxunur ✓✓✓ (🔥 bulud LAZIM DEYİL ✗ — offline də işləyir ✓)
+                using (var qap = _srv.CreateScope())
+                using (var db = qap.ServiceProvider.GetRequiredService<AppDbContext>())
+                {
+                    var məlumat = await YerliJsonAsync(db, ct).ConfigureAwait(false);
+
+                    foreach (var cüt in məlumat)
+                    {
+                        await File.WriteAllTextAsync(
+                            Path.Combine(tam, cüt.Key + ".json"),
+                            cüt.Value.ToJsonString(new System.Text.Json.JsonSerializerOptions
+                            {
+                                WriteIndented = true
+                            }), ct).ConfigureAwait(false);
+
+                        qeyd += cüt.Value.Count;
+                    }
+                }
+
+                // 🫀 ÜRƏK DÖYÜNTÜSÜ — faylın «Date modified» HƏMİŞƏ TƏZƏ olur ✓✓✓
+                await File.WriteAllTextAsync(
+                    Path.Combine(tam, "SON_SINXRON.txt"),
+                    "021Cars — USB YEDƏYİ ✓" + Environment.NewLine +
+                    "═══════════════════════════════════════" + Environment.NewLine +
+                    $"📅 Tarix      : {DateTime.Now:dd.MM.yyyy HH:mm:ss}" + Environment.NewLine +
+                    $"🖥️ Cihaz     : {_o.CihazAdi}" + Environment.NewLine +
+                    $"🔄 Fasilə    : {FasileSaniye} saniyə ✓" + Environment.NewLine +
+                    $"📦 Kolleksiya: {Kolleksiyalar.Length}" + Environment.NewLine +
+                    $"📊 Qeyd sayı : {qeyd}" + Environment.NewLine +
+                    $"🌐 Vəziyyət  : {(_klient.Onlayn ? "onlayn ✓" : "oflayn ✗")}" + Environment.NewLine,
+                    ct).ConfigureAwait(false);
+
+                // 📎 MEDIA FAYLLARINI DA USB-YƏ KÖÇÜR ✓✓✓
+                //    (fləşkart yoxkən əlavə olunan PDF/şəkillər də avtomatik gəlir ✓)
+                var media = await MedianiKocurAsync(ct).ConfigureAwait(false);
+
+                SonYedek = DateTime.Now;
+                AppLogger.Melumat(
+                    $"💾 USB yedəyi yazıldı ✓ → {tam} · {qeyd} qeyd ✓" +
+                    (media > 0 ? $" · 📎 {media} fayl köçürüldü ✓✓✓" : ""));
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "USB yedək");
+            }
+        }
+
+        /// <summary>
+        /// 🔄 Bir cədvəli <b>iki tərəfli</b> sinxronlaşdırır ✓✓✓ —
+        /// LWW (<i>Last Write Wins</i>) ilə: <b>ən təzə tarix üstün gəlir</b> ✓
+        /// </summary>
+        /// <returns>Yerli bazaya tətbiq olunan dəyişiklik sayı ✓</returns>
+        private async Task<int> CədvəliSinxronlaAsync<T>(
+            AppDbContext db,
+            SqliteConnection cx,
+            string kol,
+            List<T> yerli,
+            Func<T, string> açarAl,
+            Func<T, Dictionary<string, object?>> nodeAl,
+            JsonObject? bulud,
+            JsonObject? zibil,
+            CancellationToken ct)
+            where T : class, new()
+        {
+            var izleme = IzlemeAl(cx, kol);
+            var dəyişən = 0;
+
+            // ① ☁️ BULUD → YERLİ ✓ (yalnız DAHA TƏZƏ olanlar ✓)
+            if (bulud is not null)
+            {
+                foreach (var cüt in bulud)
+                {
+                    if (cüt.Value is not JsonObject o) continue;
+
+                    var id = cüt.Key;
+                    var uzaqVaxt = OxuVaxt(o["updatedAt"]?.ToString());
+                    izleme.TryGetValue(id, out var iz);
+
+                    // ⚖️ LWW: yerli daha təzədirsə → toxunmuruq ✗✓✓
+                    if (uzaqVaxt <= (iz?.SonDeyisiklik ?? DateTime.MinValue)) continue;
+
+                    var yerliSətr = yerli.FirstOrDefault(x => açarAl(x) == id);
+
+                    if (yerliSətr is null)
+                    {
+                        // ➕ YENİ QEYD (başqa kompüterdə yaranıb ✓) — İD SAXLANILIR ✓
+                        var yeni = new T();
+                        XüsuslarıTətbiq(yeni, o);
+                        XüsuslarıTətbiq(yeni, new JsonObject { ["id"] = id });
+
+                        if (await YerliEkleAsync(db, yeni, ct).ConfigureAwait(false))
+                        {
+                            yerli.Add(yeni);
+                            IzlemeYaz(cx, kol, id, HesablaMəzmun(nodeAl(yeni)), uzaqVaxt, false);
+                            dəyişən++;
+                        }
+                    }
+                    else
+                    {
+                        XüsuslarıTətbiq(yerliSətr, o);
+                        db.Update(yerliSətr);
+                        IzlemeYaz(cx, kol, id, HesablaMəzmun(nodeAl(yerliSətr)), uzaqVaxt, false);
+                        dəyişən++;
+                    }
+                }
+            }
+
+            // ② 🗑️ TOMBSTONE → YERLİ BAZADAN SİL ✓✓✓ (<b>BMW SSENARİSİ ✓</b>)
+            if (zibil?[kol] is JsonObject z)
+            {
+                foreach (var cüt in z)
+                {
+                    if (cüt.Value is not JsonObject t) continue;
+
+                    var id = cüt.Key;
+                    var silinməVaxtı = OxuVaxt(t["silinmeTarixi"]?.ToString());
+                    izleme.TryGetValue(id, out var iz);
+
+                    // ⚠ Heç vaxt bizdə olmayıbsa → yerli silmə lazım deyil ✗
+                    if (iz is null) continue;
+
+                    // ⚖️ LWW: yerli daha təzədirsə (bərpa olunub ✓) → silmirik ✗
+                    if (silinməVaxtı <= iz.SonDeyisiklik) continue;
+
+                    var yerliSətr = yerli.FirstOrDefault(x => açarAl(x) == id);
+
+                    if (yerliSətr is not null)
+                    {
+                        db.Remove(yerliSətr);
+                        yerli.Remove(yerliSətr);
+                    }
+
+                    IzlemeYaz(cx, kol, id, "", silinməVaxtı, true);
+                    dəyişən++;
+
+                    AppLogger.Melumat(
+                        $"🗑️ {kol}/{id} — başqa kompüter silib ✓ → yerli bazadan da silindi ✓");
+                }
+            }
+
+            return dəyişən;
+        }
+
+        /// <summary>🔑 Məzmun hash-ı ✓ (nodeAl nəticəsi üzərindən ✓)</summary>
+        private static string HesablaMəzmun(Dictionary<string, object?> node) =>
+            Hesabla(System.Text.Json.JsonSerializer.Serialize(node, FirebaseOptions.Json));
+
+        // ====================================================================
+        //  🧠 İZLƏMƏ CƏDVƏLİ (bulud_izleme) — LWW-NİN ÜRƏYİ ✓✓✓
+        //  Hər qeyd üçün: son hash ✓ + son dəyişiklik vaxtı ✓ + silinib? ✓
+        //  ⚠ Tətbiqin öz modellərinə TOXUNULMUR ✗ — ayrıca cədvəl ✓
+        // ====================================================================
+
+        /// <summary>🕒 ISO-8601 mətnini UTC <see cref="DateTime"/>-a çevirir ✓</summary>
+        private static DateTime OxuVaxt(string? iso) =>
+            DateTime.TryParse(iso, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var d)
+                ? d
+                : DateTime.MinValue;
+
+        /// <summary>
+        /// 📝 JSON node-un dəyərlərini obyektin xassələrinə tətbiq edir ✓✓✓
+        /// <para>
+        /// Ad üzrə uyğunlaşdırma (böyük/kiçik hərf fərqi nəzərə alınmır ✓) +
+        /// tip çevrilməsi (string · int · decimal · bool · DateTime ✓).
+        /// Bir sahə uğursuz olsa qalanları tətbiq olunur ✓ (xəta udulur ✓)
+        /// </para>
+        /// <para>⚠ Yalnız <c>updatedAt/updatedBy/isDeleted/deletedAt</c> ÖTÜRÜLÜR ✗ (yerli bazada yoxdur ✓)</para>
+        /// </summary>
+        private static void XüsuslarıTətbiq(object hədəf, JsonObject o)
+        {
+            var tip = hədəf.GetType();
+
+            foreach (var cüt in o)
+            {
+                if (cüt.Value is null) continue;
+
+                if (cüt.Key is "updatedAt" or "updatedBy" or "isDeleted" or "deletedAt") continue;
+
+                var p = tip.GetProperty(cüt.Key,
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+                if (p is null || !p.CanWrite || p.GetIndexParameters().Length > 0) continue;
+                if (p.GetCustomAttribute<NotMappedAttribute>() is not null) continue;
+
+                try
+                {
+                    var xam = cüt.Value.ToString();
+                    var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                    var boş = string.IsNullOrWhiteSpace(xam);
+
+                    if (t == typeof(string)) p.SetValue(hədəf, xam);
+                    else if (boş) continue;
+                    else if (t == typeof(int)) p.SetValue(hədəf, int.Parse(xam, CultureInfo.InvariantCulture));
+                    else if (t == typeof(long)) p.SetValue(hədəf, long.Parse(xam, CultureInfo.InvariantCulture));
+                    else if (t == typeof(decimal)) p.SetValue(hədəf, decimal.Parse(xam, CultureInfo.InvariantCulture));
+                    else if (t == typeof(double)) p.SetValue(hədəf, double.Parse(xam, CultureInfo.InvariantCulture));
+                    else if (t == typeof(bool)) p.SetValue(hədəf, bool.Parse(xam));
+                    else if (t == typeof(DateTime))
+                    {
+                        p.SetValue(hədəf, DateTime.Parse(xam, CultureInfo.InvariantCulture,
+                            DateTimeStyles.RoundtripKind | DateTimeStyles.AdjustToUniversal));
+                    }
+                }
+                catch
+                {
+                    // 🛡️ bir sahə uğursuz oldu ✗ → qalanı tətbiq olunur ✓
+                }
+            }
+        }
+
+        /// <summary>
+        /// ➕ Yerli bazaya <b>İD SAXLAYARAQ</b> əlavə edir ✓✓✓
+        /// <para>
+        /// ⚠ EF <c>Add</c> identity-yə görə İD-ni DƏYİŞƏRDİ ✗ → ona görə xam SQL işlədilir ✓
+        /// (əlaqələr — <c>CarId</c> · <c>CreditId</c> — POZULMUR ✗✓✓)
+        /// </para>
+        /// <para>Uğursuz olarsa → EF ilə adi əlavə (yeni İD ✓) + loq ✓ (qeyd İTMİR ✗)</para>
+        /// </summary>
+        private static async Task<bool> YerliEkleAsync(
+            AppDbContext db, object entity, CancellationToken ct)
+        {
+            var tip = entity.GetType();
+
+            try
+            {
+                await db.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
+
+                var cədvəl = db.Model.FindEntityType(tip)?.GetTableName() ?? tip.Name + "s";
+
+                var sütunlar = new List<string>();
+                var yerTutucular = new List<string>();
+                var parametrlər = new List<SqliteParameter>();
+
+                foreach (var p in tip.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (!p.CanRead || !p.CanWrite) continue;
+                    if (p.GetIndexParameters().Length > 0) continue;
+                    if (p.GetCustomAttribute<NotMappedAttribute>() is not null) continue;
+
+                    sütunlar.Add($"\"{p.Name}\"");
+                    yerTutucular.Add("$p" + parametrlər.Count);
+                    parametrlər.Add(new SqliteParameter("$p" + parametrlər.Count,
+                        p.GetValue(entity) ?? DBNull.Value));
+                }
+
+                if (sütunlar.Count == 0) return false;
+
+                using var əmr = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+                əmr.CommandText = $"INSERT INTO \"{cədvəl}\" ({string.Join(", ", sütunlar)}) " +
+                                  $"VALUES ({string.Join(", ", yerTutucular)});";
+
+                foreach (var x in parametrlər) əmr.Parameters.Add(x);
+
+                await əmr.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+
+                // 🔢 SQLite sayğacını düzəlt ✓ (sonrakı əlavələr toqquşmasın ✗✓✓)
+                try
+                {
+                    using var düzəliş =
+                        ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+                    düzəliş.CommandText =
+                        $"UPDATE sqlite_sequence SET seq = (SELECT MAX(\"Id\") FROM \"{cədvəl}\") " +
+                        $"WHERE name = '{cədvəl}' " +
+                        $"AND seq < (SELECT MAX(\"Id\") FROM \"{cədvəl}\");";
+                    await düzəliş.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+                catch { }
+
+                db.ChangeTracker.Clear(); // ⚠ EF xəbərdar olsun ✓
+
+                AppLogger.Melumat($"➕ {cədvəl}: buluddan YENİ qeyd əlavə olundu ✓");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // 🛡️ Zəmanət: qeyd İTMİR ✗ — EF ilə adi şəkildə əlavə olunur ✓
+                AppLogger.Xeberdarliq(
+                    $"⚠️ {tip.Name} İD ilə əlavə olunmadı ✗ ({ex.Message}) → adi üsulla ✓");
+
+                try
+                {
+                    db.Add(entity);
+                    return true;
+                }
+                catch (Exception ex2)
+                {
+                    AppLogger.Xeta(ex2, "yerli əlavə: " + tip.Name);
+                    return false;
+                }
+            }
+            finally
+            {
+                try { await db.Database.CloseConnectionAsync().ConfigureAwait(false); } catch { }
+            }
+        }
+
+        private sealed class IzlemeSetri
+        {
+            public string Kol { get; set; } = "";
+            public string ElementId { get; set; } = "";
+            public string Hash { get; set; } = "";
+            public DateTime SonDeyisiklik { get; set; } = DateTime.MinValue;
+            public bool Silinib { get; set; }
+        }
+
+        /// <summary>🏗️ Cədvəli yaradır ✓ (yoxdursa ✓)</summary>
+        private static void CedveliYarat(SqliteConnection cx)
+        {
+            using var əmr = cx.CreateCommand();
+            əmr.CommandText =
+                "CREATE TABLE IF NOT EXISTS bulud_izleme (" +
+                "  Kol           TEXT    NOT NULL," +
+                "  ElementId     TEXT    NOT NULL," +
+                "  Hash          TEXT    NOT NULL," +
+                "  SonDeyisiklik TEXT    NOT NULL," +
+                "  Silinib       INTEGER NOT NULL DEFAULT 0," +
+                "  PRIMARY KEY (Kol, ElementId));";
+            əmr.ExecuteNonQuery();
+        }
+
+        /// <summary>📖 Bir kolleksiyanın izləmə sətirlərini oxuyur ✓</summary>
+        private static Dictionary<string, IzlemeSetri> IzlemeAl(SqliteConnection cx, string kol)
+        {
+            var nəticə = new Dictionary<string, IzlemeSetri>(StringComparer.Ordinal);
+
+            using var əmr = cx.CreateCommand();
+            əmr.CommandText =
+                "SELECT ElementId, Hash, SonDeyisiklik, Silinib FROM bulud_izleme WHERE Kol = $k;";
+            əmr.Parameters.AddWithValue("$k", kol);
+
+            using var oxu = əmr.ExecuteReader();
+
+            while (oxu.Read())
+            {
+                var id = oxu.GetString(0);
+                nəticə[id] = new IzlemeSetri
+                {
+                    Kol = kol,
+                    ElementId = id,
+                    Hash = oxu.GetString(1),
+                    SonDeyisiklik = DateTime.TryParse(oxu.GetString(2), CultureInfo.InvariantCulture,
+                        DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var d)
+                        ? d : DateTime.MinValue,
+                    Silinib = oxu.GetInt32(3) != 0
+                };
+            }
+
+            return nəticə;
+        }
+
+        /// <summary>✍️ İzləmə sətrini yazır ✓ (INSERT OR REPLACE ✓)</summary>
+        private static void IzlemeYaz(SqliteConnection cx, string kol, string id,
+            string hash, DateTime vaxt, bool silinib)
+        {
+            using var əmr = cx.CreateCommand();
+            əmr.CommandText =
+                "INSERT OR REPLACE INTO bulud_izleme (Kol, ElementId, Hash, SonDeyisiklik, Silinib) " +
+                "VALUES ($k, $id, $h, $v, $s);";
+            əmr.Parameters.AddWithValue("$k", kol);
+            əmr.Parameters.AddWithValue("$id", id);
+            əmr.Parameters.AddWithValue("$h", hash);
+            əmr.Parameters.AddWithValue("$v", vaxt.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture));
+            əmr.Parameters.AddWithValue("$s", silinib ? 1 : 0);
+            əmr.ExecuteNonQuery();
+        }
+
+        /// <summary>🧹 İzləmə sətrini silir ✓ (tombstone müddəti bitəndə ✓)</summary>
+        private static void IzlemeSil(SqliteConnection cx, string kol, string id)
+        {
+            using var əmr = cx.CreateCommand();
+            əmr.CommandText = "DELETE FROM bulud_izleme WHERE Kol = $k AND ElementId = $id;";
+            əmr.Parameters.AddWithValue("$k", kol);
+            əmr.Parameters.AddWithValue("$id", id);
+            əmr.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// 🗑️ <b>TOMBSTONE</b> — silinmə qeydi ✓✓✓
+        /// <para>
+        /// Fiziki silinsə digər kompüter «heç vaxt olmayıb» ✗ ilə «silinib» ✗
+        /// fərqini BİLƏ BİLMƏZ ✗ → buna görə silinmə tarixi ayrıca yazılır ✓
+        /// (çox kiçik qeyd ✓ · <see cref="ZibilMuddetGun"/> sonra təmizlənir ✓)
+        /// </para>
+        /// </summary>
+        private async Task TombstoneYazAsync(string kolleksiya, string id, CancellationToken ct)
+        {
+            try
+            {
+                await _klient.YenileAsync($"_zibil/{kolleksiya}/{id}",
+                    new Dictionary<string, object?>
+                    {
+                        ["silinmeTarixi"] = FirebaseOptions.UtcIndi(),
+                        ["cihaz"] = _o.CihazAdi
+                    }, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) { AppLogger.Xeta(ex, "tombstone: " + kolleksiya + "/" + id); }
+        }
+
+        /// <summary>🗑️ Köhnə tombstone-ları təmizləyir ✓ (90 gün ✓ — yer boşalır ✓)</summary>
+        public int ZibilMuddetGun { get; set; } = 90;
+
+        /// <summary>📋 Sinxronlaşdırılan kolleksiyalar ✓ (📎 media XARİC ✗)</summary>
+        private static readonly string[] Kolleksiyalar =
+        {
+            "cars", "expenses", "sales", "credits", "creditTransactions",
+            "partners", "partnerShares", "partnerPayments"
+        };
+
+        /// <summary>🚗 <b>Avtomobil</b> → Firebase node ✓ (sənəd faylları DAXİL DEYİL ✗ ✓)</summary>
+        private static Dictionary<string, object?> CarNode(CarItem a) => new()
+        {
+            ["id"] = a.Id.ToString(CultureInfo.InvariantCulture),
+            ["marka"] = a.Marka,
+            ["qeydiyyatNisani"] = a.QeydiyyatNisani,
+            ["vin"] = a.Vin,
+            ["il"] = a.Il,
+            ["yurus"] = a.Yurus,
+            ["yanacaq"] = a.Yanacaq,
+            ["alisTarixi"] = a.AlisTarixi?.ToString("o", CultureInfo.InvariantCulture),
+            ["alisSaati"] = a.AlisSaati,
+            ["alisUsulu"] = a.AlisUsulu,
+            ["alisQiymeti"] = (double)a.AlisQiymeti,
+            ["satisQiymeti"] = (double)a.SatisQiymeti,
+            ["status"] = a.Status,
+            ["kreditNomresi"] = a.KreditNomresi,
+            ["barterTesviri"] = a.BarterTesviri,
+            ["barterDeyeri"] = (double)a.BarterDeyeri,
+            ["barterCarId"] = a.BarterCarId?.ToString(CultureInfo.InvariantCulture),
+            ["barterSaleId"] = a.BarterSaleId?.ToString(CultureInfo.InvariantCulture),
+            ["isBarter"] = a.IsBarter,
+            ["yaradilmaTarixi"] = a.YaradilmaTarixi.ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        /// <summary>💸 <b>Xərc</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> XercNode(ExpenseItem e) => new()
+        {
+            ["id"] = e.Id.ToString(CultureInfo.InvariantCulture),
+            ["tarix"] = e.Tarix.ToString("o", CultureInfo.InvariantCulture),
+            ["teyinat"] = e.Teyinat,
+            ["qrup"] = e.Qrup,
+            ["kategoriya"] = e.Kategoriya,
+            ["carId"] = e.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["mebleg"] = (double)e.Mebleg,
+            ["odenisUsulu"] = e.OdenisUsulu,
+            ["qeyd"] = e.Qeyd,
+            ["yaradilmaTarixi"] = e.YaradilmaTarixi.ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        /// <summary>🤝 <b>Satış</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> SatisNode(Sale s) => new()
+        {
+            ["id"] = s.Id.ToString(CultureInfo.InvariantCulture),
+            ["muqavileNomresi"] = s.MuqavileNomresi,
+            ["musteri"] = s.Mustəri,
+            ["carId"] = s.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["satisQiymeti"] = (double)s.SatisQiymeti,
+            ["mayaDeyeri"] = (double)s.MayaDeyeri,
+            ["menfeet"] = (double)s.Menfeet,
+            ["satisTarixi"] = s.SatisTarixi.ToString("o", CultureInfo.InvariantCulture),
+            ["odenisUsulu"] = s.OdenisUsulu,
+            ["barterMebleg"] = (double)s.BarterMebleg,
+            ["nagdMebleg"] = (double)s.NagdMebleg,
+            ["barterTesviri"] = s.BarterTesviri,
+            ["isBarter"] = s.IsBarter,
+            ["qeyd"] = s.Qeyd
+        };
+
+        /// <summary>🏦 <b>Kredit</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> KreditNode(Credit k) => new()
+        {
+            ["id"] = k.Id.ToString(CultureInfo.InvariantCulture),
+            ["muqavileNomresi"] = k.MuqavileNomresi,
+            ["musteri"] = k.Mustəri,
+            ["carId"] = k.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["mebleg"] = (double)k.Mebleg,
+            ["ilkinOdenis"] = (double)k.IlkinOdenis,
+            ["kreditlesdirilen"] = (double)k.Kreditlesdirilen,
+            ["faizDerecesi"] = (double)k.FaizDerecesi,
+            ["faizMeblegi"] = (double)k.FaizMeblegi,
+            ["kreditQiymeti"] = (double)k.KreditQiymeti,
+            ["ayligOdenis"] = (double)k.AylıqOdenis,
+            ["muddetAy"] = k.MuddetAy,
+            ["baslamaTarixi"] = k.BaslamaTarixi.ToString("o", CultureInfo.InvariantCulture),
+            ["status"] = k.Status,
+            ["bitmisKredit"] = k.BitmisKredit,
+            ["qeyd"] = k.Qeyd
+        };
+
+        /// <summary>💳 <b>Kredit əməliyyatı</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> EmeliyyatNode(CreditTransaction t) => new()
+        {
+            ["id"] = t.Id.ToString(CultureInfo.InvariantCulture),
+            ["creditId"] = t.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["nov"] = t.Nov,
+            ["installmentNo"] = t.InstallmentNo,
+            ["mebleg"] = (double)t.Mebleg,
+            ["tarix"] = t.Tarix.ToString("o", CultureInfo.InvariantCulture),
+            ["gosterilenTarix"] = t.GosterilenTarix.ToString("o", CultureInfo.InvariantCulture),
+            ["mohletTarixi"] = t.MohletTarixi?.ToString("o", CultureInfo.InvariantCulture),
+            ["gecikmeTarixi"] = t.GecikmeTarixi?.ToString("o", CultureInfo.InvariantCulture),
+            ["tesvir"] = t.Tesvir,
+            ["odenilib"] = t.Odenilib,
+            ["bolguTetbiqOlunub"] = t.TerefdasBolguTetbiqOlunub,
+            ["bolguBazasi"] = t.BolguBazasi.HasValue ? (double)t.BolguBazasi.Value : null
+        };
+
+        /// <summary>👥 <b>Tərəfdaş</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> TerefdasNode(Partner p) => new()
+        {
+            ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["ad"] = p.Ad,
+            ["faiz"] = (double)p.Faiz,
+            ["qaligPayi"] = p.QaligPayi,
+            ["aktiv"] = p.Aktiv,
+            ["sira"] = p.Sira,
+            ["qeyd"] = p.Qeyd
+        };
+
+        /// <summary>💰 <b>Tərəfdaş payı</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> PayNode(PartnerShare p) => new()
+        {
+            ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["creditTransactionId"] = p.CreditTransactionId?.ToString(CultureInfo.InvariantCulture),
+            ["creditId"] = p.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["saleId"] = p.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["terefdas"] = p.Terefdas,
+            ["faiz"] = (double)p.Faiz,
+            ["mebleg"] = (double)p.Mebleg,
+            ["qaligPayi"] = p.QaligPayi,
+            ["aktiv"] = p.Aktiv,
+            ["sira"] = p.Sira
+        };
+
+        /// <summary>💵 <b>Tərəfdaş ödənişi</b> → Firebase node ✓</summary>
+        private static Dictionary<string, object?> OdenisNode(PartnerPayment p) => new()
+        {
+            ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["terefdas"] = p.Terefdas,
+            ["mebleg"] = (double)p.Mebleg,
+            ["tarix"] = p.Tarix.ToString("o", CultureInfo.InvariantCulture),
+            ["odenisUsulu"] = p.OdenisUsulu,
+            ["qeyd"] = p.Qeyd
+        };
+
+
+
+
+
+    }
+}

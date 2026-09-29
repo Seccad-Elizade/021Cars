@@ -1,0 +1,886 @@
+@page "/credit-transactions"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.AspNetCore.Components
+@using Microsoft.Extensions.Options
+@using System.ComponentModel.DataAnnotations
+@inject ICreditService CreditService
+@inject IMediaService MediaService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Kredit Əməliyyatları — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🧾 Kredit Əməliyyatları</div>
+        <div class="page-sub">
+            @_filtered.Count nəticə / @_items.Count qeyd
+            @if (CreditId is not null && SelectedContract is not null)
+            {
+                <span> — müqavilə: <b>@AppFormat.Text(SelectedContract.MuqavileNomresi)</b></span>
+            }
+        </div>
+    </div>
+    <div class="page-actions">
+        @if (CreditId is not null)
+        {
+            <a class="btn" href="credit-transactions">✕ Filtri götür</a>
+        }
+        @if (CanWrite)
+        {
+            <button class="btn btn-primary" @onclick="OpenNew">➕ Yeni Əməliyyat</button>
+        }
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Gəlir (Ödənişlər)" Value="@AppFormat.Money(Income)" Icon="💰" Accent="green"
+              Hint="@($"{_items.Count(t => t.Nov == "Gəlir")} qeyd")" />
+    <StatCard Label="Xərc" Value="@AppFormat.Money(Expense)" Icon="💸" Accent="red"
+              Hint="@($"{_items.Count(t => t.Nov == "Xərc")} qeyd")" />
+    <StatCard Label="Möhlət" Value="@_items.Count(t => t.Nov == "Möhlət").ToString()" Icon="⏳" Accent="amber"
+              Hint="Gecikdirilmiş ödənişlər" />
+    <StatCard Label="Gecikmə" Value="@_items.Count(t => t.Nov == "Gecikmə").ToString()" Icon="⚠️" Accent="violet"
+              Hint="Gecikmə qeydləri" />
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Yüklənir…</div></div>
+}
+else
+{
+    <div class="card">
+        <div class="toolbar">
+            <div class="search">
+                <input type="search" placeholder="Müqavilə, müştəri, təsvir…"
+                       @bind="Search" @bind:event="oninput" />
+            </div>
+            <select @bind="NovFilter">
+                <option value="">Bütün növlər</option>
+                @foreach (var nov in Novs)
+                {
+                    <option value="@nov">@nov</option>
+                }
+            </select>
+            @if (HasFilter)
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="ClearFilters">✕ Təmizlə</button>
+            }
+        </div>
+
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Kredit</th>
+                        <th>Növ</th>
+                        <th class="num">Ay №</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Möhlət tarixi</th>
+                        <th>Gecikmə tarixi</th>
+                        <th>Təsvir</th>
+                        <th>Sənəd</th>
+                        <th>Bölgü</th>
+                        <th style="width:110px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filtered.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="10" class="empty-cell">
+                                @(_items.Count == 0 ? "Hələ kredit əməliyyatı yoxdur." : "Filtrə uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var item in _filtered)
+                    {
+                        <tr>
+                            <td class="mono nowrap">@AppFormat.Date(item.Tarix)</td>
+                            <td class="muted">@AppFormat.Text(item.CreditInfo)</td>
+                            <td>
+                                <span class="@AppFormat.StatusClass(item.Nov)">@AppFormat.Text(item.Nov)</span>
+                                @if (item.IsGecikme && item.Odenilib)
+                                {
+                                    <span class="st stok" title="Ödənilib">✔</span>
+                                }
+                            </td>
+                            <td class="num mono muted">@(item.InstallmentNo?.ToString() ?? "—")</td>
+                            <td class="num strong @(item.Nov == "Xərc" ? "neg" : "pos")">@AppFormat.Money(item.Mebleg)</td>
+                            <td class="mono muted nowrap">@AppFormat.Date(item.MohletTarixi)</td>
+                            <td class="mono muted nowrap">@AppFormat.Date(item.GecikmeTarixi)</td>
+                            <td class="muted">@AppFormat.Text(item.Tesvir)</td>
+                            <td class="nowrap">
+                                <a href="@($"media?type={MediaRefTypes.CreditTransaction}&id={item.Id}")"
+                                   title="Sənəd və media arxivi — əməliyyatın çek/qaimə faylları">
+                                    @DocText(item.Id)
+                                </a>
+                            </td>
+                            <td class="muted" style="max-width:260px">
+                                @if (item.HasBolgu)
+                                {
+                                    <span class="pos" title="@item.BolguMetni">👥 @item.BolguMetni</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td class="nowrap">
+                                @if (CanWrite && item.IsGecikme)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => TogglePaid(item)"
+                                            title="@(item.Odenilib ? "Ödənilməmiş kimi işarələ" : "Ödənilib kimi işarələ")">
+                                        @(item.Odenilib ? "↩" : "✔")
+                                    </button>
+                                }
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-sm" @onclick="() => OpenEdit(item)" title="Redaktə">✏️</button>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => _deleting = item" title="Sil">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4">CƏMİ (@_filtered.Count)</td>
+                        <td class="num">@AppFormat.Money(_filtered.Sum(t => t.Mebleg))</td>
+                        <td colspan="6"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@* --------------------------------------------------------------- REDAKTƏ --- *@
+@if (_editing is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _editing = null">
+        <div class="modal wide" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">@(_editing.Id == 0 ? "➕ Yeni Kredit Əməliyyatı" : "✏️ Əməliyyatı Redaktə Et")</div>
+                <button type="button" class="modal-close" @onclick="() => _editing = null">✕</button>
+            </div>
+
+            <EditForm Model="_editing" OnValidSubmit="SaveAsync">
+                <DataAnnotationsValidator />
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_formError))
+                    {
+                        <div class="toast toast-error" style="margin:0 0 16px">@_formError</div>
+                    }
+
+                    <div class="form-grid">
+                        <div class="field span-2">
+                            <label>Kredit müqaviləsi <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.CreditId">
+                                <option value="">— Seçin —</option>
+                                @foreach (var credit in _credits)
+                                {
+                                    <option value="@credit.Id">@credit.DisplayText</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="() => _editing.CreditId" />
+                        </div>
+
+                        <div class="field">
+                            <label>Növ <span class="req">*</span></label>
+                            <InputSelect @bind-Value="_editing.Nov">
+                                @foreach (var nov in Novs)
+                                {
+                                    <option value="@nov">@nov</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label>Tarix</label>
+                            <InputDate @bind-Value="_editing.Tarix" />
+                        </div>
+
+                        <div class="field">
+                            <label>Məbləğ (₼) <span class="req">*</span></label>
+                            <InputNumber @bind-Value="_editing.Mebleg" step="0.01" />
+                            <ValidationMessage For="() => _editing.Mebleg" />
+                        </div>
+
+                        <div class="field">
+                            <label>Ödəniş ayı (№)</label>
+                            <InputNumber @bind-Value="_editing.InstallmentNo" />
+                            <div class="muted" style="font-size:11.5px">Ödəniş qrafikindəki ay nömrəsi (1-dən)</div>
+                        </div>
+
+                        @if (_editing.Nov == "Möhlət")
+                        {
+                            <div class="field span-2">
+                                <label>Möhlətin son tarixi</label>
+                                <InputDate @bind-Value="_editing.MohletTarixi" />
+                                <div class="muted" style="font-size:11.5px">
+                                    Bu tarixə qədər ödəniş gecikdirilmiş sayılır.
+                                </div>
+                            </div>
+                        }
+
+                        @if (_editing.Nov == "Gecikmə")
+                        {
+                            <div class="field">
+                                <label>Gecikmə tarixi</label>
+                                <InputDate @bind-Value="_editing.GecikmeTarixi" />
+                            </div>
+                            <div class="field">
+                                <label>Ödənilib?</label>
+                                <div style="display:flex;align-items:center;gap:9px;padding-top:6px">
+                                    <InputCheckbox @bind-Value="_editing.Odenilib" id="odenilib" />
+                                    <label for="odenilib" style="text-transform:none;letter-spacing:0;font-size:13px">
+                                        Gecikmiş ödəniş bağlanıb
+                                    </label>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="field span-2">
+                            <label>Təsvir</label>
+                            <InputText @bind-Value="_editing.Tesvir" placeholder="Məs. 3-cü ay ödənişi" />
+                        </div>
+                        @* ============================================================
+                            TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ
+                            Mənfəət («xeyir») tərəfdaşlar arasında bölünür:
+                              Zaur %6  ·  Eşqin %5  ·  Asiman %5   (faiz payları)
+                              Asif & Musa — qalanı YARI-YARIYA bölürlər
+                            Faizlər də, məbləğlər də HƏMİŞƏ manual dəyişdirilə bilər.
+                           ============================================================ *@
+                        @if (_editing.Nov == "Gəlir")
+                        {
+                            <div class="field span-2 bolgu-box">
+                                <div class="bolgu-head">
+                                    <span class="bolgu-title">👥 Tərəfdaş mənfəət bölgüsü</span>
+
+                                    <label class="bolgu-chk" for="bolgu-tetbiq">
+                                        <InputCheckbox id="bolgu-tetbiq"
+                                                       @bind-Value="_editing.TerefdasBolguTetbiqOlunub"
+                                                       @bind:after="OnBolguToggled" />
+                                        <span>@(_editing.TerefdasBolguTetbiqOlunub ? "✅ Tətbiq olunub" : "⬜ Tətbiq olunmayıb")</span>
+                                    </label>
+                                </div>
+
+                                @if (_editing.TerefdasBolguTetbiqOlunub)
+                                {
+                                    <div class="bolgu-bar">
+                                        <label for="bolgu-baza">Bölgü bazası (₼)</label>
+                                        <input id="bolgu-baza" type="number" step="0.01" class="bolgu-baza"
+                                               @bind="_editing.BolguBazasi" @bind:event="oninput" />
+
+                                        <button type="button" class="btn btn-sm" @onclick="BazaniMeblegdenGot">
+                                            📐 Məbləğdən götür
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="BolguyuHesabla">
+                                            🔄 Yenidən hesabla
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-ghost" @onclick="FaizleriSifirla">
+                                            ♻️ Default faizlər
+                                        </button>
+                                    </div>
+
+                                    <table class="grid bolgu-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="num">Tətbiq</th>
+                                                <th>Tərəfdaş</th>
+                                                <th class="num">Faiz (%)</th>
+                                                <th class="num">Məbləğ (₼)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var shere in _editing.TerefdasPaylari.OrderBy(r => r.Sira))
+                                            {
+                                                var row = shere;
+                                                <tr>
+                                                    <td class="num">
+                                                        <InputCheckbox @bind-Value="row.Aktiv" @bind:after="BolguyuHesabla" />
+                                                    </td>
+                                                    <td class="strong">
+                                                        <span class="@(row.Aktiv ? "" : "muted")"
+                                                              style="@(row.Aktiv ? "" : "text-decoration:line-through")">@row.Terefdas</span>
+                                                    </td>
+                                                    <td class="num">
+                                                        @if (row.QaligPayi)
+                                                        {
+                                                            <span class="muted">— qalıq —</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <input type="number" step="0.01" class="num-input"
+                                                                   disabled="@(!row.Aktiv)"
+                                                                   @bind="row.Faiz" @bind:event="oninput"
+                                                                   @bind:after="BolguyuHesabla" />
+                                                        }
+                                                    </td>
+                                                    <td class="num">
+                                                        <input type="number" step="0.01" class="num-input"
+                                                               disabled="@(!row.Aktiv)"
+                                                               @bind="row.Mebleg" @bind:event="oninput"
+                                                               @bind:after="StateHasChanged" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="2" class="muted">Bölgü bazası (mənfəət)</td>
+                                                <td class="num strong">@AppFormat.Money(_editing.BolguBazasi)</td>
+                                                <td class="num"></td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="2">PAYLARIN CƏMİ</td>
+                                                <td class="num strong pos">@AppFormat.Money(BolguCemi)</td>
+                                                <td class="num muted">
+                                                    @if (BolguFergi == 0m)
+                                                    {
+                                                        <span class="pos">✓ dəqiq</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="neg">fərq: @AppFormat.Money(BolguFergi)</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                }
+                            </div>
+                        }
+
+                    </div>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn" @onclick="() => _editing = null">İmtina</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner"></span>
+                        }
+                        @(_editing.Id == 0 ? "Əlavə et" : "Yadda saxla")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* ------------------------------------------------------------------- SİLMƏ --- *@
+@if (_deleting is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _deleting = null">
+        <div class="modal narrow" @onclick:stopPropagation="true">
+            <div class="modal-head">
+                <div class="modal-title">🗑️ Silməni təsdiqlə</div>
+                <button type="button" class="modal-close" @onclick="() => _deleting = null">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0">
+                    <b>@AppFormat.Text(_deleting.Nov)</b> —
+                    @AppFormat.Money(_deleting.Mebleg) məbləğində əməliyyat qeydi silinəcək.
+                </p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" @onclick="() => _deleting = null">İmtina</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_saving">Bəli, sil</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Ünvan sətrindən gələn kredit filtri (?creditId=5).</summary>
+    [SupplyParameterFromQuery(Name = "creditId")]
+    public int? CreditId { get; set; }
+
+    private bool _loading = true;
+    private List<CreditTransaction> _items = new();
+    private List<CreditTransaction> _filtered = new();
+    private List<Credit> _credits = new();
+
+    /// <summary>
+    /// Hər kredit əməliyyatına bağlı sənəd faylının sayı (RefId → say).
+    /// WPF-dəki "Kredit Əlavə Gəlir/Xərc" tabının <b>Fayl</b> sütununun qarşılığı.
+    /// </summary>
+    private Dictionary<int, int> _docCounts = new();
+
+    private TransactionForm? _editing;
+    private CreditTransaction? _deleting;
+    private bool _saving;
+    private string? _formError;
+    private string _search = string.Empty;
+    private string _novFilter = string.Empty;
+
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Əməliyyat növləri.</summary>
+    private static IReadOnlyList<string> Novs { get; } = new[] { "Gəlir", "Xərc", "Möhlət", "Gecikmə" };
+
+    private decimal Income => _items.Where(t => t.Nov == "Gəlir").Sum(t => t.Mebleg);
+
+    private decimal Expense => _items.Where(t => t.Nov == "Xərc").Sum(t => t.Mebleg);
+
+    /// <summary>Filtr tətbiq olunmuş müqavilə (başlıqda göstərmək üçün).</summary>
+    private Credit? SelectedContract => CreditId is int id
+        ? _credits.FirstOrDefault(c => c.Id == id)
+        : null;
+
+    private bool HasFilter =>
+        !string.IsNullOrWhiteSpace(_search) || !string.IsNullOrWhiteSpace(_novFilter);
+
+    private string Search
+    {
+        get => _search;
+        set { _search = value; ApplyFilter(); }
+    }
+
+    private string NovFilter
+    {
+        get => _novFilter;
+        set { _novFilter = value; ApplyFilter(); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _credits = (await CreditService.GetCreditsAsync())
+                .OrderBy(c => c.MuqavileNomresi)
+                .ToList();
+
+            var items = await CreditService.GetTransactionsAsync();
+
+            if (CreditId is int creditId)
+            {
+                items = items.Where(t => t.CreditId == creditId).ToList();
+            }
+
+            _items = items
+                .OrderByDescending(t => t.Tarix)
+                .ThenByDescending(t => t.Id)
+                .ToList();
+
+            // WPF-in "Fayl" sütunu: hər əməliyyata bağlı sənəd faylının sayı.
+            try
+            {
+                _docCounts = await MediaService.GetCountsAsync(MediaRefTypes.CreditTransaction);
+            }
+            catch
+            {
+                // Sənəd sayı alınmasa, cədvəl sütunu "—" göstərir.
+                _docCounts = new Dictionary<int, int>();
+            }
+
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Əməliyyatlar yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>
+    /// Sənəd sütununun mətni — WPF-dəki <b>Fayl</b> sütunu ilə eyni məntiq:
+    /// fayl varsa sayı, yoxsa "—".
+    /// </summary>
+    private string DocText(int id)
+        => _docCounts.TryGetValue(id, out var count) && count > 0
+            ? $"📎 {count}"
+            : "—";
+
+    private void ApplyFilter()
+    {
+        IEnumerable<CreditTransaction> query = _items;
+
+        if (!string.IsNullOrWhiteSpace(_novFilter))
+        {
+            query = query.Where(t => t.Nov == _novFilter);
+        }
+
+        var term = _search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            query = query.Where(t =>
+                Contains(t.CreditInfo, term) ||
+                Contains(t.Nov, term) ||
+                Contains(t.Tesvir, term));
+        }
+
+        _filtered = query.ToList();
+    }
+
+    private static bool Contains(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private void ClearFilters()
+    {
+        _search = string.Empty;
+        _novFilter = string.Empty;
+        ApplyFilter();
+    }
+
+    private void OpenNew()
+    {
+        _formError = null;
+        _editing = new TransactionForm
+        {
+            CreditId = CreditId,
+            Tarix = DateTime.Today,
+            Nov = "Gəlir",
+            TerefdasPaylari = PartnerMath.CreateDefaultRows()
+        };
+    }
+
+    private void OpenEdit(CreditTransaction item)
+    {
+        _formError = null;
+        _editing = new TransactionForm
+        {
+            Id = item.Id,
+            CreditId = item.CreditId,
+            Nov = string.IsNullOrWhiteSpace(item.Nov) ? "Gəlir" : item.Nov,
+            Tarix = item.Tarix,
+            Mebleg = item.Mebleg,
+            InstallmentNo = item.InstallmentNo,
+            MohletTarixi = item.MohletTarixi,
+            GecikmeTarixi = item.GecikmeTarixi,
+            Odenilib = item.Odenilib,
+            Tesvir = item.Tesvir,
+
+            // Tərəfdaş bölgüsü — olduğu kimi formaya köçürülür.
+            TerefdasBolguTetbiqOlunub = item.TerefdasBolguTetbiqOlunub,
+            BolguBazasi = item.BolguBazasi ?? item.Mebleg,
+            TerefdasPaylari = item.TerefdasPaylari.Count > 0
+                ? item.TerefdasPaylari
+                    .OrderBy(p => p.Sira)
+                    .Select(p => new PartnerShare
+                    {
+                        Terefdas = p.Terefdas,
+                        Faiz = p.Faiz,
+                        Mebleg = p.Mebleg,
+                        QaligPayi = p.QaligPayi,
+                        Sira = p.Sira
+                    })
+                    .ToList()
+                : PartnerMath.CreateDefaultRows()
+        };
+    }
+
+    /// <summary>"Gecikmə" qeydinin "ödənilib" işarəsini tez dəyişir.</summary>
+    private async Task TogglePaid(CreditTransaction item)
+    {
+        try
+        {
+            await CreditService.UpdateTransactionAsync(new CreditTransaction
+            {
+                Id = item.Id,
+                Nov = item.Nov,
+                Mebleg = item.Mebleg,
+                Tarix = item.Tarix,
+                InstallmentNo = item.InstallmentNo,
+                MohletTarixi = item.MohletTarixi,
+                GecikmeTarixi = item.GecikmeTarixi,
+                Odenilib = !item.Odenilib,
+                Tesvir = item.Tesvir,
+
+                // ⚠ Tərəfdaş bölgüsü MÜTLƏQ köçürülməlidir — əks halda
+                //   «ödənilib» işarəsi dəyişəndə bölgü itərdi.
+                TerefdasBolguTetbiqOlunub = item.TerefdasBolguTetbiqOlunub,
+                BolguBazasi = item.BolguBazasi,
+                TerefdasPaylari = item.TerefdasPaylari
+            });
+
+            Ui.Success(item.Odenilib ? "İşarə götürüldü." : "Gecikmə ödənilib kimi işarələndi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Yenilənə bilmədi: " + ex.Message);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        _formError = null;
+
+        try
+        {
+            // Yalnız növə uyğun tarix sahəsi saxlanılır.
+            var payload = new CreditTransaction
+            {
+                Id = _editing.Id,
+                CreditId = _editing.CreditId,
+                Nov = _editing.Nov,
+                Tarix = _editing.Tarix,
+                Mebleg = _editing.Mebleg,
+                InstallmentNo = _editing.InstallmentNo,
+                MohletTarixi = _editing.Nov == "Möhlət" ? _editing.MohletTarixi : null,
+                GecikmeTarixi = _editing.Nov == "Gecikmə" ? _editing.GecikmeTarixi : null,
+                Odenilib = _editing.Nov == "Gecikmə" && _editing.Odenilib,
+                Tesvir = _editing.Tesvir?.Trim() ?? string.Empty,
+
+                // ---- Tərəfdaş mənfəət bölgüsü (yalnız «Gəlir» üçün) ----
+                TerefdasBolguTetbiqOlunub =
+                    _editing.Nov == "Gəlir" && _editing.TerefdasBolguTetbiqOlunub,
+                BolguBazasi =
+                    _editing.Nov == "Gəlir" && _editing.TerefdasBolguTetbiqOlunub
+                        ? _editing.BolguBazasi
+                        : null,
+                TerefdasPaylari =
+                    _editing.Nov == "Gəlir" && _editing.TerefdasBolguTetbiqOlunub
+                        ? _editing.TerefdasPaylari
+                        : new List<PartnerShare>()
+            };
+
+            if (_editing.Id == 0)
+            {
+                await CreditService.AddTransactionAsync(payload);
+                Ui.Success("Əməliyyat əlavə edildi.");
+            }
+            else
+            {
+                await CreditService.UpdateTransactionAsync(payload);
+                Ui.Success("Əməliyyat yeniləndi.");
+            }
+
+            _editing = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _formError = ex.Message;
+            Ui.Error("Yadda saxlana bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleting is null)
+        {
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            await CreditService.DeleteTransactionAsync(_deleting.Id);
+            _deleting = null;
+            Ui.Success("Əməliyyat silindi.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Silinə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // ========================================================================
+    //   TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ  -  hesablama köməkçiləri
+    // ========================================================================
+
+    /// <summary>Tərəfdaş paylarının cəmi (₼).</summary>
+    private decimal BolguCemi => _editing?.TerefdasPaylari.Sum(r => r.Mebleg) ?? 0m;
+
+    /// <summary>Cəm ilə bölgü bazası arasındaki fərq (0,00 olmalıdır).</summary>
+    private decimal BolguFergi => BolguCemi - (_editing?.BolguBazasi ?? 0m);
+
+    /// <summary>Checkbox dəyişdi — bölgü ilk dəfə açılırsa dərhal hesablanır.</summary>
+    private void OnBolguToggled()
+    {
+        if (_editing is null || !_editing.TerefdasBolguTetbiqOlunub)
+        {
+            return;
+        }
+
+        if (_editing.BolguBazasi <= 0m)
+        {
+            _editing.BolguBazasi = _editing.Mebleg;
+        }
+
+        PartnerMath.Distribute(_editing.BolguBazasi, _editing.TerefdasPaylari);
+    }
+
+    /// <summary>
+    /// BÖLGÜ BAZASI = <b>yazılan məbləğ − ƏSAS BORC payı</b> (yalnız faiz bölünür).
+    /// </summary>
+    private void BazaniMeblegdenGot()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.BolguBazasi = BolguBazasiHesabla(_editing.Mebleg);
+        PartnerMath.Distribute(_editing.BolguBazasi, _editing.TerefdasPaylari);
+    }
+
+    /// <summary>
+    /// BÖLGÜ BAZASI = yazılan məbləğ − ƏSAS BORC payı.
+    /// <para>
+    /// «Kredit əlavə gəlir» qeydində məbləğin içindən ƏSAS BORCUN payı çıxılır —
+    /// yalnız qalan hissə (FAİZ mənfəəti) tərəfdaşlar arasında bölünür.
+    /// </para>
+    /// <example>
+    /// 1 984,97 ₼ ödəniş − 1 417,83 ₼ əsas borc = <b>567,14 ₼</b> bölgü bazası
+    /// </example>
+    /// </summary>
+    private decimal BolguBazasiHesabla(decimal mebleg)
+    {
+        var credit = _credits.FirstOrDefault(c => c.Id == _editing?.CreditId);
+        if (credit is null || credit.MuddetAy <= 0)
+        {
+            return mebleg;
+        }
+
+        var esasBorc = Math.Round(credit.Kreditlesdirilen / credit.MuddetAy, 2);
+        var baza = Math.Round(mebleg - esasBorc, 2);
+
+        return baza > 0m ? baza : 0m;
+    }
+
+    /// <summary>Faiz dərəcələrini standart qiymətlərə qaytarır (Zaur 6, Eşqin 5, Asiman 5).</summary>
+    private void FaizleriSifirla()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        foreach (var row in _editing.TerefdasPaylari)
+        {
+            var standart = PartnerMath.CreateDefaultRows()
+                .FirstOrDefault(d => d.Terefdas == row.Terefdas);
+
+            if (standart is not null)
+            {
+                row.Faiz = standart.Faiz;
+                row.QaligPayi = standart.QaligPayi;
+            }
+        }
+
+        PartnerMath.Distribute(_editing.BolguBazasi, _editing.TerefdasPaylari);
+    }
+
+    /// <summary>
+    /// Bölgünü yenidən hesablayır:
+    /// faiz payları (Zaur %6, Eşqin %5, Asiman %5) hesablanır,
+    /// qalan məbləğ Asif &amp; Musa arasında YARI-YARIYA bölünür.
+    /// </summary>
+    private void BolguyuHesabla()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        PartnerMath.Distribute(_editing.BolguBazasi, _editing.TerefdasPaylari);
+    }
+
+    /// <summary>Əməliyyat redaktə forması.</summary>
+    private sealed class TransactionForm
+    {
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "Kredit müqaviləsi seçilməlidir.")]
+        public int? CreditId { get; set; }
+
+        [Required(ErrorMessage = "Növ tələb olunur.")]
+        public string Nov { get; set; } = "Gəlir";
+
+        public DateTime Tarix { get; set; } = DateTime.Today;
+
+        [Range(typeof(decimal), "0.01", "999999999", ErrorMessage = "Məbləğ 0-dan böyük olmalıdır.")]
+        public decimal Mebleg { get; set; }
+
+        [Range(0, 600, ErrorMessage = "Ay nömrəsi 0–600 aralığında olmalıdır.")]
+        public int? InstallmentNo { get; set; }
+
+        public DateTime? MohletTarixi { get; set; }
+
+        public DateTime? GecikmeTarixi { get; set; }
+
+        public bool Odenilib { get; set; }
+
+        [MaxLength(300)]
+        public string? Tesvir { get; set; } = string.Empty;
+
+        // ---- Tərəfdaş mənfəət bölgüsü («Gəlir» əməliyyatları üçün) ----
+
+        /// <summary>Bölgü tətbiq olunub? (checkbox)</summary>
+        public bool TerefdasBolguTetbiqOlunub { get; set; }
+
+        /// <summary>Bölgü bazası (₼) — bölünən mənfəət («xeyir»).</summary>
+        public decimal BolguBazasi { get; set; }
+
+        /// <summary>Tərəfdaş sətirləri (Zaur, Eşqin, Asiman, Asif, Musa).</summary>
+        public List<PartnerShare> TerefdasPaylari { get; set; } = new();
+    }
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}

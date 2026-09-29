@@ -1,0 +1,253 @@
+@page "/loan-calculator"
+@using EnterpriseAeroStudio.Web.Components.Shared
+@inject UiState Ui
+
+<PageTitle>Kredit Kalkulyatoru — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">🧮 Kredit &amp; Satış Kalkulyatoru</div>
+        <div class="page-sub">Aylıq ödəniş = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət</div>
+    </div>
+    <div class="page-actions">
+        <button class="btn" @onclick="Reset">↺ Sıfırla</button>
+    </div>
+</div>
+
+<div class="stat-grid">
+    <StatCard Label="Kreditləşdirilən" Value="@AppFormat.Money(_principal)"
+              Icon="💳" Accent="violet" Hint="Məbləğ − İlkin ödəniş" />
+    <StatCard Label="Aylıq Ödəniş" Value="@AppFormat.Money(_monthly)"
+              Icon="📅" Accent="blue" Hint="@($"{_months} ay")" />
+    <StatCard Label="Ümumi Ödəniş" Value="@AppFormat.Money(_totalPay)"
+              Icon="💰" Accent="green" Hint="Faiz daxil" />
+    <StatCard Label="Ümumi Faiz Gəliri" Value="@AppFormat.Money(_totalInterest)"
+              Icon="📈" Accent="amber" Hint="Kredit verənin qazancı" />
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <div class="card-title">📝 Parametrlər</div>
+        <div class="muted" style="font-size:12px">Dəyərləri dəyişdikcə nəticə avtomatik yenilənir</div>
+    </div>
+    <div class="card-body">
+        <div class="form-grid">
+            <div class="field">
+                <label>Satış / kredit məbləği (₼)</label>
+                <input type="number" step="0.01" min="0" @bind="_amount" @bind:after="Calculate" />
+                <div class="muted" style="font-size:11.5px">Avtomobilin satış qiyməti</div>
+            </div>
+
+            <div class="field">
+                <label>İlkin ödəniş (₼)</label>
+                <input type="number" step="0.01" min="0" @bind="_downPayment" @bind:after="Calculate" />
+                <div class="muted" style="font-size:11.5px">
+                    @(_amount > 0 ? $"Faiz: {(_downPayment / _amount * 100m):0.#}%" : "—")
+                </div>
+            </div>
+
+            <div class="field">
+                <label>İllik faiz dərəcəsi (%)</label>
+                <input type="number" step="0.01" min="0" @bind="_annualRate" @bind:after="Calculate" />
+            </div>
+
+            <div class="field">
+                <label>Müddət (ay)</label>
+                <input type="number" step="1" min="1" max="600" @bind="_months" @bind:after="Calculate" />
+                <div class="muted" style="font-size:11.5px">@($"{_months / 12.0:0.#} il")</div>
+            </div>
+        </div>
+
+        @if (_error is not null)
+        {
+            <div class="toast toast-error" style="margin:16px 0 0">@_error</div>
+        }
+    </div>
+</div>
+
+@if (_rows.Count > 0)
+{
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">📊 Ödəniş Cədvəli — @_rows.Count ay</div>
+            <div class="muted" style="font-size:12px">Hər ay: ödəniş faizə, qalanı əsas borca gedir</div>
+        </div>
+        <div class="card-body tight table-wrap">
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th style="width:60px">Ay</th>
+                        <th>Ödəniş tarixi</th>
+                        <th class="num">Aylıq ödəniş</th>
+                        <th class="num">Əsas borc</th>
+                        <th class="num">Faiz</th>
+                        <th class="num">Qalıq borc</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _rows)
+                    {
+                        <tr>
+                            <td class="mono">@row.No</td>
+                            <td class="mono nowrap">@AppFormat.Date(row.Date)</td>
+                            <td class="num strong">@AppFormat.Money(row.Payment)</td>
+                            <td class="num">@AppFormat.Money(row.Principal)</td>
+                            <td class="num muted">@AppFormat.Money(row.Interest)</td>
+                            <td class="num">@AppFormat.Money(row.Balance)</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2">CƏMİ</td>
+                        <td class="num">@AppFormat.Money(_rows.Sum(r => r.Payment))</td>
+                        <td class="num">@AppFormat.Money(_rows.Sum(r => r.Principal))</td>
+                        <td class="num">@AppFormat.Money(_rows.Sum(r => r.Interest))</td>
+                        <td class="num">@AppFormat.Money(0m)</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-head"><div class="card-title">💡 Qeydlər</div></div>
+    <div class="card-body">
+        <ul style="margin:0;padding-left:20px;line-height:1.9;font-size:13.5px">
+            <li>Hesablama: <b>Aylıq ödəniş = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət</b></li>
+            <li>Faiz əsas borcun <b>üstünə bir dəfə</b> əlavə olunur, sonra bütün müddətə bərabər bölünür.</li>
+            <li>Nümunə: 17 014 ₼ · 40% · 12 ay → 23 819,60 ÷ 12 = <b>1 984,97 ₼</b></li>
+            <li>Faiz dərəcəsi <b>illik</b> göstərilir, aylıq faiz = illik ÷ 12.</li>
+            <li>Faiz <b>0</b> olduqda ödəniş sadəcə bölünmə ilə hesablanır.</li>
+            <li>Faktiki kredit yaratmaq üçün <a href="credits">Kreditlər</a> bölməsindən istifadə edin.</li>
+        </ul>
+    </div>
+</div>
+
+@code {
+    private decimal _amount = 20000m;
+    private decimal _downPayment = 4000m;
+    private decimal _annualRate = 12m;
+    private int _months = 24;
+    private string? _error;
+
+    private decimal _principal;
+    private decimal _monthly;
+    private decimal _totalPay;
+    private decimal _totalInterest;
+
+    private readonly List<Row> _rows = new();
+
+    /// <summary>Ödəniş cədvəlinin bir sətri.</summary>
+    private sealed record Row(
+        int No, DateTime Date, decimal Payment, decimal Principal, decimal Interest, decimal Balance);
+
+    protected override void OnInitialized() => Calculate();
+
+    /// <summary>
+    /// Aylıq ödəniş = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət.
+    /// Masaüstü tətbiqlə EYNİ vahid düstur (bax: <c>Services/CreditMath.cs</c>).
+    /// </summary>
+    private void Calculate()
+    {
+        _error = null;
+        _rows.Clear();
+        _principal = 0m;
+        _monthly = 0m;
+        _totalPay = 0m;
+        _totalInterest = 0m;
+
+        if (_amount <= 0m)
+        {
+            _error = "Məbləğ 0-dan böyük olmalıdır.";
+            return;
+        }
+
+        if (_downPayment < 0m)
+        {
+            _error = "İlkin ödəniş mənfi ola bilməz.";
+            return;
+        }
+
+        if (_downPayment >= _amount)
+        {
+            _error = "İlkin ödəniş məbləğdən kiçik olmalıdır.";
+            return;
+        }
+
+        if (_months < 1 || _months > 600)
+        {
+            _error = "Müddət 1–600 ay aralığında olmalıdır.";
+            return;
+        }
+
+        if (_annualRate < 0m)
+        {
+            _error = "Faiz dərəcəsi mənfi ola bilməz.";
+            return;
+        }
+
+        _principal = _amount - _downPayment;
+
+        // ================================================================
+        //  AYLIK ÖDƏNİŞ = Kreditləşdirilən × (1 + Faiz% ÷ 100) ÷ Müddət
+        // ----------------------------------------------------------------
+        //  Faiz əsas borcun ÜSTÜNƏ BİR DƏFƏ əlavə olunur, sonra bütün
+        //  müddətə bərabər bölünür.
+        //
+        //  17 014 ₼ · 40% · 12 ay  →  23 819,60 ÷ 12  =  1 984,97 ₼
+        // ================================================================
+        _monthly = CreditMath.MonthlyPayment(_principal, _annualRate, _months);
+        _totalPay = CreditMath.TotalPayable(_principal, _annualRate);
+        _totalInterest = CreditMath.TotalInterest(_principal, _annualRate);
+
+        BuildSchedule();
+    }
+
+    /// <summary>
+    /// Ay-ay ödəniş cədvəlini qurur.
+    /// <para>
+    /// Ümumi faiz bütün müddətə <b>bərabər</b> bölünür: hər ay eyni faiz hissəsi
+    /// və eyni əsas borc hissəsi ödənilir. Yuvarlaqlaşdırma qalığı SONUNCU ayda
+    /// bağlanır ki, cəm dəqiq alınsın.
+    /// </para>
+    /// </summary>
+    private void BuildSchedule()
+    {
+        var interestPart = _months > 0 ? Math.Round(_totalInterest / _months, 2) : 0m;
+        var principalPart = _months > 0 ? Math.Round(_principal / _months, 2) : 0m;
+
+        var balance = _principal;
+        var start = DateTime.Today;
+
+        for (var i = 1; i <= _months; i++)
+        {
+            var last = i == _months;
+
+            var pri = last ? balance : principalPart;
+            var faiz = last
+                ? Math.Round(_totalInterest - (interestPart * (_months - 1)), 2)
+                : interestPart;
+
+            balance = Math.Round(balance - pri, 2);
+
+            if (balance < 0m)
+            {
+                balance = 0m;
+            }
+
+            _rows.Add(new Row(i, start.AddMonths(i), Math.Round(pri + faiz, 2), pri, faiz, balance));
+        }
+    }
+
+    private void Reset()
+    {
+        _amount = 20000m;
+        _downPayment = 4000m;
+        _annualRate = 12m;
+        _months = 24;
+        Calculate();
+        Ui.Success("Kalkulyator sıfırlandı.");
+    }
+}

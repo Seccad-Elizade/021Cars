@@ -1,0 +1,243 @@
+@page "/"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@inject ICarService CarService
+@inject IExpenseService ExpenseService
+@inject ISaleService SaleService
+@inject ICreditService CreditService
+@inject UiState Ui
+
+<PageTitle>İdarə Paneli — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">📊 İdarə Paneli</div>
+        <div class="page-sub">@DateTime.Now.ToString("dd.MM.yyyy") — avtoparkın ümumi vəziyyəti</div>
+    </div>
+    <div class="page-actions">
+        <button class="btn" @onclick="LoadAsync" disabled="@_loading">🔄 Yenilə</button>
+        <a class="btn btn-primary" href="cars">🚗 Avtomobillər</a>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Məlumatlar yüklənir…</div></div>
+}
+else
+{
+    <div class="stat-grid">
+        <StatCard Label="Ümumi Avtomobil" Value="@_carStats.TotalCars.ToString()" Icon="🚗"
+                  Accent="blue" Hint="@($"{_carStats.AvailableCars} stokda / satışda")" />
+        <StatCard Label="Kreditdə" Value="@_carStats.CreditCars.ToString()" Icon="🏦"
+                  Accent="violet" Hint="@($"{_activeCredits} aktiv müqavilə")" />
+        <StatCard Label="Satılıb" Value="@_soldCars.ToString()" Icon="✅"
+                  Accent="green" Hint="@($"{_saleStats.Count} satış qeydi")" />
+        <StatCard Label="Ümumi Maya Dəyəri" Value="@AppFormat.MoneyShort(_carStats.TotalCost)" Icon="🧮"
+                  Accent="amber" Hint="Alış + bütün xərclər" />
+        <StatCard Label="Ümumi Xərclər" Value="@AppFormat.MoneyShort(_expenseStats.Total)" Icon="💸"
+                  Accent="red" Hint="@($"Bütün qeydlər · Bu ay: {AppFormat.MoneyShort(_expenseStats.MonthTotal)}")" />
+        <StatCard Label="Satış Gəliri" Value="@AppFormat.MoneyShort(_saleStats.TotalRevenue)" Icon="💰"
+                  Accent="green" Hint="@($"Bu ay: {AppFormat.MoneyShort(_saleStats.MonthRevenue)}")" />
+        <StatCard Label="Satış Mənfəəti" Value="@AppFormat.MoneyShort(_saleStats.TotalProfit)" Icon="📈"
+                  Accent="@(_saleStats.TotalProfit >= 0 ? "green" : "red")" Hint="Satış qiyməti − maya dəyəri" />
+        <StatCard Label="Kredit Portfeli" Value="@AppFormat.MoneyShort(_creditPortfolio)" Icon="💳"
+                  Accent="cyan" Hint="@($"Toplanmış: {AppFormat.MoneyShort(_creditPayments)}")" />
+        <StatCard Label="Anbara Yönəldilən" Value="@AppFormat.MoneyShort(_stockThisMonth)" Icon="📦"
+                  Accent="cyan" Hint="Bu ay stok alışları — xərc DEYİL, aktivdir" />
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">📈 Son 12 ay — Gəlir / Xərc / Mənfəət</div>
+            <div class="legend">
+                <span><i style="background:#16a34a"></i>Gəlir</span>
+                <span><i style="background:#dc2626"></i>Xərc</span>
+                <span><i style="background:#2563eb"></i>Mənfəət</span>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (_chart.Count == 0)
+            {
+                <div class="empty-state"><div class="empty-icon">📉</div><p>Göstəriləcək məlumat yoxdur.</p></div>
+            }
+            else
+            {
+                <div class="chart">
+                    @foreach (var point in _chart)
+                    {
+                        <div class="chart-col" title="@($"{point.Label}: Gəlir {AppFormat.Money(point.Income)} | Xərc {AppFormat.Money(point.Expense)} | Mənfəət {AppFormat.Money(point.Profit)}")">
+                            <div class="chart-bars">
+                                <div class="chart-bar income" style="@($"height:{point.IncomeHeight:F1}%")"></div>
+                                <div class="chart-bar expense" style="@($"height:{point.ExpenseHeight:F1}%")"></div>
+                                <div class="chart-bar profit" style="@($"height:{point.ProfitHeight:F1}%")"></div>
+                            </div>
+                            <div class="chart-label">@point.Label</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+
+    private CarStats _carStats = new(0, 0, 0, 0m);
+    private ExpenseStats _expenseStats = new(0m, 0m, 0m, 0m);
+    private SaleStats _saleStats = new(0, 0m, 0m, 0m);
+
+    private int _soldCars;
+    private int _activeCredits;
+    private decimal _creditPortfolio;
+    private decimal _creditPayments;
+
+    /// <summary>
+    /// Bu ay ANBARA (stokdaki maşınlara) yönəldilən məbləğ.
+    /// <b>Xərc deyil — aktivdir</b> (maşınlar parkdadır).
+    /// </summary>
+    private decimal _stockThisMonth;
+
+    private List<ChartCol> _chart = new();
+
+    /// <summary>Qrafikin bir sütunu (faizlə hündürlüklər).</summary>
+    private sealed record ChartCol(
+        string Label,
+        decimal Income,
+        decimal Expense,
+        decimal Profit,
+        double IncomeHeight,
+        double ExpenseHeight,
+        double ProfitHeight);
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalDataChange;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            var cars         = await CarService.GetAllCarsAsync();
+            var expenses     = await ExpenseService.GetExpensesAsync();
+            var sales        = await SaleService.GetSalesAsync();
+            var credits      = await CreditService.GetCreditsAsync();
+            var transactions = await CreditService.GetTransactionsAsync();
+
+            _carStats        = CarService.BuildStats(cars);
+            _expenseStats    = ExpenseService.BuildStats(expenses);
+            _saleStats       = SaleService.BuildStats(sales);
+            _soldCars        = cars.Count(c => c.Status == Catalog.SoldStatus);
+            _activeCredits   = credits.Count(c => c.Status == "Aktiv");
+            _creditPortfolio = credits.Where(c => c.Status != "Bağlı").Sum(c => c.Kreditlesdirilen);
+            _creditPayments  = transactions.Where(t => t.Nov == "Gəlir").Sum(t => t.Mebleg);
+
+            BuildChart(sales, expenses);
+
+            // ANBARA yönəldilən (bu ay) — XƏRC DEYİL, AKTİVDİR.
+            var monthStart2 = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var monthSalesNow = sales
+                .Where(s => s.SatisTarixi >= monthStart2)
+                .Where(s => s.CarId.HasValue)
+                .Select(s => s.CarId!.Value)
+                .ToHashSet();
+
+            _stockThisMonth = expenses
+                .Where(e => e.Tarix >= monthStart2)
+                .Where(e => !Catalog.IsOffice(e.Teyinat))
+                .Where(e => !e.CarId.HasValue || !monthSalesNow.Contains(e.CarId.Value))
+                .Sum(e => e.Mebleg);
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Məlumatlar yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>Son 12 ay üzrə gəlir / xərc / mənfəət sütunlarını hesablayır.</summary>
+    private void BuildChart(IReadOnlyList<Sale> sales, IReadOnlyList<ExpenseItem> expenses)
+    {
+        var columns = new List<(string Label, decimal Income, decimal Expense, decimal Profit)>();
+        var today = DateTime.Today;
+        var start = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
+
+        for (var i = 0; i < 12; i++)
+        {
+            var from = start.AddMonths(i);
+            var to = from.AddMonths(1);
+
+            // PROFESSIONAL UÇOT: maşın ALIŞI xərc DEYİL — bu, ANBARA (aktivə)
+            // yönəldilən vəsaitdir. Xərc yalnız maşın SATILANDA yaranır
+            // (satılan malın mayası). Ofis xərcləri dövr xərci sayılır.
+            var monthSales = sales.Where(s => s.SatisTarixi >= from && s.SatisTarixi < to).ToList();
+            var monthExpenses = expenses.Where(e => e.Tarix >= from && e.Tarix < to).ToList();
+
+            var income = monthSales.Sum(s => s.SatisQiymeti);
+            var expense = monthSales.Sum(s => s.MayaDeyeri)                                  // satılan malın mayası
+                          + monthExpenses.Where(e => Catalog.IsOffice(e.Teyinat)).Sum(e => e.Mebleg);
+
+            columns.Add(($"{AppFormat.MonthShort(from.Month)} {from:yy}", income, expense, income - expense));
+        }
+
+        var max = columns
+            .SelectMany(c => new[] { c.Income, c.Expense, Math.Abs(c.Profit) })
+            .DefaultIfEmpty(0m)
+            .Max();
+
+        if (max <= 0)
+        {
+            _chart = new();
+            return;
+        }
+
+        _chart = columns
+            .Select(c => new ChartCol(
+                c.Label, c.Income, c.Expense, c.Profit,
+                Scale(c.Income, max),
+                Scale(c.Expense, max),
+                Scale(Math.Abs(c.Profit), max)))
+            .ToList();
+    }
+
+    private static double Scale(decimal value, decimal max)
+        => max <= 0 ? 0 : Math.Max(2, (double)(value / max) * 100);
+
+
+    // ========================================================================
+    //   CANLI SINXRONIZASIYA  -  masaustu tetbiq  <->  veb sayt
+    // ------------------------------------------------------------------------
+    //   Baza fayli izlenilir: masaustu tetbiqde (ve ya basqa cihazda) deyisiklik
+    //   olan kimi sehife AVTOMATIK yenilenir - duyme basmaq lazim deyil.
+    // ========================================================================
+
+    private bool _watchDisposed;
+
+    private void OnExternalDataChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(async () =>
+        {
+            if (_watchDisposed)
+            {
+                return;
+            }
+
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _watchDisposed = true;
+        DataChanges.Changed -= OnExternalDataChange;
+    }
+}
