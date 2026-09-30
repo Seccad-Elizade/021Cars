@@ -207,6 +207,22 @@ $instMB = [math]::Round((Get-Item $inst).Length / 1MB, 1)
 
 $token = $env:GITHUB_TOKEN
 
+# 🔐 Token yoxdursa → Windows Credential Manager-dəki GIT tokeni AVTOMATİK götürülür ✓✓✓
+#    (beləliklə «GITHUB_TOKEN təyin etmək» məcburi DEYİL ✗ — bir əmr kifayətdir ✓)
+if ([string]::IsNullOrWhiteSpace($token)) {
+    try {
+        $env:GIT_TERMINAL_PROMPT = "0"
+
+        $gitCavab = ("protocol=https`nhost=github.com`n`n" | git credential fill) 2>$null
+        $token = ($gitCavab | Where-Object { $_ -like "password=*" }) -replace "^password=", ""
+
+        if (-not [string]::IsNullOrWhiteSpace($token)) {
+            Write-Host "  🔐 Token git yaddaşından götürüldü ✓ (GITHUB_TOKEN lazım deyil ✓)" -ForegroundColor DarkGray
+        }
+    }
+    catch { }
+}
+
 if ([string]::IsNullOrWhiteSpace($token)) {
     Write-Host ""
     Write-Host "  🔐 GITHUB_TOKEN təyin olunmayıb ✗" -ForegroundColor Red
@@ -221,21 +237,33 @@ if ([string]::IsNullOrWhiteSpace($token)) {
 }
 
 $api     = "https://api.github.com/repos/$sahib/$depo"
-$başlıq  = @{
-    Authorization = "Bearer $token"
-    "User-Agent"  = "021Cars-Release"
-    Accept        = "application/vnd.github+json"
-}
+
+# 🧹 QEYD MƏTNİ TƏMİZ STRING-Ə ÇEVRİLİR ✓✓✓ — ★ VACİB ★
+#    ⚠ «Get-Content -Raw» kimi mənbələr string-ə ETS xassələri (PSPath…) bağlayır ✗
+#    → «ConvertTo-Json» onu obyekt kimi yazır ✗ → GitHub «Problems parsing JSON» ✗
+$Qeyd = (@($Qeyd) -join "`n").ToString()
+$Qeyd = $Qeyd -replace [char]0xFEFF, ""
 
 Write-Host ("  📦 Buraxılış yaradılır — " + $teq + " ✓") -ForegroundColor Yellow
 
+# 🌐 HTTP klienti ✓ — UTF-8 JSON ✓ + streaming yükləmə ✓ (PS 5.1 «Invoke-RestMethod» ✗)
+Add-Type -AssemblyName System.Net.Http
+
+$klient = New-Object System.Net.Http.HttpClient
+$klient.Timeout = [TimeSpan]::FromMinutes(120)
+$klient.DefaultRequestHeaders.Authorization =
+    New-Object System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", $token)
+$klient.DefaultRequestHeaders.UserAgent.ParseAdd("021Cars-Release")
+$klient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json")
+
 # ♻️ Köhnə eyni teqli buraxılış varsa silinir ✓
 try {
-    $köhnə = Invoke-RestMethod -Uri "$api/releases/tags/$teq" -Headers $başlıq -EA 0
+    $köhnəCavab = $klient.GetAsync("$api/releases/tags/$teq").Result
 
-    if ($köhnə -and $köhnə.id) {
+    if ($köhnəCavab.IsSuccessStatusCode) {
+        $köhnəId = (($köhnəCavab.Content.ReadAsStringAsync().Result) | ConvertFrom-Json).id
         Write-Host "  ♻️ Köhnə buraxılış silinir…" -ForegroundColor DarkYellow
-        Invoke-RestMethod -Method Delete -Uri "$api/releases/$($köhnə.id)" -Headers $başlıq | Out-Null
+        [void]$klient.DeleteAsync("$api/releases/$köhnəId").Result
     }
 } catch { }
 
@@ -253,18 +281,43 @@ $gövdə = @{
     body       = $Qeyd
     draft      = $false
     prerelease = $false
-} | ConvertTo-Json
+} | ConvertTo-Json -Depth 5
 
-$buraxılış = Invoke-RestMethod -Method Post -Uri "$api/releases" `
-    -Headers $başlıq -Body $gövdə -ContentType "application/json"
+# 🆕 RELEASE — gövdə UTF-8 kimi göndərilir ✓✓✓ (əks halda emoji/ə hərfləri pozulur ✗)
+$icerik = New-Object System.Net.Http.StringContent($gövdə, [System.Text.Encoding]::UTF8, "application/json")
+$netice = $klient.PostAsync("$api/releases", $icerik).Result
+$cavabMetni = $netice.Content.ReadAsStringAsync().Result
 
-# ⬆️ INSTALLER faylını QOŞ ✓✓✓ (146 MB ✗ — asset limiti 2 GB ✓)
+if (-not $netice.IsSuccessStatusCode) {
+    Write-Host ("  XETA: buraxılış yaradılmadı ✗ — " + $netice.StatusCode + " · " + $cavabMetni) -ForegroundColor Red
+    return
+}
+
+$buraxılış = $cavabMetni | ConvertFrom-Json
+
+# ⬆️ INSTALLER faylını QOŞ ✓✓✓ (STREAMING ✓ — 180 MB fayl yaddaşa yığılmır ✗✓✓)
 Write-Host ("  ⬆️ 021Cars_Installer.exe yüklənir — " + $instMB + " MB (bir az çəkə bilər ✓)…") -ForegroundColor Yellow
 
-$yükleme = ($buraxılış.upload_url -replace '\{.*\}', '') + "?name=021Cars_Installer.exe"
+$axın = [IO.File]::OpenRead($inst)
+$yükləməIceriyi = New-Object System.Net.Http.StreamContent($axın)
+$yükləməIceriyi.Headers.ContentType =
+    New-Object System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream")
 
-Invoke-RestMethod -Method Post -Uri $yükleme -Headers $başlıq `
-    -InFile $inst -ContentType "application/octet-stream" -TimeoutSec 7200 | Out-Null
+try {
+    $yükleme = ($buraxılış.upload_url -replace '\{.*\}', '') + "?name=021Cars_Installer.exe"
+
+    $yükləməCavabı = $klient.PostAsync($yükleme, $yükləməIceriyi).Result
+
+    if (-not $yükləməCavabı.IsSuccessStatusCode) {
+        Write-Host ("  XETA: installer yüklənmədi ✗ — " + $yükləməCavabı.StatusCode) -ForegroundColor Red
+        return
+    }
+}
+finally {
+    $axın.Dispose()
+    $yükləməIceriyi.Dispose()
+    $klient.Dispose()
+}
 
 Write-Host ""
 Write-Host "  ===========================================================" -ForegroundColor DarkCyan
