@@ -38,11 +38,33 @@ namespace EnterpriseAeroStudio.Services
             decimal RangeIncome,
             decimal RangeExpense,
             decimal RangeProfit,
+
+            /// <summary>
+            /// 📈 Realizə olunmuş mənfəət (dövr üzrə) ✓
+            /// — satılan maşınların mənfəəti + kredit faiz mənfəəti
+            /// − ofis xərci − kredit əlavə xərci ✓✓✓
+            /// </summary>
+            decimal RangeRealizedProfit,
+
             decimal RangeSalesProfit,
             decimal RangeCostOfSold,
             decimal RangeOfficeExpense,
+
+            /// <summary>🚗 Dövr ərzində AVTOMOBİL xərcləri (Xərclər tabı ilə sinxron ✓)</summary>
+            decimal RangeCarExpense,
+
+            /// <summary>🧾 Dövr ərzində kreditə bağlı əlavə xərclər ✓</summary>
+            decimal RangeCreditExpense,
+
             decimal RangeCreditPayments,
             decimal RangeCreditProfit,
+
+            /// <summary>💵 Dövr ərzində satışdan KASSAYA daxil olan pul (barter hissəsi çıxılır ✓)</summary>
+            decimal RangeNagdSales,
+
+            /// <summary>💰 Dövr ərzində kreditlərin İLKİN ÖDƏNİŞLƏRİ (avanslar ✓)</summary>
+            decimal RangeIlkinOdenis,
+
             decimal RangeStockAdditions,
             int RangeSalesCount,
             IReadOnlyList<Sale> Sales,
@@ -132,21 +154,29 @@ td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
                       "(əsas borc + faiz)</b> − toplanmış ödənişlər.  Faiz də daxildir.</div>");
 
             // ---------------- 2. DÖVRÜN NƏTİCƏSİ ----------------
-            sb.Append("<h2>2 · DÖVRÜN MALİYYƏ NƏTİCƏSİ</h2>");
+            //  ✅ VAHİD DÜSTUR ✓✓✓ — panelin kartları və qrafiki ilə TAM EYNİ ✓
+            //  GƏLİR = kassaya daxil olan · XƏRC = kassadan çıxan ✓
+            sb.Append("<h2>2 · DÖVRÜN MALİYYƏ NƏTİCƏSİ (kassa axını)</h2>");
             sb.Append("<table><tbody>");
-            Row(sb, "Satış gəliri (nağd / köçürmə)", "", Money(d.RangeIncome - d.RangeCreditPayments), "num");
+            Row(sb, "Satış — nağd / köçürmə daxilolma", "", Money(d.RangeNagdSales), "num pos");
             Row(sb, "Kredit ödənişləri (daxil olan)", "", Money(d.RangeCreditPayments), "num pos");
+            Row(sb, "İlkin ödənişlər (avanslar)", "", Money(d.RangeIlkinOdenis), "num pos");
             Row(sb, "<b>ÜMUMİ GƏLİR</b>", "", Money(d.RangeIncome), "num pos");
-            Row(sb, "Satılan malların maya dəyəri", "", Money(d.RangeCostOfSold), "num neg");
+            Row(sb, "Avtomobil xərcləri", "", Money(d.RangeCarExpense), "num neg");
             Row(sb, "Ofis / inzibati xərclər", "", Money(d.RangeOfficeExpense), "num neg");
-            Row(sb, "Kreditə bağlı əlavə xərclər",
-                "", Money(d.RangeExpense - d.RangeCostOfSold - d.RangeOfficeExpense), "num neg");
+            Row(sb, "Kreditə bağlı əlavə xərclər", "", Money(d.RangeCreditExpense), "num neg");
             Row(sb, "<b>ÜMUMİ XƏRC</b>", "", Money(d.RangeExpense), "num neg");
             sb.Append("</tbody></table>");
-            sb.Append($"<div class=\"total\"><span>DÖVR MƏNFƏƏTİ</span><span>{Money(d.RangeProfit)}</span></div>");
-            sb.Append($"<div class=\"note\">Rentabellik: <b>{(d.RangeIncome <= 0m ? "—" : $"{d.RangeProfit / d.RangeIncome * 100m:N1}%")}</b> · " +
-                      $"Anbara yönəldilən vəsait (XƏRC DEYİL — AKTİV): <b>{Money(d.RangeStockAdditions)}</b> · " +
-                      $"Satış sayı: <b>{d.RangeSalesCount}</b> · Brüt satış mənfəəti: <b>{Money(d.RangeSalesProfit)}</b></div>");
+            sb.Append($"<div class=\"total\"><span>XALİS KASSA AXINI (GƏLİR − XƏRC)</span><span>{Money(d.RangeProfit)}</span></div>");
+            sb.Append($"<div class=\"total\"><span>📈 REALİZƏ OLUNMUŞ MƏNFƏƏT</span><span>{Money(d.RangeRealizedProfit)}</span></div>");
+            sb.Append($"<div class=\"note\">Realizə mənfəəti = satış mənfəəti <b>{Money(d.RangeSalesProfit)}</b> + " +
+                      $"kredit faiz mənfəəti <b>{Money(d.RangeCreditProfit)}</b> − ofis xərci <b>{Money(d.RangeOfficeExpense)}</b> − " +
+                      $"kredit əlavə xərci <b>{Money(d.RangeCreditExpense)}</b> · " +
+                      $"Bütün satışlardan mənfəət: <b>{Money(d.SalesProfit)}</b></div>");
+            sb.Append($"<div class=\"note\">Anbara (stokda qalan maşınlara) yönəldilən vəsait " +
+                      $"<b>{Money(d.RangeStockAdditions)}</b> — bu, XƏRC DEYİL, <b>AKTİVDİR</b> ✓ · " +
+                      $"Satılan malların maya dəyəri <b>{Money(d.RangeCostOfSold)}</b> · " +
+                      $"Satış sayı: <b>{d.RangeSalesCount}</b></div>");
 
             // ---------------- 3. 👥 TƏRƏFDAŞ BÖLGÜLƏRİ ----------------
             sb.Append("<h2>3 · 👥 TƏRƏFDAŞ MƏNFƏƏT BÖLGÜLƏRİ (dövr üzrə)</h2>");
@@ -441,14 +471,19 @@ td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
             Xett("Satışlardan mənfəət", Num(d.SalesProfit));
             Bos();
 
-            Xett("2. DÖVRÜN MALİYYƏ NƏTİCƏSİ");
+            Xett("2. DÖVRÜN MALİYYƏ NƏTİCƏSİ (kassa axını)");
             Xett("Göstərici", "Məbləğ (AZN)");
-            Xett("Ümumi gəlir", Num(d.RangeIncome));
-            Xett("Kredit ödənişləri", Num(d.RangeCreditPayments));
-            Xett("Ümumi xərc", Num(d.RangeExpense));
+            Xett("Satış — nağd / köçürmə daxilolma", Num(d.RangeNagdSales));
+            Xett("Kredit ödənişləri (daxil olan)", Num(d.RangeCreditPayments));
+            Xett("İlkin ödənişlər (avanslar)", Num(d.RangeIlkinOdenis));
+            Xett("ÜMUMİ GƏLİR", Num(d.RangeIncome));
+            Xett("Avtomobil xərcləri", Num(d.RangeCarExpense));
+            Xett("Ofis / inzibati xərclər", Num(d.RangeOfficeExpense));
+            Xett("Kreditə bağlı əlavə xərclər", Num(d.RangeCreditExpense));
+            Xett("ÜMUMİ XƏRC", Num(d.RangeExpense));
+            Xett("XALİS KASSA AXINI (gəlir − xərc)", Num(d.RangeProfit));
+            Xett("REALİZƏ OLUNMUŞ MƏNFƏƏT", Num(d.RangeRealizedProfit));
             Xett("  Satılan malların mayası", Num(d.RangeCostOfSold));
-            Xett("  Ofis / inzibati xərclər", Num(d.RangeOfficeExpense));
-            Xett("DÖVR MƏNFƏƏTİ", Num(d.RangeProfit));
             Xett("Anbara yönəldilən (aktiv, xərc deyil)", Num(d.RangeStockAdditions));
             Bos();
 

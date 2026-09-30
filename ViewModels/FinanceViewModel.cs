@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EnterpriseAeroStudio.Data.Repositories;
 using EnterpriseAeroStudio.Models;
 using EnterpriseAeroStudio.Services;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,9 @@ namespace EnterpriseAeroStudio.ViewModels
         private readonly IExpenseService _expenseService;
         private readonly ICreditService _creditService;
         private readonly ISaleService _saleService;
+        private readonly IPartnerShareRepository _shares;
+        private readonly IKassaHereketRepository _kassaHereketler;
+        private readonly IPartnerPaymentRepository _terefdasOdenisleri;
         private readonly ILogger<FinanceViewModel> _logger;
 
         /// <summary>Eyni anda iki yükləmənin/qrafik qurulmasının qarşısını alır.</summary>
@@ -32,6 +36,30 @@ namespace EnterpriseAeroStudio.ViewModels
         private List<ExpenseItem> _expenses = new();
         private List<CreditTransaction> _transactions = new();
         private List<Credit> _credits = new();
+
+        /// <summary>
+        /// 👥 BÜTÜN tərəfdaş payları — kassa düsturu üçün ✓✓✓
+        /// <para>
+        /// ⚠ Bölgü kassadan <b>DƏRHAL ÇIXMIR</b> ✗ — yalnız «Tərəfdaşlar» tabında
+        /// FAKTİKİ «pul ver» edildikdə kassa XƏRCi olur ✓✓✓
+        /// </para>
+        /// </summary>
+        private List<PartnerShare> _partnerShares = new();
+
+        /// <summary>
+        /// ✍ ƏL İLƏ yazılan kassa hərəkətləri — kassa düsturu üçün ✓✓✓
+        /// («kassaya qoyuldu» ✓ · «kassadan götürüldü» ✗)
+        /// </summary>
+        private List<KassaHereket> _manualHereketler = new();
+
+        /// <summary>
+        /// 👥 «👥 Tərəfdaşlar» tabında <b>FAKTİKİ VERİLƏN</b> pullar ✓✓✓
+        /// <para>
+        /// ⚠ YALNIZ bunlar kassadan çıxır ✗ — hesablanmış paylar ödəniş
+        /// edilənə qədər <b>kassada qalır</b> ✓ (bax: <see cref="Services.KassaHesabi"/>)
+        /// </para>
+        /// </summary>
+        private List<PartnerPayment> _terefdasOdenisler = new();
 
         /// <summary>Avtomobil Id-si → maya dəyəri (kreditlə satılanların mayası üçün).</summary>
         private Dictionary<int, decimal> _carMaya = new();
@@ -62,6 +90,41 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Seçilmiş dövrdə satılan avtomobillərin satış mənfəəti.</summary>
         [ObservableProperty] private decimal rangeSalesProfit;
+
+        // ====================================================================
+        //  💵 DÖVRÜN KASSA AXINI  (vahid düstur — Xərclər tabı ilə SİNXRON ✓)
+        // --------------------------------------------------------------------
+        //  ⚠ ƏVVƏL: «Dövr Xərci» YALNIZ maya dəyəri + ofis xərci ilə hesablanırdı ✗
+        //     → bazada 700 000 ₼ xərc olsa da kartda 0,00 ₼ görünürdü ✗✓✓
+        //     (qrafik isə BÜTÜN xərcləri göstərirdi ✗ → daxili ziddiyyət ✗)
+        //  ✅ İNDİ: kartlar + qrafik + PDF hesabatı EYNİ mənbədən
+        //     (`DonemAxi` ✓) hesablanır ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 🚗 Dövr ərzində <b>AVTOMOBİL xərcləri</b> (₼) ✓
+        /// — «💳 Ümumi Xərclər» tabındaki «Avtomobil Xərcləri» ilə EYNİ məntiq ✓✓✓
+        /// </summary>
+        [ObservableProperty] private decimal rangeCarExpense;
+
+        /// <summary>
+        /// 💵 Dövr ərzində satışlardan <b>KASSAYA DAXİL OLAN</b> pul (₼) ✓
+        /// <para>
+        /// Barter satışında avtomobilin əvəz dəyəri <b>nağd deyil</b> ✗ →
+        /// yalnız nağd / köçürmə hissəsi (<c>Sale.NagdMebleg</c>) sayılır ✓
+        /// </para>
+        /// </summary>
+        [ObservableProperty] private decimal rangeNagdSales;
+
+        /// <summary>
+        /// 📈 <b>REALİZƏ OLUNMUŞ MƏNFƏƏT</b> (dövr üzrə, ₼) ✓✓✓
+        /// <para>
+        /// Satılan maşınların mənfəəti + kredit faiz mənfəəti
+        /// − ofis xərci − kreditə bağlı əlavə xərc ✓
+        /// (anbarda qalan maşınlar buraya QARIŞDIRILMIR ✗ — onlar aktivdir ✓)
+        /// </para>
+        /// </summary>
+        [ObservableProperty] private decimal rangeRealizedProfit;
 
         // ---------- 📤 Transfer göstəriciləri (transfer = NAĞD SATIŞ ✓) ----------
         /// <summary>Bütün vaxt üzrə transfer edilmiş avtomobillərin sayı.</summary>
@@ -275,18 +338,49 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Dövr mənfəətinin rəngi — mənfəət yaşıl, zərər qırmızı.</summary>
         public string RangeProfitReng => RangeProfit >= 0m ? "#34D399" : "#F43F5E";
 
-        /// <summary>Rentabellik: mənfəət ÷ gəlir (%).</summary>
-        public string RangeProfitMarginMetni => RangeIncome <= 0m
-            ? "—"
-            : $"{(RangeProfit / RangeIncome * 100m):0.0}%";
+        /// <summary>Realizə olunmuş mənfəətin rentabelliyi (%) — dövriyyə bazasına görə.</summary>
+        public string RangeProfitMarginMetni
+        {
+            get
+            {
+                var baza = RangeSalesRevenue + RangeCreditPayments;
 
-        /// <summary>Dövr gəlirinin DƏQİQ formulu — kartın altında göstərilir.</summary>
+                return baza <= 0m
+                    ? "—"
+                    : $"{(RangeRealizedProfit / baza * 100m):0.0}%";
+            }
+        }
+
+        /// <summary>📈 Realizə olunmuş mənfəətin işarəli mətni: «+1 250,00 ₼» / «−840,00 ₼».</summary>
+        public string RangeRealizedProfitMetni =>
+            $"{(RangeRealizedProfit >= 0m ? "+" : "−")}{Math.Abs(RangeRealizedProfit):N2} ₼";
+
+        /// <summary>📈 Realizə olunmuş mənfəətin rəngi ✓</summary>
+        public string RangeRealizedProfitReng => RangeRealizedProfit >= 0m ? "#34D399" : "#F43F5E";
+
+        /// <summary>
+        /// 📈 Realizə mənfəətinin DÜSTURU ✓ — kartın altında göstərilir
+        /// (anbara yönəldilən vəsait BURAYA daxil edilmir ✗ — o, aktivdir ✓).
+        /// </summary>
+        public string RangeRealizedProfitFormula =>
+            $"Satış mənfəəti {RangeSalesProfit:N2} ₼  +  kredit faizi {RangeCreditProfit:N2} ₼  " +
+            $"−  ofis xərci {RangeOfficeExpense:N2} ₼  −  kredit əlavə xərci {RangeCreditExpense:N2} ₼  " +
+            $"·  marja {RangeProfitMarginMetni}";
+
+        /// <summary>
+        /// 💵 Dövr gəlirinin DƏQİQ formulu — kartın altında göstərilir ✓
+        /// (kassaya DAXİL OLAN pul ✓ — «Ümumi Xərclər» / «Kredit» tabları ilə sinxron ✓✓✓)
+        /// </summary>
         public string RangeIncomeFormula =>
-            $"Nağd/köçürmə satış {RangeCashSales:N2} ₼  +  kredit ödənişləri {RangeCreditIncome:N2} ₼";
+            $"Nağd/köçürmə satış {RangeNagdSales:N2} ₼  +  kredit daxilolmaları {RangeCreditIncome:N2} ₼  " +
+            $"+  ilkin ödənişlər {RangeIlkinOdenis:N2} ₼";
 
-        /// <summary>Dövr xərcinin DƏQİQ formulu — kartın altında göstərilir.</summary>
+        /// <summary>
+        /// ⬇ Dövr xərcinin DƏQİQ formulu — kartın altında göstərilir ✓
+        /// (kassadan ÇIXAN pul ✓ — «Xərclər» tabındaki bütün xərc qeydləri ✓✓✓)
+        /// </summary>
         public string RangeExpenseFormula =>
-            $"Satılan malın mayası {RangeCostOfSold:N2} ₼  +  ofis xərci {RangeOfficeExpense:N2} ₼  " +
+            $"Avtomobil xərci {RangeCarExpense:N2} ₼  +  ofis xərci {RangeOfficeExpense:N2} ₼  " +
             $"+  kredit əlavə xərci {RangeCreditExpense:N2} ₼";
 
         /// <summary>Anbar dəyərinin izahı: «12 maşın · orta 3 368,33 ₼».</summary>
@@ -342,12 +436,19 @@ namespace EnterpriseAeroStudio.ViewModels
         public string RangeStockAdditionsFormula =>
             "stok alışları — XƏRC DEYİL, AKTİV (maşınlar parkdadır)";
 
+        /// <summary>Kassa axınının izahı — «Dövr Mənfəəti» kartının altında ✓</summary>
+        public string RangeProfitFormulu =>
+            "Kassaya daxil olan − kassadan çıxan (anbara yönəldilən vəsait də çıxışa daxildir ✓)";
+
         /// <summary>Dəyişən bütün göstəriciləri UI-a bildirir (dövr yenilənəndə).</summary>
         private void NotifyComputed()
         {
             OnPropertyChanged(nameof(RangeProfitMetni));
             OnPropertyChanged(nameof(RangeProfitReng));
             OnPropertyChanged(nameof(RangeProfitMarginMetni));
+            OnPropertyChanged(nameof(RangeRealizedProfitMetni));
+            OnPropertyChanged(nameof(RangeRealizedProfitReng));
+            OnPropertyChanged(nameof(RangeRealizedProfitFormula));
             OnPropertyChanged(nameof(RangeIncomeFormula));
             OnPropertyChanged(nameof(RangeExpenseFormula));
             OnPropertyChanged(nameof(StockCostFormula));
@@ -422,6 +523,9 @@ namespace EnterpriseAeroStudio.ViewModels
             IExpenseService expenseService,
             ICreditService creditService,
             ISaleService saleService,
+            IPartnerShareRepository shares,
+            IKassaHereketRepository kassaHereketler,
+            IPartnerPaymentRepository terefdasOdenisleri,
             IReportService reports,
             IDialogService dialogs,
             ILogger<FinanceViewModel> logger)
@@ -430,6 +534,9 @@ namespace EnterpriseAeroStudio.ViewModels
             _expenseService = expenseService;
             _creditService = creditService;
             _saleService = saleService;
+            _shares = shares;
+            _kassaHereketler = kassaHereketler;
+            _terefdasOdenisleri = terefdasOdenisleri;
             _reports = reports;
             _dialogs = dialogs;
             _logger = logger;
@@ -501,11 +608,16 @@ namespace EnterpriseAeroStudio.ViewModels
                 RangeIncome: RangeIncome,
                 RangeExpense: RangeExpense,
                 RangeProfit: RangeProfit,
+                RangeRealizedProfit: RangeRealizedProfit,
                 RangeSalesProfit: RangeSalesProfit,
                 RangeCostOfSold: RangeCostOfSold,
                 RangeOfficeExpense: RangeOfficeExpense,
+                RangeCarExpense: RangeCarExpense,
+                RangeCreditExpense: RangeCreditExpense,
                 RangeCreditPayments: RangeCreditPayments,
                 RangeCreditProfit: RangeCreditProfit,
+                RangeNagdSales: RangeNagdSales,
+                RangeIlkinOdenis: RangeIlkinOdenis,
                 RangeStockAdditions: RangeStockAdditions,
                 RangeSalesCount: RangeSalesCount,
                 Sales: _sales.Where(s => InRange(s.SatisTarixi, from, to)).ToList(),
@@ -710,7 +822,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 //     → milyon sətirdə pəncərə 10+ saniyə DONURDU ✗✓✓
                 //  ✅ İNDİ: oxuma ARXA FONDA ✓ — pəncərə cavab verir ✓
                 // ================================================================
-                var (allCars, sold, xərclər, kreditlər, əməliyyatlar, satışlar) = await Task.Run(async () =>
+                var (allCars, sold, xərclər, kreditlər, əməliyyatlar, satışlar, paylar, elIle, odenisler) = await Task.Run(async () =>
                 {
                     var c = await _carService.GetAllCarsAsync();
                     var s = await _carService.GetSoldCarsAsync();
@@ -718,13 +830,23 @@ namespace EnterpriseAeroStudio.ViewModels
                     var kr = await _creditService.GetCreditsAsync();
                     var t = await _creditService.GetTransactionsAsync();
                     var sa = await _saleService.GetSalesAsync();
-                    return (c, s, e, kr, t, sa);
+
+                    // 👥 kassa düsturu üçün: tərəfdaş payları ✓ + əl ilə hərəkətlər ✓
+                    //    + FAKTİKİ tərəfdaş ödənişləri ✓✓✓ (yalnız bunlar kassadan çıxır ✗)
+                    var p = await _shares.GetAllAsync();
+                    var h = await _kassaHereketler.GetAllOrderedAsync();
+                    var od = await _terefdasOdenisleri.GetOrderedAsync();
+
+                    return (c, s, e, kr, t, sa, p, h, od);
                 });
 
                 _expenses = xərclər.ToList();
                 _credits = kreditlər.ToList();
                 _transactions = əməliyyatlar.ToList();
                 _sales = satışlar.ToList();
+                _partnerShares = paylar.ToList();
+                _manualHereketler = elIle.ToList();
+                _terefdasOdenisler = odenisler.ToList();
 
                 // Kreditlə satılan maşınların maya dəyəri üçün bütün maşınlar.
                 _carMaya = allCars
@@ -1205,39 +1327,39 @@ namespace EnterpriseAeroStudio.ViewModels
                 .Select(t => t.CreditId!.Value)
                 .ToHashSet();
 
-            // ---- GƏLİR ----
-            var cashSales = salesInRange.Sum(s => s.SatisQiymeti);
-
-            // 📅 Dövr ərzində toplanmış KREDİT ÖDƏNİŞLƏRİ (aylıq taksitlər) ✓
-            //  + 📕 «VAXTINDAN TEZ BAĞLAMA» ilə ALINAN PUL ✓✓✓
-            //  (müştəri krediti bağlayanda verdiyi MƏBLƏĞ = REAL GƏLİR ✓ —
-            //   əvvəl hesaba alınmırdı ✗ → «pul gəlir amma maliyyədə
-            //   heç bir dəyişiklik olmur» ✗✓✓)
-            var creditReceipts = txInRange
-                .Where(t => t.Nov == "Gəlir" || t.Nov == "Vaxtından tez bağlama")
-                .Sum(t => t.Mebleg);
-
             // ================================================================
-            //  💰 İLKİN ÖDƏNİŞLƏR (AVANS) — DÖVR GƏLİRİ ✓✓✓
+            //  💵 DÖVRÜN KASSA AXINI — VAHİD DÜSTUR ✓✓✓
             // ----------------------------------------------------------------
-            //  ⚠ ƏVVƏLKİ XƏTA: ilkin ödəniş (məs. <b>4 267 ₼</b>) «Dövr Gəliri»-nə
-            //  DAXİL EDİLMİRDİ ✗ → gəlir olduğundan AZ görünürdü ✗ və
-            //  «Dövr Mənfəəti» səhv (mənfi) çıxırdı ✗✓✓
-            //
-            //  İqtisadi məntiq: kredit açılarkən avans NAĞD alınır ✓ →
-            //  bu, REAL GƏLİRDİR ✓ (stokdaki maşının mayası isə XƏRCDİR ✓).
+            //  ⚠ ƏVVƏL «Dövr Gəliri/Xərci» kartları BİR düsturla ✓, qrafik isə
+            //     BAŞQA düsturla hesablanırdı ✗ → kartda 0,00 ₼, qrafikdə
+            //     700 000 ₼ sütun ✗✓✓ (istifadəçi: «dövr gəliri/xərci işləmir»)
+            //  ✅ İNDİ hamısı `DonemAxi`-dən götürülür ✓ → kart = qrafik = PDF ✓
             // ================================================================
-            var ilkinOdenisler = creditsInRange
-                .Where(c => !transferliIdler.Contains(c.Id))   // ✓ transfer təkrar sayılmır
-                .Sum(c => c.IlkinOdenis);
+            var axin = DonemAxi(from, to);
+
+            var cashSales = axin.SatisGeliri;             // satışların tam qiyməti (izah üçün ✓)
+            var creditReceipts = axin.KreditDaxilolma;    // ödəniş + erkən bağlama + ödənilmiş gecikmə ✓
+            var ilkinOdenisler = axin.IlkinOdenis;        // 💰 AVANSLAR ✓
 
             RangeIlkinOdenis = ilkinOdenisler;
+            RangeNagdSales = axin.NagdDaxilolma;
 
             RangeCashSales = cashSales;
             RangeCreditIncome = creditReceipts;
             RangeSalesRevenue = cashSales;
 
-            // ---- XƏRC (yalnız real xərclər — MAYA DƏYƏRİ ✓) ----
+            // ---- XƏRC (kassadan ÇIXAN pul — «Xərclər» tabı ilə SİNXRON ✓✓✓) ----
+            //  ✅ BÜTÜN xərc qeydləri (avtomobil ✓ + ofis ✓) + kredit əlavə xərci ✓
+            //     → istifadəçinin yazdığı HEÇ BİR xərc gizli qalmır ✓✓✓
+            var officeExpense = axin.OfisXerci;
+            var creditExpense = axin.KreditXerci;
+
+            RangeCarExpense = axin.AvtomobilXerci;
+            RangeOfficeExpense = officeExpense;
+            RangeCreditExpense = creditExpense;
+
+            // ---- MAYA DƏYƏRİ (COGS) — realizə mənfəəti üçün ✓ ----
+            //  (kassa axınında maya AYRICA sayılmır ✗ — xərc qeydləri artıq var ✓)
             var cogsCash = salesInRange.Sum(s => s.MayaDeyeri);          // satılan malların mayası
 
             //  ⚠ Kreditlə verilən maşının mayası — SATIŞ qeydi olan maşın
@@ -1248,10 +1370,6 @@ namespace EnterpriseAeroStudio.ViewModels
                 .Where(c => !transferliIdler.Contains(c.Id)
                             && (!c.CarId.HasValue || !soldCarIds.Contains(c.CarId.Value)))
                 .Sum(MayaOfCredit);
-            var officeExpense = expensesInRange
-                .Where(e => Catalog.IsOffice(e.Teyinat))
-                .Sum(e => e.Mebleg);
-            var creditExpense = txInRange.Where(t => t.Nov == "Xərc").Sum(t => t.Mebleg);
 
             // ---- ANBARA yönəldilən (XƏRC DEYİL — AKTİV) ----
             RangeStockAdditions = expensesInRange
@@ -1293,18 +1411,32 @@ namespace EnterpriseAeroStudio.ViewModels
             RangeBarterCount = barterSales.Count;
             RangeBarterTotal = barterSales.Sum(s => s.BarterMebleg);
 
-            var creditTxInRange = txInRange.Where(IsCreditPayment).ToList();
-            RangeCreditPayments = creditTxInRange.Sum(t => t.Mebleg);
-            RangeCreditProfit = creditTxInRange.Sum(ProfitOf);
+            //  ✅ «DÖVR KREDİT ÖDƏNİŞİ» — kassa daxilolması ilə EYNİ say ✓
+            //     (kredit ödənişi · erkən bağlama · ödənilmiş gecikmə ✓✓✓)
+            RangeCreditPayments = axin.KreditDaxilolma;
+            RangeCreditProfit = txInRange.Where(IsCreditPayment).Sum(ProfitOf);
 
             RangeCostOfSold = cogsCash + cogsCredit;
-            RangeOfficeExpense = officeExpense;
-            RangeCreditExpense = creditExpense;
 
-            //  ✅ GƏLİR = nağd satış + kredit taksitləri + 💰 İLKİN ÖDƏNİŞLƏR ✓✓✓
-            RangeIncome = cashSales + creditReceipts + ilkinOdenisler;
-            RangeExpense = RangeCostOfSold + officeExpense + creditExpense;
-            RangeProfit = RangeIncome - RangeExpense;
+            // ================================================================
+            //  ✅ DÖVR GƏLİRİ = kassaya DAXİL OLAN pul ✓✓✓
+            //     nağd/köçürmə satış ✓ + kredit daxilolmaları ✓ + avanslar ✓
+            //  ✅ DÖVR XƏRCİ  = kassadan ÇIXAN pul ✓✓✓
+            //     BÜTÜN xərc qeydləri (avtomobil · ofis ✓) + kredit əlavə xərci ✓
+            //  ✅ DÖVR MƏNFƏƏTİ = gəlir − xərc (KASSA AXINI ✓)
+            // ----------------------------------------------------------------
+            //  ⚠ «BLOK 3»-dəki «DÖVRƏ ANBARA YÖNƏLDİLƏN» kartı bu çıxışın
+            //     hansı hissəsinin STOKA (aktivə) getdiyini göstərir ✓
+            //     → yəni böyük mənfi rəqəm «itki» deyil — pul parkdadır ✓✓✓
+            // ================================================================
+            RangeIncome = axin.Gelir;
+            RangeExpense = axin.Xerc;
+            RangeProfit = axin.Xalis;
+
+            //  📈 REALİZƏ OLUNMUŞ MƏNFƏƏT — satılan maşınlar + kredit faizi − xərclər ✓
+            //  (anbarda qalan maşınlar QARIŞDIRILMIR ✗ — onlar hələ satılmayıb ✓)
+            RangeRealizedProfit = RangeSalesProfit + RangeCreditProfit
+                                  - RangeOfficeExpense - RangeCreditExpense;
 
             // 📊 Kartlardaki izahlar / rənglər / rentabellik yenilənir.
             NotifyComputed();
@@ -1316,7 +1448,7 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(ReportTitle));
             BuildPartnerTotals(txInRange);
 
-            BuildChart(from, to, salesInRange, expensesInRange, txInRange);
+            BuildChart(from, to);
 
             _logger.LogInformation(
                 "Maliyyə qrafiki: {From:dd.MM.yyyy} - {To:dd.MM.yyyy}, {Count} sütun, məlumat var: {HasData}",
@@ -1380,13 +1512,109 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(HasPartnerTotals));
         }
 
+        /// <summary>
+        /// 💵 <b>DÖVR ÜZRƏ KASSA AXINI — VAHİD DÜSTUR</b> ✓✓✓
+        /// <para>
+        /// ⚠ <b>NİYƏ VAHİD?</b> — əvvəl «Dövr Gəliri / Xərci» kartları
+        /// COGS + ofis xərci düsturunu ✗, qrafik isə BÜTÜN xərcləri işlədirdi ✗
+        /// → kartda <c>0,00 ₼</c>, qrafikdə <c>700 000 ₼</c> sütun ✓✓✓
+        /// (istifadəçinin «dövr gəliri/xərci işləmir» şikayətinin səbəbi ✗)
+        /// </para>
+        /// <para>
+        /// ✅ <b>GƏLİR (kassaya daxil olan):</b> nağd/köçürmə satış ✓ ·
+        /// kredit daxilolmaları (ödəniş · erkən bağlama · ödənilmiş gecikmə) ✓ ·
+        /// ilkin ödənişlər (avans) ✓<br/>
+        /// ✅ <b>XƏRC (kassadan çıxan):</b> BÜTÜN xərc qeydləri
+        /// (avtomobil ✓ · ofis ✓) + kreditə bağlı əlavə xərclər ✓
+        /// </para>
+        /// <para>
+        /// ℹ️ Barter ilə alınan maşının əvəz dəyəri nağd DEYİL ✗ →
+        /// gəlirə yalnız nağd/köçürmə hissəsi (<c>Sale.NagdMebleg</c>) yazılır ✓✓✓
+        /// </para>
+        /// </summary>
+        private DonemAxini DonemAxi(DateTime from, DateTime to)
+        {
+            if (to < from)
+            {
+                (from, to) = (to, from);
+            }
+
+            var satislar = _sales.Where(s => InRange(s.SatisTarixi, from, to)).ToList();
+            var xercler = _expenses.Where(e => InRange(e.Tarix, from, to)).ToList();
+
+            // 📤 Avtomobil / ofis xərc BÖLGÜSÜ (kartlardaki izah üçün ✓)
+            var avtomobilXerc = xercler.Where(e => !Catalog.IsOffice(e.Teyinat)).Sum(e => e.Mebleg);
+            var ofisXerc = xercler.Where(e => Catalog.IsOffice(e.Teyinat)).Sum(e => e.Mebleg);
+
+            // ================================================================
+            //  💵 VAHİD DÜSTUR — `KassaHesabi` ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL burada İKİNCİ bir düstur var idi ✗ →
+            //     • ⏳ MÖHLƏTLƏR ✗ (avansın möhlətə salınmış hissəsi də avans
+            //       sayılırdı ✗, ödənilmiş möhlət isə HEÇ görünmürdü ✗)
+            //     • ✍ ƏL İLƏ yazılan hərəkətlər ✗
+            //     • 👥 TƏRƏFDAŞ BÖLGÜSÜ (tutulan «xeyir») ✗
+            //     → yəni «Kassa» tabı ilə Maliyyə Paneli FƏRLİ rəqəm verirdi ✗✓✓
+            //  ✅ İNDİ: «💵 Kassa» ✓ MALİYYƏ PANELİ ✓ VEB DASHBOARD ✓
+            //     hamısı EYNİ düsturu işlədir → rəqəmlər HƏMİŞƏ üst-üstə düşür ✓✓✓
+            // ================================================================
+            var hesabat = KassaHesabi.Qur(
+                _sales,
+                _credits,
+                _transactions,
+                _expenses,
+                KassaHesabi.KreditPaylariniSec(_partnerShares),
+                KassaHesabi.SatisPaylariniSec(_partnerShares),
+                _terefdasOdenisler,
+                _manualHereketler,
+                from,
+                to);
+
+            return new DonemAxini(
+                Gelir: hesabat.Daxilolma,
+                Xerc: hesabat.Xerc,
+                Xalis: hesabat.Xalis,
+                NagdDaxilolma: hesabat.SatisDaxilolma,
+                KreditDaxilolma: hesabat.KreditDaxilolma,
+                IlkinOdenis: hesabat.IlkinOdenisDaxilolma,
+                AvtomobilXerci: avtomobilXerc,
+                OfisXerci: ofisXerc,
+                KreditXerci: hesabat.KreditXerci,
+                SatisGeliri: satislar.Sum(s => s.SatisQiymeti));
+        }
+
+        /// <summary>
+        /// 💰 <b>Pul KASSAYA GƏLDİ?</b> ✓✓✓ — kredit ödənişi ✓ ·
+        /// vaxtından tez bağlama ✓ · ödənilmiş gecikmə cəriməsi ✓
+        /// <para>
+        /// ⚙️ <b>DÜSTUR ARTIQ BURADA DEYİL</b> ✗ — Maliyyə Paneli
+        /// <see cref="KassaHesabi"/> işlədir ✓ («💵 Kassa» tabı ✓ · Veb ✓ ilə EYNİ) ✓✓✓
+        /// </para>
+        /// </summary>
+        private static bool KreditDaxilolmasidir(CreditTransaction hereket)
+            => hereket.Nov == "Gəlir"
+               || hereket.Nov == "Vaxtından tez bağlama"
+               || (hereket.Nov == "Gecikmə" && hereket.Odenilib);
+
+        /// <summary>
+        /// Bir dövr üzrə kassa axınının tam açılışı ✓
+        /// (<b>kartlar · qrafik · PDF hesabatı BUNU işlədir</b> ✓✓✓)
+        /// </summary>
+        private readonly record struct DonemAxini(
+            decimal Gelir,
+            decimal Xerc,
+            decimal Xalis,
+            decimal NagdDaxilolma,
+            decimal KreditDaxilolma,
+            decimal IlkinOdenis,
+            decimal AvtomobilXerci,
+            decimal OfisXerci,
+            decimal KreditXerci,
+            decimal SatisGeliri);
+
         private void BuildChart(
             DateTime from,
-            DateTime to,
-            List<Sale> sales,
-            List<ExpenseItem> expenses,
-
-            List<CreditTransaction> transactions)
+            DateTime to)
         {
             ChartPoints.Clear();
 
@@ -1417,15 +1645,19 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
+            // ================================================================
+            //  ✅ SÜTUNLAR «DonemAxi» İLƏ — KARTLARLA EYNİ DÜSTUR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL qrafik başqa düsturla hesablanırdı ✗ → «Dövr Xərci»
+            //     kartı 0,00 ₼ ✗, sütunlar isə 700 000 ₼ ✗ — bir-birini
+            //     təkzib edirdi ✗✓✓
+            //  ✅ İNDİ: kart = sütun = PDF hesabatı ✓✓✓ (tam sinxron ✓)
+            // ================================================================
             var raw = buckets.Select(b =>
             {
-                var income = sales.Where(s => InRange(s.SatisTarixi, b.From, b.To)).Sum(s => s.SatisQiymeti)
-                             + transactions.Where(t => t.Nov == "Gəlir" && InRange(t.Tarix, b.From, b.To))
-                                           .Sum(t => t.Mebleg);
-                var expense = expenses.Where(e => InRange(e.Tarix, b.From, b.To)).Sum(e => e.Mebleg)
-                              + transactions.Where(t => t.Nov == "Xərc" && InRange(t.Tarix, b.From, b.To))
-                                            .Sum(t => t.Mebleg);
-                return (b.Label, Income: income, Expense: expense, Profit: income - expense);
+                var axin = DonemAxi(b.From, b.To);
+
+                return (b.Label, Income: axin.Gelir, Expense: axin.Xerc, Profit: axin.Xalis);
             }).ToList();
 
             var max = raw.Max(r => Math.Max(r.Income, Math.Max(r.Expense, r.Profit > 0 ? r.Profit : 0m)));

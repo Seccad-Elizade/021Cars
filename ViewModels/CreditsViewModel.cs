@@ -18,6 +18,7 @@ namespace EnterpriseAeroStudio.ViewModels
     {
         private readonly ICreditService _creditService;
         private readonly ICarService _carService;
+        private readonly IMohletService _mohletService;
         private readonly IDialogService _dialogs;
         private readonly ILogger<CreditsViewModel> _logger;
 
@@ -132,6 +133,83 @@ namespace EnterpriseAeroStudio.ViewModels
         public string SelectedMonthlySharesXulase => SelectedMonthlyShares.Count == 0
             ? "Hələ heç bir ayın ödənişi bölünməyib."
             : $"{SelectedMonthlyShares.Count} ay üzrə bölgü · cəmi {SelectedMonthlySharesTotal:N2} ₼";
+
+        // ====================================================================
+        //  ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT  (kredit forması + seçilmiş kredit ✓✓✓)
+        // --------------------------------------------------------------------
+        //  İstifadəçinin tələbi:
+        //    «3 min nağd ilkin ödəniş verib, deyirsə ki 10 günə 2 min nağd
+        //     verəcəm → ilkin ödənişin YANINDA möhlət checkbox-u olsun ✓
+        //     nə qədər gələcək və hansı tarixdə yazılsın ✓ ➕ ilə BİRDƏN ÇOX
+        //     möhlət əlavə edilə bilsin ✓✓✓»
+        // --------------------------------------------------------------------
+        //  Hesablama (avtomatik ✓):
+        //     İlkin ödəniş = 5 000 ₼ ✓ (istifadəçi yazır ✓)
+        //     Möhlətlər    = 2 000 ₼  →  10 gün sonra ✓
+        //     DƏRHAL       = 3 000 ₼  ← kassaya dərhal daxil olan pul ✓
+        // ====================================================================
+
+        /// <summary>Formada «İlkin ödənişə möhlət» işarələnibmi?</summary>
+        [ObservableProperty] private bool ilkinMohletVar;
+
+        /// <summary>Formada yazılan möhlətlər (yeni kredit üçün ✓ birdən çox ✓).</summary>
+        public ObservableCollection<OdenisMohlet> IlkinMohletleri { get; } = new();
+
+        /// <summary>Seçilmiş kreditin möhlətləri (detallar paneli ✓).</summary>
+        public ObservableCollection<OdenisMohlet> SelectedIlkinMohletleri { get; } = new();
+
+        /// <summary>Seçilmiş kreditin möhləti varmı?</summary>
+        public bool HasSelectedIlkinMohlet => SelectedIlkinMohletleri.Count > 0;
+
+        /// <summary>Forma üzrə möhlətlərin cəmi (₼).</summary>
+        public decimal IlkinMohletCemi => IlkinMohletleri.Sum(m => m.Mebleg);
+
+        /// <summary>Forma üzrə DƏRHAL ödənilən avans hissəsi (₼) = avans − möhlətlər ✓.</summary>
+        public decimal IlkinDerhalOdenilen => Math.Max(0m, IlkinOdenis - IlkinMohletCemi);
+
+        /// <summary>Forma üzrə möhlət xülasəsi (canlı ✓).</summary>
+        public string IlkinMohletXulase
+        {
+            get
+            {
+                if (!IlkinMohletVar)
+                {
+                    return "İlkin ödəniş tam olaraq dərhal ödənilir (möhlət yoxdur).";
+                }
+
+                if (IlkinMohletleri.Count == 0)
+                {
+                    return "➕ düyməsi ilə möhləti əlavə edin: «nə vaxt → nə qədər».";
+                }
+
+                var setirler = string.Join(" · ", IlkinMohletleri
+                    .OrderBy(m => m.Tarix)
+                    .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni}"));
+
+                return $"⏳ Möhlət {IlkinMohletCemi:N2} ₼  ·  dərhal ödənilən {IlkinDerhalOdenilen:N2} ₼  ({setirler})";
+            }
+        }
+
+        /// <summary>Forma üzrə möhlət xülasəsinin rəngi.</summary>
+        public string IlkinMohletRengi =>
+            IlkinMohletCemi > IlkinOdenis + 0.01m ? "#FB7185" : "#FBBF24";
+
+        /// <summary>Möhlət panelinin görünmə vəziyyəti (checkbox ✓).</summary>
+        public bool IlkinMohletPanelGorunur => IlkinMohletVar;
+
+        partial void OnIlkinMohletVarChanged(bool value)
+        {
+            OnPropertyChanged(nameof(IlkinMohletPanelGorunur));
+            OnPropertyChanged(nameof(IlkinMohletXulase));
+        }
+
+        /// <summary>Seçilmiş kreditin möhlət xülasəsi (detallar üçün ✓).</summary>
+        public string SelectedIlkinMohletXulase => SelectedIlkinMohletleri.Count == 0
+            ? "İlkin ödənişin hamısı dərhal ödənilib (möhlət yoxdur)."
+            : string.Join(" · ", SelectedIlkinMohletleri
+                .OrderBy(m => m.Tarix)
+                .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni} {m.Veziyyet}"));
+
         public ObservableCollection<CarItem> AvailableCars { get; } = new();
 
         /// <summary>Axtarış mətninə uyğun avtomobillər (canlı filtrasiya).</summary>
@@ -140,6 +218,9 @@ namespace EnterpriseAeroStudio.ViewModels
         [ObservableProperty] private string carSearchText = string.Empty;
 
         public IReadOnlyList<string> Statuses { get; } = new[] { "Aktiv", "Bağlı", "Gecikmiş" };
+
+        /// <summary>⏳ Möhlət sətirlərində ödəniş üsulu seçimi (Nağd · Kart / Köçürmə) ✓</summary>
+        public IReadOnlyList<string> PaymentMethods { get; } = Catalog.PaymentMethods;
 
         /// <summary>Kreditlər dəyişdikdə baş verir (arxiv və maliyyə panelini yeniləmək üçün).</summary>
         public event EventHandler? CreditsChanged;
@@ -181,13 +262,29 @@ namespace EnterpriseAeroStudio.ViewModels
         public CreditsViewModel(
             ICreditService creditService,
             ICarService carService,
+            IMohletService mohletService,
             IDialogService dialogs,
             ILogger<CreditsViewModel> logger)
         {
             _creditService = creditService;
             _carService = carService;
+            _mohletService = mohletService;
             _dialogs = dialogs;
             _logger = logger;
+
+            // ⏳ Möhlət sətirləri dəyişdikcə xülasə CANLI yenilənir ✓✓✓
+            IlkinMohletleri.CollectionChanged += (_, ə) =>
+            {
+                if (ə.NewItems is not null)
+                {
+                    foreach (OdenisMohlet yeni in ə.NewItems)
+                    {
+                        yeni.PropertyChanged += (_, __) => MohletXulaseYenile();
+                    }
+                }
+
+                MohletXulaseYenile();
+            };
         }
 
         partial void OnSelectedCreditChanged(Credit? value)
@@ -197,7 +294,77 @@ namespace EnterpriseAeroStudio.ViewModels
             BuildSelectedShares(value);
             BarterYenile(value);          // 🤝 BARTER paneli ✓
             TransferYenile(value);        // 📤 TRANSFER paneli + «Transfer olunan» ✓
+            IlkinMohletYukle(value);      // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT paneli ✓✓✓
             OnPropertyChanged(nameof(ScheduleInfo));
+        }
+
+        /// <summary>
+        /// ⏳ Seçilmiş kreditin <b>ilkin ödəniş möhlətlərini</b> panelə yükləyir ✓✓✓
+        /// </summary>
+        private void IlkinMohletYukle(Credit? credit)
+        {
+            SelectedIlkinMohletleri.Clear();
+
+            if (credit is not null)
+            {
+                foreach (var mohlet in credit.IlkinMohletleri
+                    .OrderBy(m => m.Tarix)
+                    .ThenBy(m => m.Id))
+                {
+                    SelectedIlkinMohletleri.Add(mohlet);
+                }
+            }
+
+            OnPropertyChanged(nameof(HasSelectedIlkinMohlet));
+            OnPropertyChanged(nameof(SelectedIlkinMohletXulase));
+        }
+
+        /// <summary>
+        /// ➕ <b>Formaya YENİ möhlət sətri əlavə edir</b> ✓✓✓
+        /// (birdən çox möhlət ola bilər: «2 000 ₼ → 10 günə» + «1 000 ₼ → 25 günə» ✓)
+        /// </summary>
+        [RelayCommand]
+        private void IlkinMohletElaveEt()
+        {
+            IlkinMohletVar = true;
+
+            var qaliq = Math.Max(0m, IlkinOdenis - IlkinMohletCemi);
+
+            var mohlet = new OdenisMohlet
+            {
+                Menbe = OdenisMohlet.MenbeIlkinOdenis,
+                Tarix = (BaslamaTarixi ?? DateTime.Today).AddDays(10),
+                Mebleg = qaliq,
+                OdenisUsulu = Catalog.PaymentMethods[0],
+                Sira = IlkinMohletleri.Count
+            };
+
+            IlkinMohletleri.Add(mohlet);
+            MohletXulaseYenile();
+
+            _logger.LogInformation("⏳ İlkin ödənişə möhlət sətri əlavə edildi: {Xulase}", mohlet.Xulase);
+        }
+
+        /// <summary>✖ Formadan möhlət sətrini silir ✓.</summary>
+        [RelayCommand]
+        private void IlkinMohletSil(OdenisMohlet? mohlet)
+        {
+            if (mohlet is null)
+            {
+                return;
+            }
+
+            IlkinMohletleri.Remove(mohlet);
+            MohletXulaseYenile();
+        }
+
+        /// <summary>Formadakı möhlət xülasəsini yeniləyir (canlı hesablama ✓).</summary>
+        private void MohletXulaseYenile()
+        {
+            OnPropertyChanged(nameof(IlkinMohletCemi));
+            OnPropertyChanged(nameof(IlkinDerhalOdenilen));
+            OnPropertyChanged(nameof(IlkinMohletXulase));
+            OnPropertyChanged(nameof(IlkinMohletRengi));
         }
 
         /// <summary>
@@ -877,6 +1044,15 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
+            // ⏳ Möhlətlərin cəmi ilkin ödənişdən ÇOX ola bilməz ✓✓✓
+            if (IlkinMohletCemi > IlkinOdenis + 0.01m)
+            {
+                _dialogs.ShowWarning(
+                    $"İlkin ödənişə yazılan möhlətlər ({IlkinMohletCemi:N2} ₼) ilkin ödənişdən " +
+                    $"({IlkinOdenis:N2} ₼) çox ola bilməz. Zəhmət olmasa məbləğləri düzəldin.");
+                return;
+            }
+
             try
             {
                 IsBusy = true;
@@ -907,6 +1083,18 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 await _creditService.AddCreditAsync(credit);
 
+                // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT — «3 min nağd indi ✓ 2 min 10 günə ✓» ✓✓✓
+                if (credit.Id > 0 && IlkinMohletVar && IlkinMohletleri.Count > 0)
+                {
+                    var say = await _mohletService.SaveForCreditAsync(
+                        credit.Id,
+                        IlkinMohletleri.ToList());
+
+                    _logger.LogInformation(
+                        "⏳ Kredit #{Id}: {Say} ilkin ödəniş möhləti saxlanıldı (dərhal {Derhal:N2} ₼ · möhlət {Mohlet:N2} ₼)",
+                        credit.Id, say, IlkinDerhalOdenilen, IlkinMohletCemi);
+                }
+
                 // 👥 Tərəfdaş bölgüsü tətbiq olunubsa — kreditin mənfəət payları yazılır
                 //    (XEYİR = Satış qiyməti − Maya dəyəri).
                 if (KreditBolguTetbiq && credit.Id > 0)
@@ -930,8 +1118,27 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 _logger.LogInformation("Yeni kredit əlavə edildi: {Customer}", credit.Mustəri);
+
+                // ⏳ Möhlət varsa — təsdiq mesajında ƏTRAFLI göstərilir ✓✓✓
+                var mesaj = "Kredit uğurla əlavə edildi. Avtomobil avtomatik olaraq aktiv parkdan çıxarıldı.";
+
+                if (IlkinMohletVar && IlkinMohletleri.Count > 0)
+                {
+                    var setirler = string.Join(
+                        "\n",
+                        IlkinMohletleri
+                            .OrderBy(m => m.Tarix)
+                            .Select(m => $"   • {m.Mebleg:N2} ₼  →  {m.TarixMetni}  ({m.OdenisUsulu})"));
+
+                    mesaj += "\n\n⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT\n" +
+                             $"   İlkin ödəniş    : {IlkinOdenis:N2} ₼\n" +
+                             $"   Dərhal ödənilən : {IlkinDerhalOdenilen:N2} ₼\n" +
+                             $"   Möhlətə yazılan : {IlkinMohletCemi:N2} ₼\n{setirler}\n\n" +
+                             "ℹ️ Möhlət ÖDƏNİLDİKDƏ kassaya daxil olacaq (💵 Kassa tabı) ✓";
+                }
+
                 ClearForm();
-                _dialogs.ShowInfo("Kredit uğurla əlavə edildi. Avtomobil avtomatik olaraq aktiv parkdan çıxarıldı.");
+                _dialogs.ShowInfo(mesaj);
             }
             catch (Exception ex)
             {
@@ -1010,6 +1217,11 @@ namespace EnterpriseAeroStudio.ViewModels
             BaslamaTarixi = DateTime.Today;
             Status = "Aktiv";
             Qeyd = string.Empty;
+
+            // ⏳ İlkin ödəniş möhləti də sıfırlanır ✓✓✓
+            IlkinMohletleri.Clear();
+            IlkinMohletVar = false;
+
             ClearErrors();
         }
 
@@ -3035,7 +3247,19 @@ namespace EnterpriseAeroStudio.ViewModels
             SatisQiymetiHesabla();
         }
 
-        partial void OnIlkinOdenisChanged(decimal value) => SatisQiymetiHesabla();
+        partial void OnIlkinOdenisChanged(decimal value)
+        {
+            SatisQiymetiHesabla();
+
+            // ⏳ Avans SONRADAN yazıldısa və möhlət sətri BOŞ qalıbsa (0 ₼) →
+            //    avtomatik doldurulur ✓ (istifadəçi sonra düzəldə bilər ✓)
+            if (IlkinMohletleri.Count == 1 && IlkinMohletleri[0].Mebleg <= 0m)
+            {
+                IlkinMohletleri[0].Mebleg = Math.Max(0m, value);
+            }
+
+            MohletXulaseYenile();
+        }
 
         // ====================================================================
         //  👥 KREDİTİN TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ

@@ -1,0 +1,771 @@
+﻿@page "/kassa"
+
+@implements IDisposable
+@inject IDataChangeWatcher DataChanges
+@using EnterpriseAeroStudio.Web.Components.Shared
+@using Microsoft.Extensions.Options
+@inject IKassaService KassaService
+@inject IMohletService MohletService
+@inject IOptions<AvtoParkOptions> Options
+@inject UiState Ui
+
+<PageTitle>Kassa — Avtomobil Parkı</PageTitle>
+
+<div class="page-head">
+    <div>
+        <div class="page-title">💵 Kassa</div>
+        <div class="page-sub">
+            Kassaya <b>daxil olan</b> ✓ və <b>çıxan</b> ✗ bütün pulun vahid jurnalı ·
+            dövr: @AppFormat.Date(_from) — @AppFormat.Date(_to) ·
+            düstur masaüstü «Maliyyə Paneli» ilə <b>EYNİDİR</b> ✓
+        </div>
+    </div>
+    <div class="page-actions">
+        <button class="btn btn-ghost" @onclick="LoadAsync" disabled="@_loading">↻ Yenilə</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="card"><div class="loading-box"><span class="spinner"></span> Kassa hesabatı qurulur…</div></div>
+}
+else
+{
+    @* ==================== 📊 XÜLASƏ (KPI) ==================== *@
+    <div class="stat-grid">
+        <StatCard Label="DAXİLOLMA (dövr)" Value="@AppFormat.Money(_hesabat.Daxilolma)" Icon="⬆" Accent="green"
+                  Hint="satış ✓ avans ✓ kredit ✓ möhlət ✓ əl ilə" />
+        <StatCard Label="XƏRC (dövr)" Value="@AppFormat.Money(_hesabat.Xerc)" Icon="⬇" Accent="red"
+                  Hint="bütün xərclər ✓ kredit əlavə ✓ tərəfdaşa VERİLƏN ✓ əl ilə" />
+        <StatCard Label="XALİS AXIN (dövr)" Value="@AppFormat.Money(_hesabat.Xalis)" Icon="⚖️"
+                  Accent="@(_hesabat.Xalis >= 0 ? "green" : "red")" Hint="daxilolma − xərc" />
+        <StatCard Label="KASSA QALIĞI" Value="@AppFormat.Money(_hesabat.Qaliq)" Icon="💰"
+                  Accent="@(_hesabat.Qaliq >= 0 ? "blue" : "red")" Hint="@($"açılış qalığı {AppFormat.Money(_hesabat.AcilisQaligi)}")" />
+        <StatCard Label="AÇILIŞ QALIĞI" Value="@AppFormat.Money(_hesabat.AcilisQaligi)" Icon="🔵" Accent="slate"
+                  Hint="dövrdən ƏVVƏLKİ kassa qalığı" />
+        <StatCard Label="GÖZLƏNİLƏN MÖHLƏT" Value="@AppFormat.Money(_hesabat.GozlenilenMohlet)" Icon="🕓" Accent="amber"
+                  Hint="@($"{_gozlenilen.Count} möhlət qeydi — hələ kassaya daxil olmayıb ✗")" />
+        <StatCard Label="GECİKMİŞ MÖHLƏT" Value="@AppFormat.Money(_hesabat.GecikmisMohlet)" Icon="⚠" Accent="red"
+                  Hint="@($"{_gozlenilen.Count(m => m.Gecikmis)} möhlətin vaxtı keçib")" />
+        <StatCard Label="PROQNOZ QALIQ" Value="@AppFormat.Money(_hesabat.ProqnozQaliq)" Icon="🔮" Accent="violet"
+                  Hint="kassa qalığı + gözlənilən möhlətlər" />
+        <StatCard Label="👥 TƏRƏFDAŞ PAYI (kassada qalır)" Value="@AppFormat.Money(_hesabat.TerefdasPayi)" Icon="👥" Accent="violet"
+                  Hint="dövrdə hesablandı — pul KASSADAN ÇIXMIR ✗ («pul ver» edilənə qədər qalır ✓)" />
+        <StatCard Label="👥 TƏRƏFDAŞA VERİLMƏLİ" Value="@AppFormat.Money(_hesabat.TerefdasVerilmeli)" Icon="⏳" Accent="amber"
+                  Hint="hələ kassada olan, tərəfdaşlara aid pul ✓" />
+        <StatCard Label="⚖️ ÖZ QALIQ (tərəfdaşdan sonra)" Value="@AppFormat.Money(_hesabat.OzQaliq)" Icon="⚖️"
+                  Accent="@(_hesabat.OzQaliq >= 0 ? "blue" : "red")" Hint="kassa qalığı − tərəfdaşa verilməli" />
+        <StatCard Label="🔮 ÖZ PROQNOZ" Value="@AppFormat.Money(_hesabat.OzProqnozQaliq)" Icon="🔮" Accent="violet"
+                  Hint="möhlətlər gəlsə + tərəfdaş payları çıxılsa" />
+    </div>
+
+    @* ==================== 🗓️ DÖVR + FİLTR ==================== *@
+    <div class="card">
+        <div class="card-head">🗓️ Dövr filtri — bütün rəqəmlər bu dövrə görə hesablanır</div>
+        <div class="form-row">
+            <label class="field">
+                <span>Dövr</span>
+                <select @bind="_range" @bind:after="LoadAsync">
+                    @foreach (var option in RangeOptions)
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>Başlanğıc</span>
+                <input type="date" @bind="_fromDate" @bind:after="LoadAsync" disabled="@(_range != "Fərdi aralıq")" />
+            </label>
+            <label class="field">
+                <span>Son</span>
+                <input type="date" @bind="_toDate" @bind:after="LoadAsync" disabled="@(_range != "Fərdi aralıq")" />
+            </label>
+            <label class="field">
+                <span>Növ</span>
+                <select @bind="_novFiltri">
+                    <option value="Hamısı">Hamısı</option>
+                    <option value="➕ Yalnız daxilolmalar">➕ Yalnız daxilolmalar</option>
+                    <option value="➖ Yalnız xərclər">➖ Yalnız xərclər</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Bölmə</span>
+                <select @bind="_qrupFiltri">
+                    <option value="Hamısı">Hamısı</option>
+                    @foreach (var qrup in Qruplar)
+                    {
+                        <option value="@qrup">@qrup</option>
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>Axtarış (müqavilə · müştəri · maşın · xərc)</span>
+                <input type="text" @bind="_axtaris" @bind:event="oninput" placeholder="M-0007, Rebbil, Malibu…" />
+            </label>
+            <button class="btn btn-ghost" @onclick="LoadAsync">↻ Yenilə</button>
+        </div>
+    </div>
+
+    @* ==================== 📥 DAXİLOLMA / 📤 XƏRC BÖLMƏLƏRİ ==================== *@
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="card">
+            <div class="card-head">📥 PUL HARADAN GƏLDİ? (kassaya daxil)</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mənbə</th>
+                            <th class="num">Məbləğ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>💰 Satışların nağd/köçürmə hissəsi</td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.SatisDaxilolma)</td>
+                        </tr>
+                        <tr>
+                            <td>🏦 Kredit ilkin ödənişləri (avanslar)</td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.IlkinOdenisDaxilolma)</td>
+                        </tr>
+                        <tr>
+                            <td>💳 Kredit ödənişləri (erkən bağlama ✓ gecikmə ✓)</td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.KreditDaxilolma)</td>
+                        </tr>
+                        <tr>
+                            <td>⏳ <b>ÖDƏNİLMİŞ</b> möhlətlər (pul gəldi ✓)</td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.MohletDaxilolma)</td>
+                        </tr>
+                        <tr>
+                            <td>✍ Əl ilə qoyulan pul</td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.ElIleDaxilolma)</td>
+                        </tr>
+                        <tr>
+                            <td><b>CƏMİ DAXİLOLMA</b></td>
+                            <td class="num pos strong">@AppFormat.Money(_hesabat.Daxilolma)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">📤 PUL HARA GETDİ? (kassadan çıxan)</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mənbə</th>
+                            <th class="num">Məbləğ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>💸 Bütün xərc qeydləri (avtomobil ✓ ofis ✓)</td>
+                            <td class="num neg strong">@AppFormat.Money(_hesabat.XercCemi)</td>
+                        </tr>
+                        <tr>
+                            <td>🏷️ Kredit əlavə xərcləri</td>
+                            <td class="num neg strong">@AppFormat.Money(_hesabat.KreditXerci)</td>
+                        </tr>
+                        <tr>
+                            <td>👥 Tərəfdaşa VERİLDİ — «pul ver» ✓ (kassadan çıxdı ✗)</td>
+                            <td class="num neg strong">@AppFormat.Money(_hesabat.TerefdasOdenilen)</td>
+                        </tr>
+                        <tr>
+                            <td>✍ Əl ilə götürülən pul</td>
+                            <td class="num neg strong">@AppFormat.Money(_hesabat.ElIleXerci)</td>
+                        </tr>
+                        <tr>
+                            <td>👥 Tərəfdaş payı (dövrdə hesablandı) — <b>KASSADA QALIR</b> ✓ (xərc deyil ✗)</td>
+                            <td class="num strong">@AppFormat.Money(_hesabat.TerefdasPayi)</td>
+                        </tr>
+                        <tr>
+                            <td>👥 Tərəfdaşa verilməli qalıq — <b>HƏLƏ KASSADADIR</b> ✓</td>
+                            <td class="num strong">@AppFormat.Money(_hesabat.TerefdasVerilmeli)</td>
+                        </tr>
+                        <tr>
+                            <td><b>CƏMİ XƏRC</b></td>
+                            <td class="num neg strong">@AppFormat.Money(_hesabat.Xerc)</td>
+                        </tr>
+                        <tr>
+                            <td><b>⚖️ XALİS AXIN (daxil − xərc)</b></td>
+                            <td class="num strong @(_hesabat.Xalis >= 0 ? "pos" : "neg")">@AppFormat.Money(_hesabat.Xalis)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ==================== 🏷️ BÖLMƏLƏR ÜZRƏ CƏM ==================== *@
+    <div class="card">
+        <div class="card-head">🏷️ Kassa bölmələri üzrə cəm (dövr) — hər mənbə ayrı-ayrı ✓</div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Bölmə</th>
+                        <th class="num">Sətir</th>
+                        <th class="num">⬆ Gəlir</th>
+                        <th class="num">⬇ Xərc</th>
+                        <th class="num">⚖️ Xalis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_qrupCemleri.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty-cell">Bu dövrdə kassa hərəkəti yoxdur.</td></tr>
+                    }
+                    @foreach (var qrup in _qrupCemleri)
+                    {
+                        <tr>
+                            <td><b>@qrup.Qrup</b></td>
+                            <td class="num muted">@qrup.SetirSayi</td>
+                            <td class="num pos">@qrup.GelirMetni</td>
+                            <td class="num neg">@qrup.XercMetni</td>
+                            <td class="num strong @(qrup.Xalis >= 0m ? "pos" : "neg")">@AppFormat.Money(qrup.Xalis)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== ⏳ MÖHLƏTLƏR — GÖZLƏNİLƏN DAXİLOLMA ==================== *@
+    <div class="card">
+        <div class="card-head">
+            ⏳ Gözlənilən möhlətlər — «nə vaxt, nə qədər pul gələcək»
+            <span class="muted" style="font-weight:400;font-size:12px">
+                · pul gələndə «✅ Ödənildi» basın → məbləğ dərhal kassaya daxil olur ✓
+            </span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Söz verilən tarix</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Mənbə</th>
+                        <th>Vaxt</th>
+                        <th>Vəziyyət</th>
+                        <th style="width:230px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_gozlenilen.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty-cell">✓ Ödənilməmiş möhlət yoxdur — bütün möhlətlər ödənilib ✓</td></tr>
+                    }
+                    @foreach (var mohlet in _gozlenilen)
+                    {
+                        <tr>
+                            <td class="mono nowrap">@AppFormat.Date(mohlet.Tarix)</td>
+                            <td class="num strong" style="color:#d97706">@AppFormat.Money(mohlet.Mebleg)</td>
+                            <td class="muted">@mohlet.MenbeMetni</td>
+                            <td class="nowrap @(mohlet.Gecikmis ? "neg" : "")">@mohlet.QalanGunMetni</td>
+                            <td>
+                                <span class="@(mohlet.Gecikmis ? "st gecikmis" : "st mohlet")">@mohlet.Veziyyet</span>
+                            </td>
+                            <td>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-success btn-sm" @onclick="() => MohletOdenildiAsync(mohlet)"
+                                            title="Pul gəldi → məbləğ kassaya DAXİL olur ✓">
+                                        ✅ Ödənildi
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => MohletSilAsync(mohlet)">
+                                        🗑️ Sil
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== ✅ ÖDƏNİLMİŞ MÖHLƏTLƏR ==================== *@
+    <div class="card">
+        <div class="card-head">
+            ✅ Ödənilmiş möhlətlər — pul gəldi (kassaya daxil olub)
+            <span class="muted" style="font-weight:400;font-size:12px">· səhv olarsa «↩ Geri al»</span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ödənilmə tarixi</th>
+                        <th>Söz verilən tarix</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Mənbə</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_odenilmis.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty-cell">Hələ ödənilmiş möhlət yoxdur.</td></tr>
+                    }
+                    @foreach (var mohlet in _odenilmis)
+                    {
+                        <tr>
+                            <td class="mono nowrap pos">@AppFormat.Date(mohlet.OdenilmeTarixi)</td>
+                            <td class="mono nowrap muted">@AppFormat.Date(mohlet.Tarix)</td>
+                            <td class="num strong pos">@AppFormat.Money(mohlet.Mebleg)</td>
+                            <td class="muted">@mohlet.MenbeMetni</td>
+                            <td>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-ghost btn-sm" @onclick="() => MohletGeriAlAsync(mohlet)"
+                                            title="«Ödənildi» işarəsini geri al ✗ (məbləğ kassadan çıxacaq)">
+                                        ↩ Geri al
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== 📒 KASSA JURNALI ==================== *@
+    <div class="card">
+        <div class="card-head">
+            📒 Kassa jurnalı — daxil olan &amp; çıxan pul
+            <span class="muted" style="font-weight:400;font-size:12px">
+                · @_hesabat.SetirSayi sətir (dövr üzrə) · filtr yalnız CƏDVƏLİ dəyişir ✗ — yuxarıdaki CƏMLƏR həmişə dövr üzrədir ✓
+            </span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Növ</th>
+                        <th>Bölmə</th>
+                        <th>Kateqoriya</th>
+                        <th>İzahat</th>
+                        <th>Üsul</th>
+                        <th class="num">Məbləğ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (FilteredSetirler.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="empty-cell">
+                                @(_hesabat.SetirSayi == 0 ? "Bu dövrdə kassa hərəkəti yoxdur." : "Filtrə uyğun nəticə tapılmadı.")
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var setir in FilteredSetirler)
+                    {
+                        <tr>
+                            <td class="mono nowrap">@AppFormat.Date(setir.Tarix)</td>
+                            <td class="@(setir.IsDaxilolma ? "pos" : "neg")"><b>@setir.NovMetni</b></td>
+                            <td class="muted">@setir.Qrup</td>
+                            <td>@setir.Kateqoriya</td>
+                            <td class="muted" style="max-width:420px">@setir.Aciqlama</td>
+                            <td class="muted nowrap">@setir.OdenisUsulu</td>
+                            <td class="num strong @(setir.IsDaxilolma ? "pos" : "neg")">@setir.MeblegMetni</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ==================== ✍ ƏL İLƏ KASSA HƏRƏKƏTLƏRİ ==================== *@
+    <div class="card">
+        <div class="card-head">
+            ✍ Əl ilə kassa hərəkəti — kassaya qoyulan / kassadan götürülən pul
+            <span class="muted" style="font-weight:400;font-size:12px">
+                · jurnalın qalanı AVTOMATİK yaranır ✓
+            </span>
+        </div>
+
+        <div class="form-row">
+            <label class="field">
+                <span>Tarix</span>
+                <input type="date" @bind="_yeniTarix" />
+            </label>
+            <label class="field">
+                <span>Növ</span>
+                <select @bind="_yeniNov" @bind:after="NovDeyisdi">
+                    <option value="@KassaHereket.NovDaxilolma">➕ Daxilolma (kassaya gəlir)</option>
+                    <option value="@KassaHereket.NovXerc">➖ Xərc (kassadan çıxır)</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Kateqoriya (sərbəst yazıla bilər)</span>
+                <input type="text" list="kassa-kateqoriyalar" @bind="_yeniKateqoriya" placeholder="Kapital qoyuluşu…" />
+                <datalist id="kassa-kateqoriyalar">
+                    @foreach (var kateqoriya in Kateqoriyalar)
+                    {
+                        <option value="@kateqoriya"></option>
+                    }
+                </datalist>
+            </label>
+            <label class="field">
+                <span>Məbləğ (₼)</span>
+                <input type="number" step="0.01" @bind="_yeniMebleg" />
+            </label>
+            <label class="field">
+                <span>Ödəniş üsulu</span>
+                <select @bind="_yeniUsul">
+                    @foreach (var usul in Catalog.PaymentMethods)
+                    {
+                        <option value="@usul">@usul</option>
+                    }
+                </select>
+            </label>
+            <label class="field">
+                <span>Qeyd</span>
+                <input type="text" @bind="_yeniQeyd" placeholder="telefonla razılaşdıq…" />
+            </label>
+            <button class="btn btn-primary" @onclick="HereketElaveEtAsync" disabled="@(!CanWrite)">➕ Əlavə et</button>
+            <button class="btn btn-ghost" @onclick="HereketTemizle">🧹 Təmizlə</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarix</th>
+                        <th>Növ</th>
+                        <th>Kateqoriya</th>
+                        <th class="num">Məbləğ</th>
+                        <th>Üsul</th>
+                        <th>Qeyd</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_hereketler.Count == 0)
+                    {
+                        <tr><td colspan="7" class="empty-cell">Əl ilə yazılmış kassa hərəkəti yoxdur — yuxarıdaki formadan əlavə edin ✓</td></tr>
+                    }
+                    @foreach (var hereket in _hereketler)
+                    {
+                        <tr>
+                            <td class="mono nowrap">@AppFormat.Date(hereket.Tarix)</td>
+                            <td class="@(hereket.IsDaxilolma ? "pos" : "neg")"><b>@hereket.NovMetni</b></td>
+                            <td>@hereket.Kateqoriya</td>
+                            <td class="num strong @(hereket.IsDaxilolma ? "pos" : "neg")">
+                                @(hereket.IsDaxilolma ? "+" : "−")@AppFormat.Money(hereket.Mebleg)
+                            </td>
+                            <td class="muted">@hereket.OdenisUsulu</td>
+                            <td class="muted">@hereket.Qeyd</td>
+                            <td>
+                                @if (CanWrite)
+                                {
+                                    <button class="btn btn-danger btn-sm" @onclick="() => HereketSilAsync(hereket)">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly string[] RangeOptions =
+    {
+        "Bu gün", "Bu həftə", "Son 7 gün", "Bu ay", "Son 30 gün",
+        "Keçən ay", "Bu il", "Son 12 ay", "Bütün vaxt", "Fərdi aralıq"
+    };
+
+    private bool _loading = true;
+
+    /// <summary>Son kassa hesabatı — VAHİD düstur (<see cref="KassaHesabi"/>) ✓✓✓</summary>
+    private KassaHesabati _hesabat = new();
+
+    private List<OdenisMohlet> _gozlenilen = new();
+    private List<OdenisMohlet> _odenilmis = new();
+    private List<KassaHereket> _hereketler = new();
+    private List<KassaQrupCem> _qrupCemleri = new();
+
+    private DateTime _from = DateTime.Today;
+    private DateTime _to = DateTime.Today;
+
+    // ---- Dövr filtri ----
+    private string _range = "Bu ay";
+    private DateTime _fromDate = new(DateTime.Today.Year, 1, 1);
+    private DateTime _toDate = DateTime.Today;
+
+    // ---- Jurnal filtri ----
+    private string _novFiltri = "Hamısı";
+    private string _qrupFiltri = "Hamısı";
+    private string _axtaris = string.Empty;
+
+    // ---- ✍ Əl ilə forma ----
+    private DateTime _yeniTarix = DateTime.Today;
+    private string _yeniNov = KassaHereket.NovDaxilolma;
+    private string _yeniKateqoriya = KassaKategoriyalari.DigerDaxilolma;
+    private decimal _yeniMebleg;
+    private string _yeniUsul = Catalog.PaymentMethods[0];
+    private string _yeniQeyd = string.Empty;
+
+    /// <summary>Yazma icazəsi (yalnız oxuma rejimində düymələr bağlanır ✓).</summary>
+    private bool CanWrite => Options.Value.AllowWrite;
+
+    /// <summary>Jurnalda rast gəlinən bölmələr (qrup filtri üçün ✓).</summary>
+    private List<string> Qruplar => _hesabat.Setirler
+        .Select(s => s.Qrup)
+        .Where(q => !string.IsNullOrWhiteSpace(q))
+        .Distinct()
+        .OrderBy(q => q)
+        .ToList();
+
+    /// <summary>Seçilmiş növə uyğun kateqoriya siyahısı ✓.</summary>
+    private List<string> Kateqoriyalar => _yeniNov == KassaHereket.NovDaxilolma
+        ? KassaKategoriyalari.Daxilolmalar.ToList()
+        : KassaKategoriyalari.Xercler.ToList();
+
+    /// <summary>
+    /// 🔍 Filtrlənmiş jurnal sətirləri ✓✓✓
+    /// <para>⚠ CƏMLƏR (yuxarıdaki kartlar) DƏYİŞMİR ✗ — onlar həmişə DÖVR üzrədir ✓</para>
+    /// </summary>
+    private List<KassaSetiri> FilteredSetirler
+    {
+        get
+        {
+            var rows = _hesabat.Setirler.AsEnumerable();
+
+            if (_novFiltri.StartsWith("➕", StringComparison.Ordinal))
+            {
+                rows = rows.Where(s => s.IsDaxilolma);
+            }
+            else if (_novFiltri.StartsWith("➖", StringComparison.Ordinal))
+            {
+                rows = rows.Where(s => !s.IsDaxilolma);
+            }
+
+            if (!string.IsNullOrWhiteSpace(_qrupFiltri) && _qrupFiltri != "Hamısı")
+            {
+                rows = rows.Where(s => s.Qrup == _qrupFiltri);
+            }
+
+            var axtaris = (_axtaris ?? string.Empty).Trim();
+
+            if (axtaris.Length > 0)
+            {
+                var kicik = axtaris.ToLowerInvariant();
+                rows = rows.Where(s => s.AxtarisMetni.Contains(kicik));
+            }
+
+            return rows.ToList();
+        }
+    }
+
+    // ====================================================================
+    //  🗓️ DÖVRÜN HESABLANMASI  (masaüstü Maliyyə Paneli ilə EYNİ ✓✓✓)
+    // ====================================================================
+    private (DateTime From, DateTime To) GetRange()
+    {
+        var today = DateTime.Today;
+        var ayBasi = new DateTime(today.Year, today.Month, 1);
+
+        return _range switch
+        {
+            "Bu gün" => (today, today),
+            "Bu həftə" => (today.AddDays(-(int)today.DayOfWeek), today),
+            "Son 7 gün" => (today.AddDays(-6), today),
+            "Bu ay" => (ayBasi, today),
+            "Son 30 gün" => (today.AddDays(-29), today),
+            "Keçən ay" => (ayBasi.AddMonths(-1), ayBasi.AddDays(-1)),
+            "Bu il" => (new DateTime(today.Year, 1, 1), today),
+            "Son 12 ay" => (ayBasi.AddMonths(-11), today),
+            "Fərdi aralıq" => (_fromDate, _toDate),
+            _ => (new DateTime(2000, 1, 1), today)   // 📜 Bütün vaxt ✓
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DataChanges.Changed += OnExternalChange;
+        await LoadAsync();
+    }
+
+    // ====================================================================
+    //  🔄 YÜKLƏMƏ  (vahid düstur + möhlətlər + əl ilə hərəkətlər ✓✓✓)
+    // ====================================================================
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            var (from, to) = GetRange();
+            _from = from;
+            _to = to;
+
+            // ① 📊 HESABAT — KassaHesabi (masaüstü ilə EYNİ rəqəmlər ✓✓✓)
+            _hesabat = await KassaService.BuildAsync(from, to);
+
+            // ② 🏷️ Bölmələr üzrə cəm (jurnal sətirlərindən ✓)
+            _qrupCemleri = _hesabat.Setirler
+                .GroupBy(s => s.Qrup)
+                .OrderByDescending(g => g.Where(s => s.IsDaxilolma).Sum(s => s.Mebleg))
+                .ThenBy(g => g.Key)
+                .Select(g => new KassaQrupCem
+                {
+                    Qrup = g.Key,
+                    Gelir = g.Where(s => s.IsDaxilolma).Sum(s => s.Mebleg),
+                    Xerc = g.Where(s => !s.IsDaxilolma).Sum(s => s.Mebleg),
+                    SetirSayi = g.Count()
+                })
+                .ToList();
+
+            // ③ ✍ Əl ilə yazılan hərəkətlər
+            _hereketler = (await KassaService.GetHereketlerAsync()).ToList();
+
+            // ④ ⏳ Möhlətlər (ödənilməmiş ✓ / ödənilmiş ✓)
+            var butunMohletler = (await MohletService.GetAllAsync()).ToList();
+
+            _gozlenilen = butunMohletler
+                .Where(m => !m.Odenilib)
+                .OrderBy(m => m.Tarix)
+                .ToList();
+
+            _odenilmis = butunMohletler
+                .Where(m => m.Odenilib)
+                .OrderByDescending(m => m.OdenilmeTarixi ?? m.Tarix)
+                .Take(200)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kassa hesabatı yüklənə bilmədi: " + ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ====================================================================
+    //  ⏳ MÖHLƏT ƏMƏLİYYATLARI  (pul GƏLƏNDƏ → kassaya daxil olur ✓✓✓)
+    // ====================================================================
+    private async Task MohletOdenildiAsync(OdenisMohlet mohlet)
+    {
+        try
+        {
+            await MohletService.SetOdenildiAsync(mohlet.Id, true, DateTime.Today);
+            await LoadAsync();
+
+            Ui.Success($"✅ Möhlət ödənildi — {AppFormat.Money(mohlet.Mebleg)} kassaya DAXİL OLDU ✓ ({mohlet.MenbeMetni})");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Möhlət işarələnə bilmədi: " + ex.Message);
+        }
+    }
+
+    private async Task MohletGeriAlAsync(OdenisMohlet mohlet)
+    {
+        try
+        {
+            await MohletService.SetOdenildiAsync(mohlet.Id, false, null);
+            await LoadAsync();
+
+            Ui.Warn($"↩ «Ödənildi» işarəsi geri alındı — {AppFormat.Money(mohlet.Mebleg)} kassadan ÇIXARILDI ✗");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Geri alına bilmədi: " + ex.Message);
+        }
+    }
+
+    private async Task MohletSilAsync(OdenisMohlet mohlet)
+    {
+        try
+        {
+            await MohletService.DeleteAsync(mohlet.Id);
+            await LoadAsync();
+
+            Ui.Success($"🗑️ Möhlət silindi — {AppFormat.Money(mohlet.Mebleg)} ({mohlet.MenbeMetni})");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Möhlət silinə bilmədi: " + ex.Message);
+        }
+    }
+
+    // ====================================================================
+    //  ✍ ƏL İLƏ KASSA HƏRƏKƏTLƏRİ
+    // ====================================================================
+    private void NovDeyisdi()
+        => _yeniKateqoriya = Kateqoriyalar[0];
+
+    private async Task HereketElaveEtAsync()
+    {
+        if (_yeniMebleg <= 0m)
+        {
+            Ui.Warn("Məbləğ sıfırdan böyük olmalıdır.");
+            return;
+        }
+
+        try
+        {
+            await KassaService.AddHereketAsync(new KassaHereket
+            {
+                Tarix = _yeniTarix.Date,
+                Nov = _yeniNov,
+                Kateqoriya = _yeniKateqoriya,
+                Mebleg = _yeniMebleg,
+                OdenisUsulu = _yeniUsul,
+                Qeyd = _yeniQeyd
+            });
+
+            _yeniMebleg = 0m;
+            _yeniQeyd = string.Empty;
+
+            await LoadAsync();
+            Ui.Success("💵 Kassa hərəkəti yazıldı — cəmlər dərhal yeniləndi ✓");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kassa hərəkəti yazıla bilmədi: " + ex.Message);
+        }
+    }
+
+    private void HereketTemizle()
+    {
+        _yeniMebleg = 0m;
+        _yeniQeyd = string.Empty;
+        _yeniTarix = DateTime.Today;
+    }
+
+    private async Task HereketSilAsync(KassaHereket hereket)
+    {
+        try
+        {
+            await KassaService.DeleteHereketAsync(hereket.Id);
+            await LoadAsync();
+
+            Ui.Success("🗑️ Əl ilə yazılmış kassa hərəkəti silindi.");
+        }
+        catch (Exception ex)
+        {
+            Ui.Error("Kassa hərəkəti silinə bilmədi: " + ex.Message);
+        }
+    }
+
+    // ====================================================================
+    //  🔁 XARİCİ DƏYİŞİKLİK  (masaüstü ↔ veb CANLI sinxronizasiya ✓✓✓)
+    // ====================================================================
+    private void OnExternalChange(object? sender, EventArgs e)
+        => _ = InvokeAsync(LoadAsync);
+
+    public void Dispose() => DataChanges.Changed -= OnExternalChange;
+}
+

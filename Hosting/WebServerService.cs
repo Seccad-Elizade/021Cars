@@ -117,6 +117,22 @@ namespace EnterpriseAeroStudio.Hosting
             {
                 var baseDir = AppContext.BaseDirectory;
 
+                // ================================================================
+                //  ⓪ 🌐 AYRI «Web» ALT QOVLUĞU ✓✓✓ — ★ VACİB ★
+                // ----------------------------------------------------------------
+                //  ⚠ Web tətbiqi .NET 10, masaüstü tətbiq .NET 8-dir ✗ →
+                //    EYNİ qovluqda saxlanılsa `coreclr.dll` · `System.Runtime.dll`
+                //    kimi RUNTIME faylları TOQQUŞUR ✗ → biri MÜTLƏQ çökür ✗✓✓
+                //  ✅ İNDİ: web öz «Web» alt qovluğunda saxlanılır ✓ →
+                //    hər iki tətbiq öz runtime-ı ilə sakit işləyir ✓✓✓
+                // ================================================================
+                var webSub = Path.Combine(baseDir, "Web");
+
+                if (File.Exists(Path.Combine(webSub, exeName)))
+                {
+                    return webSub;
+                }
+
                 // 1) Publish zamanı veb tətbiq masaüstü tətbiqin yanında ola bilər.
                 if (File.Exists(Path.Combine(baseDir, exeName)))
                 {

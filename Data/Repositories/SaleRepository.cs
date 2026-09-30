@@ -13,6 +13,8 @@ namespace EnterpriseAeroStudio.Data.Repositories
             => await Context.Sales
                             .AsNoTracking()
                             .Include(s => s.Car)
+                            // ⏳ Nisyə (möhlətli) satışın ödəniş planı ✓✓✓
+                            .Include(s => s.Mohletler)
                             .OrderByDescending(s => s.SatisTarixi)
                             .ThenByDescending(s => s.Id)
                             .ToListAsync(cancellationToken);

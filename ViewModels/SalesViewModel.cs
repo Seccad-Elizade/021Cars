@@ -13,6 +13,7 @@ namespace EnterpriseAeroStudio.ViewModels
     {
         private readonly ISaleService _saleService;
         private readonly ICarService _carService;
+        private readonly IMohletService _mohletService;
         private readonly IDialogService _dialogs;
         private readonly ILogger<SalesViewModel> _logger;
         private readonly SemaphoreSlim _gate = new(1, 1);
@@ -38,6 +39,79 @@ namespace EnterpriseAeroStudio.ViewModels
         [ObservableProperty] private decimal monthRevenue;
         [ObservableProperty] private int barterSales;
         [ObservableProperty] private decimal barterRevenue;
+
+        // ====================================================================
+        //  ⏳ MÖHLƏTLİ (NİSYƏ) SATIŞ  (Satış tabı ✓✓✓)
+        // --------------------------------------------------------------------
+        //  İstifadəçinin tələbi:
+        //    «Satış tabında ödəniş üsuluna möhlət yazmaq lazımdır və BİRDƏN
+        //     ÇOX ola bilsin — elə bil ki nisyə satılır, maşın nə vaxt, nə
+        //     qədər ödəniləcək ✓✓✓»
+        // --------------------------------------------------------------------
+        //  Ödəniş üsulu «Möhlət (nisyə)» seçildikdə panel AVTOMATİK açılır ✓:
+        //     Satış qiyməti : 22 000 ₼
+        //     Dərhal        :  7 000 ₼  ← kassaya dərhal daxil olan pul ✓
+        //     Möhlətlər     : 10 000 ₼ → 21.10.2026 ✓
+        //                      5 000 ₼ → 21.11.2026 ✓
+        // ====================================================================
+
+        /// <summary>Formada yazılan möhlət (nisyə) ödənişləri ✓ — birdən çox ✓.</summary>
+        public ObservableCollection<OdenisMohlet> Mohletler { get; } = new();
+
+        /// <summary>Seçilmiş satışın möhlətləri (cədvəl detalları üçün ✓).</summary>
+        public ObservableCollection<OdenisMohlet> SelectedMohletler { get; } = new();
+
+        /// <summary>Seçilmiş satışın möhləti varmı?</summary>
+        public bool HasSelectedMohlet => SelectedMohletler.Count > 0;
+
+        /// <summary>Ödəniş üsulu «Möhlət (nisyə)»-dirmi?</summary>
+        public bool IsMohletli => Catalog.IsMohletliSatis(OdenisUsulu);
+
+        /// <summary>Möhlət paneli göstərilsinmi? (nisyə seçildikdə avtomatik ✓)</summary>
+        public bool MohletPanelGorunur => IsMohletli;
+
+        /// <summary>Satışda nağd/köçürmə hissəsi (₼) — barter hissəsi çıxılmaqla ✓.</summary>
+        public decimal NagdHisse =>
+            Math.Max(0m, SatisQiymeti - (IsBarter ? BarterMebleg : 0m));
+
+        /// <summary>Möhlətə salınmış məbləğlərin cəmi (₼).</summary>
+        public decimal MohletCemi => Mohletler.Sum(m => m.Mebleg);
+
+        /// <summary>
+        /// 💰 SATIŞDA DƏRHAL ödənilən pul (₼) = nağd hissə − möhlətlər ✓✓✓
+        /// (kassaya dərhal daxil olan məbləğ ✓)
+        /// </summary>
+        public decimal DerhalOdenilen => Math.Max(0m, NagdHisse - MohletCemi);
+
+        /// <summary>Forma üzrə möhlət xülasəsi (canlı ✓).</summary>
+        public string MohletXulase
+        {
+            get
+            {
+                if (Mohletler.Count == 0)
+                {
+                    return "➕ düyməsi ilə möhləti əlavə edin: «nə vaxt → nə qədər ödəniləcək» ✓";
+                }
+
+                var setirler = string.Join(" · ", Mohletler
+                    .OrderBy(m => m.Tarix)
+                    .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni}"));
+
+                return $"⏳ Nisyə {MohletCemi:N2} ₼  ·  dərhal {DerhalOdenilen:N2} ₼  ({setirler})";
+            }
+        }
+
+        /// <summary>Möhlət xülasəsinin rəngi (qiymətdən artıqdırsa qırmızı ⚠).</summary>
+        public string MohletRengi =>
+            MohletCemi > NagdHisse + 0.01m ? "#FB7185" : "#FBBF24";
+
+        /// <summary>Seçilmiş satışın möhlət xülasəsi.</summary>
+        public string SelectedMohletXulase => SelectedMohletler.Count == 0
+            ? "Bu satışda möhlət (nisyə) yoxdur."
+            : string.Join(" · ", SelectedMohletler
+                .OrderBy(m => m.Tarix)
+                .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni} {m.Veziyyet}"));
+
 
         // ---- Forma sahələri ----
         [ObservableProperty] private CarItem? selectedCar;
@@ -133,6 +207,85 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(IsBarter));
             OnPropertyChanged(nameof(BarterCashPart));
             OnPropertyChanged(nameof(BarterSummary));
+            OnPropertyChanged(nameof(IsMohletli));
+            OnPropertyChanged(nameof(MohletPanelGorunur));
+            MohletXulaseYenile();
+
+            // ================================================================
+            //  ⏳ NİSYƏ (MÖHLƏT) SEÇİMİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  «Möhlət (nisyə)» seçildikdə → ilk möhlət sətri AVTOMATİK açılır ✓
+            //  Başqa üsula keçildikdə → möhlət sətirləri təmizlənir ✓
+            //  (möhlət yalnız nisyə satışda məna daşıyır ✓)
+            // ================================================================
+            if (IsMohletli)
+            {
+                if (Mohletler.Count == 0)
+                {
+                    MohletElaveEt();
+                }
+            }
+            else if (Mohletler.Count > 0)
+            {
+                _logger.LogInformation(
+                    "⏳ Ödəniş üsulu «{Usul}» olduğu üçün {Say} möhlət sətri təmizləndi.",
+                    value, Mohletler.Count);
+
+                Mohletler.Clear();
+            }
+        }
+
+        /// <summary>➗ Məbləğ dəyişdikcə möhlət hesablamaları yenilənir ✓.</summary>
+        partial void OnSatisQiymetiChanged(decimal value)
+        {
+            // ⏳ Qiymət SONRADAN yazıldısa və möhlət sətri BOŞ qalıbsa (0 ₼) →
+            //    avtomatik tam məbləğ yazılır ✓ (istifadəçi sonra düzəldə bilər ✓)
+            if (Mohletler.Count == 1 && Mohletler[0].Mebleg <= 0m)
+            {
+                Mohletler[0].Mebleg = NagdHisse;
+            }
+
+            MohletXulaseYenile();
+        }
+
+        /// <summary>➗ Barter hissəsi dəyişdikcə möhlət hesablamaları yenilənir ✓.</summary>
+        partial void OnBarterMeblegChanged(decimal value) => MohletXulaseYenile();
+
+        /// <summary>
+        /// ➕ <b>YENİ möhlət sətri əlavə edir</b> ✓✓✓ (birdən çox ola bilər ✓)
+        /// <para>Məbləğ avtomatik: satış qiymətinin QALAN hissəsi ✓</para>
+        /// </summary>
+        [RelayCommand]
+        private void MohletElaveEt()
+        {
+            var qaliq = Math.Max(0m, NagdHisse - MohletCemi);
+
+            var mohlet = new OdenisMohlet
+            {
+                Menbe = OdenisMohlet.MenbeSatis,
+                Tarix = (SatisTarixi ?? DateTime.Today).AddDays(30),
+                Mebleg = qaliq,
+                OdenisUsulu = Catalog.PaymentMethods[0],
+                Sira = Mohletler.Count
+            };
+
+            Mohletler.Add(mohlet);
+            MohletXulaseYenile();
+
+            _logger.LogInformation("⏳ Nisyə satışa möhlət sətri əlavə edildi: {Xulase}", mohlet.Xulase);
+        }
+
+        /// <summary>✖ Möhlət sətrini silir ✓.</summary>
+        [RelayCommand]
+        private void MohletSil(OdenisMohlet? mohlet)
+        {
+            if (mohlet is null)
+            {
+                return;
+            }
+
+            Mohletler.Remove(mohlet);
+            MohletXulaseYenile();
         }
 
         [ObservableProperty]
@@ -142,13 +295,58 @@ namespace EnterpriseAeroStudio.ViewModels
         public SalesViewModel(
             ISaleService saleService,
             ICarService carService,
+            IMohletService mohletService,
             IDialogService dialogs,
             ILogger<SalesViewModel> logger)
         {
             _saleService = saleService;
             _carService = carService;
+            _mohletService = mohletService;
             _dialogs = dialogs;
             _logger = logger;
+
+            // ⏳ Möhlət sətirləri dəyişdikcə xülasə CANLI yenilənir ✓✓✓
+            Mohletler.CollectionChanged += (_, ə) =>
+            {
+                if (ə.NewItems is not null)
+                {
+                    foreach (OdenisMohlet yeni in ə.NewItems)
+                    {
+                        yeni.PropertyChanged += (_, __) => MohletXulaseYenile();
+                    }
+                }
+
+                MohletXulaseYenile();
+            };
+        }
+
+        /// <summary>Möhlət xülasəsini/hesablamalarını yeniləyir (canlı ✓).</summary>
+        private void MohletXulaseYenile()
+        {
+            OnPropertyChanged(nameof(MohletCemi));
+            OnPropertyChanged(nameof(DerhalOdenilen));
+            OnPropertyChanged(nameof(NagdHisse));
+            OnPropertyChanged(nameof(MohletXulase));
+            OnPropertyChanged(nameof(MohletRengi));
+        }
+
+        /// <summary>Seçilmiş satışın möhlətlərini panelə yükləyir ✓✓✓</summary>
+        partial void OnSelectedSaleChanged(Sale? value)
+        {
+            SelectedMohletler.Clear();
+
+            if (value is not null)
+            {
+                foreach (var mohlet in value.Mohletler
+                    .OrderBy(m => m.Tarix)
+                    .ThenBy(m => m.Id))
+                {
+                    SelectedMohletler.Add(mohlet);
+                }
+            }
+
+            OnPropertyChanged(nameof(HasSelectedMohlet));
+            OnPropertyChanged(nameof(SelectedMohletXulase));
         }
 
         /// <summary>Avtomobil seçildikdə əvvəlcə avtomobilin satış qiyməti, yoxdursa maya dəyəri təklif olunur.</summary>
@@ -280,6 +478,15 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
+            // ⏳ Möhlətə salınan məbləğ satışın NAĞD hissəsindən çox ola bilməz ✓✓✓
+            if (MohletCemi > NagdHisse + 0.01m)
+            {
+                _dialogs.ShowWarning(
+                    $"Möhlətə salınan məbləğ ({MohletCemi:N2} ₼) satışın nağd hissəsindən " +
+                    $"({NagdHisse:N2} ₼) çox ola bilməz. Zəhmət olmasa məbləğləri düzəldin.");
+                return;
+            }
+
             var added = false;
             await _gate.WaitAsync();
             try
@@ -302,6 +509,16 @@ namespace EnterpriseAeroStudio.ViewModels
                 await _saleService.AddSaleAsync(sale);
                 added = true;
 
+                // ⏳ MÖHLƏTLİ (NİSYƏ) SATIŞ — «nə vaxt → nə qədər ödəniləcək» ✓✓✓
+                if (sale.Id > 0 && IsMohletli && Mohletler.Count > 0)
+                {
+                    var say = await _mohletService.SaveForSaleAsync(sale.Id, Mohletler.ToList());
+
+                    _logger.LogInformation(
+                        "⏳ Satış #{Id}: {Say} möhlət ödənişi saxlanıldı (dərhal {Derhal:N2} ₼ · möhlət {Mohlet:N2} ₼)",
+                        sale.Id, say, DerhalOdenilen, MohletCemi);
+                }
+
                 // 👥 Tərəfdaş bölgüsü tətbiq olunubsa — satışın mənfəət payları yazılır
                 //    (XEYİR = Satış qiyməti − Maya dəyəri).
                 if (SatisBolguTetbiq && sale.Id > 0)
@@ -317,7 +534,25 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 _logger.LogInformation("Satış qeydə alındı: {Car} -> {Buyer} ({Price} AZN)",
                     SelectedCar.DisplayName, sale.Mustəri, sale.SatisQiymeti);
-                _dialogs.ShowInfo(BuildSaleResultMessage(sale));
+
+                // ⏳ Möhlət varsa — təsdiq mesajında ƏTRAFLI göstərilir ✓✓✓
+                var mesaj = BuildSaleResultMessage(sale);
+
+                if (IsMohletli && Mohletler.Count > 0)
+                {
+                    var setirler = string.Join(
+                        "\n",
+                        Mohletler
+                            .OrderBy(m => m.Tarix)
+                            .Select(m => $"   • {m.Mebleg:N2} ₼  →  {m.TarixMetni}  ({m.OdenisUsulu})"));
+
+                    mesaj += "\n\n⏳ MÖHLƏTLİ (NİSYƏ) SATIŞ\n" +
+                             $"   Dərhal ödənilən : {DerhalOdenilen:N2} ₼\n" +
+                             $"   Möhlətə yazılan : {MohletCemi:N2} ₼\n{setirler}\n\n" +
+                             "ℹ️ Möhlət ÖDƏNİLDİKDƏ kassaya daxil olacaq (💵 Kassa tabı) ✓";
+                }
+
+                _dialogs.ShowInfo(mesaj);
                 ClearForm();
             }
             catch (Exception ex)
@@ -544,6 +779,10 @@ namespace EnterpriseAeroStudio.ViewModels
             ReceivedSatisQiymeti = 0m;
             Qeyd = string.Empty;
             SatisBolguSifirla();
+
+            // ⏳ Möhlət sətirləri də təmizlənir ✓✓✓
+            Mohletler.Clear();
+
             ClearErrors();
         }
 

@@ -45,6 +45,21 @@ function PublishEt {
     if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }
     New-Item -ItemType Directory -Path $publish -Force | Out-Null
 
+    # ================================================================
+    #  ⚠⚠ MÜTLƏQ TƏMİZLƏMƏ ✓✓✓ — ★ VACİB ★ (2026-09-29)
+    # ----------------------------------------------------------------
+    #  Köhnə `obj`/`bin` qalsa → VEB layihəsinin (.NET 10) runtime faylları
+    #  MASAÜSTÜ tətbiqin (.NET 8) publish-inə QARIŞIR ✗ →
+    #  `coreclr.dll` = 10.x ✗ + `WindowsBase.dll` = 8.x ✗ →
+    #  «Could not load System.Runtime / WindowsBase» ✗ → PROQRAM AÇILMIR ✗✓✓
+    # ================================================================
+    Write-Host "  🧹 Köhnə obj/bin təmizlənir (vacib ✓)…" -ForegroundColor DarkGray
+
+    foreach ($q in @("bin\$Konfiq\net8.0-windows", "obj\$Konfiq\net8.0-windows")) {
+        $tam = Join-Path $kök $q
+        if (Test-Path $tam) { Remove-Item $tam -Recurse -Force -EA 0 }
+    }
+
     # 🖥️ Masaüstü tətbiq (öz-özünə işləyən ✓ — .NET quraşdırmaq lazım DEYİL ✗✓✓)
     Write-Host "  🖥️ Masaüstü tətbiq..." -ForegroundColor Yellow
     dotnet publish (Join-Path $kök "EnterpriseAeroStudio.csproj") `

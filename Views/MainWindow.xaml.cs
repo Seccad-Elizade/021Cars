@@ -23,6 +23,17 @@ namespace EnterpriseAeroStudio.Views
         private WindowStyle _previousStyle = WindowStyle.SingleBorderWindow;
         private ResizeMode _previousResizeMode = ResizeMode.CanResize;
 
+        // ================================================================
+        //  🚀 «DAHA ÇOX YÜKLƏ» — TƏHLÜKƏSİZ (layout-dan KƏNAR) ✓✓✓
+        // ----------------------------------------------------------------
+        //  ⚠ ƏVVƏL yükləmə `LoadingRow`-dan başladılırdı ✗ → cədvəl sətir
+        //    yaradarkən kolleksiya dəyişirdi ✗ → WPF:
+        //    «An ItemsControl is inconsistent with its items source» ✗✓✓
+        //  ✅ İNDİ: scroll dayanır → 600 ms sonra taymer yükləyir ✓
+        // ================================================================
+        private DispatcherTimer? _xercDahaCoxTaymeri;
+        private bool _xercScrollBagli;
+
         public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();
@@ -468,8 +479,18 @@ namespace EnterpriseAeroStudio.Views
                 BuludUsbSaniyeQutusu.Text = cari.UsbSaniye.ToString();
                 BuludYerliSaniyeQutusu.Text = cari.YerliSaniye.ToString();
 
+                // ☁️ AÇAR VƏZİYYƏTİ ✓ (təmiz quraşdırmada BAĞLI gəlir ✓ — tətbiq BOŞ açılır ✓)
+                BuludAvtomatikQutusu.IsChecked = cari.Avtomatik;
+
                 BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
                 BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
+
+                if (Cas0201.Firebase.BuludAyarlari.TemizQurasdirma)
+                {
+                    BuludAyarNeticeText.Text =
+                        "🆕 Təmiz quraşdırma ✓ — bulud sinxronizasiyası BAĞLIDIR ✗ (tətbiq boş açılır ✓). " +
+                        "Buluddaki köhnə məlumatı götürmək üçün ☁️ işarəsini qoyun və «💾 YADDA SAXLA» basın ✓";
+                }
             }
             catch (Exception ex)
             {
@@ -500,14 +521,31 @@ namespace EnterpriseAeroStudio.Views
                     yerliSaniye = Cas0201.Firebase.BuludAyarlari.Cari.YerliSaniye;
                 }
 
+                var avtomatik = BuludAvtomatikQutusu.IsChecked == true;
+
                 var netice = await Cas0201.Firebase.BuludAyarlari
-                    .YaddaSaxlaAsync(_buludAyarKlienti, saniye, usbSaniye, yerliSaniye);
+                    .YaddaSaxlaAsync(_buludAyarKlienti, saniye, usbSaniye, yerliSaniye, avtomatik);
 
                 BuludAyarNeticeText.Text = netice;
                 BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
 
                 // ⚡ DƏRHAL tətbiq olunur ✓ — proqramı yenidən başlatmaq LAZIM DEYİL ✗✓✓
                 Cas0201.Firebase.BuludAyarlari.TətbiqEt(App.Kopru);
+
+                // ☁️ AÇAR: yandırıldı → körpü BAŞLAYIR ✓ · söndürüldü → DAYANIR ✗✓✓
+                if (avtomatik)
+                {
+                    App.Kopru?.Basla();
+
+                    BuludAyarNeticeText.Text += "\n☁️ Bulud sinxronizasiyası YANDIRILDI ✓";
+                }
+                else
+                {
+                    App.Kopru?.Dayandir();
+
+                    BuludAyarNeticeText.Text +=
+                        "\n✗ Bulud sinxronizasiyası SÖNDÜRÜLDÜ ✓ — buluddan heç nə oxunmur / yazılmır ✗";
+                }
             }
             catch (Exception ex)
             {
@@ -587,31 +625,87 @@ namespace EnterpriseAeroStudio.Views
         }
 
         /// <summary>
-        /// 🚀 <b>AVTOMATİK «DAHA ÇOX YÜKLƏ»</b> ✓✓✓
+        /// 🚀 <b>AVTOMATİK «DAHA ÇOX YÜKLƏ» — TƏHLÜKƏSİZ VERSİYA</b> ✓✓✓
         /// <para>
-        /// Cədvəldə 30 sətir qaldıqda növbəti səhifə avtomatik oxunur ✓ →
-        /// istifadəçi aşağı sürüşdükcə məlumat «axır» ✓ (gözləmə yoxdur ✓)
+        /// ⚠⚠ <b>ƏVVƏL (XƏTANIN KÖKÜ ✗✓✓):</b> yükləmə <c>LoadingRow</c> hadisəsindən
+        /// başladılırdı ✗ — bu hadisə WPF-in <b>sətir yaratma (layout) dövrünün
+        /// İÇİNDƏ</b> baş verir ✗ → kolleksiya həmin anda dəyişəndə cədvəlin
+        /// <c>ItemContainerGenerator</c>-i
+        /// «<i>An ItemsControl is inconsistent with its items source</i>»
+        /// xətası verirdi ✗✓✓
         /// </para>
         /// <para>
-        /// ⚠ AĞIR DEYİL: yalnız 200 sətirlik səhifə oxunur ✓ (arxa fonda ✓)
+        /// ✅ <b>İNDİ:</b> scroll hadisəsi yalnız «yükləməyi PLANLA» işarəsi qoyur ✓;
+        /// yükləmə <b>scroll DAYANDIQDAN 600 ms SONRA</b>,
+        /// <see cref="DispatcherTimer"/> vasitəsilə — yəni layout-dan TAMAMİLƏ
+        /// KƏNARDA, sakit vəziyyətdə ✓ — başlayır ✓✓✓
         /// </para>
         /// </summary>
-        private void ExpenseGrid_LoadingRow(object? sender, DataGridRowEventArgs e)
+        private void ExpenseGrid_Loaded(object sender, RoutedEventArgs e)
         {
-            if (sender is not DataGrid grid || grid.Items.Count == 0)
+            if (sender is not DataGrid grid || _xercScrollBagli)
             {
                 return;
             }
 
-            if (e.Row.GetIndex() < grid.Items.Count - 30)
+            _xercScrollBagli = true;
+
+            // 🌊 Cədvəlin DAXİLİ ScrollViewer-inin scroll hadisəsi ✓
+            //    (`ScrollChanged` bubble edir ✓ → DataGrid-də tutulur ✓)
+            grid.AddHandler(ScrollViewer.ScrollChangedEvent,
+                new ScrollChangedEventHandler(ExpenseGrid_ScrollChanged));
+        }
+
+        /// <summary>Cədvəlin daxili scroll hadisəsi — YALNIZ PLANLA qoyur ✓ (yükləmir ✗).</summary>
+        private void ExpenseGrid_ScrollChanged(object? sender, ScrollChangedEventArgs e)
+        {
+            // ⚠ Yalnız cədvəlin ÖZ scroll-u ✓ (səhifənin scroll-u DEYİL ✗)
+            if (e.OriginalSource is not ScrollViewer sv || !ReferenceEquals(sv.TemplatedParent, ExpenseGrid))
             {
-                return;   // hələ aşağıdadır ✗ — gözlə ✓
+                return;
             }
 
-            if (_viewModel.Expenses.DahaCoxYukleCommand.CanExecute(null))
+            if (e.VerticalChange == 0 && e.ExtentHeightChange == 0 && e.ViewportHeightChange == 0)
             {
-                _viewModel.Expenses.DahaCoxYukleCommand.Execute(null);
+                return;
             }
+
+            // 📏 Sondan 600 pikseldən çox uzaqdadırsa → gözlə ✓ (planı ləğv et ✓)
+            if (sv.ScrollableHeight - sv.VerticalOffset > 600)
+            {
+                _xercDahaCoxTaymeri?.Stop();
+                return;
+            }
+
+            XercDahaCoxPlanla();
+        }
+
+        /// <summary>
+        /// ⏱ <b>YÜKLƏMƏNİ PLANLA</b> ✓ — taymer hər scroll-da YENİDƏN başlayır ✓ →
+        /// yalnız istifadəçi sürüşdürməyi DAYANDIRANDA (600 ms ✓) işə düşür ✓✓✓
+        /// </summary>
+        private void XercDahaCoxPlanla()
+        {
+            if (_xercDahaCoxTaymeri is null)
+            {
+                _xercDahaCoxTaymeri = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+                {
+                    Interval = TimeSpan.FromMilliseconds(600)
+                };
+
+                _xercDahaCoxTaymeri.Tick += (_, _) =>
+                {
+                    _xercDahaCoxTaymeri?.Stop();
+
+                    if (_viewModel.Expenses.DahaCoxYukleCommand.CanExecute(null))
+                    {
+                        _viewModel.Expenses.DahaCoxYukleCommand.Execute(null);
+                    }
+                };
+            }
+
+            _xercDahaCoxTaymeri.Stop();
+            _xercDahaCoxTaymeri.Start();
         }
 
         /// <summary>

@@ -13,6 +13,8 @@ namespace EnterpriseAeroStudio.Data.Repositories
             => await Context.Credits
                             .AsNoTracking()
                             .Include(c => c.Car)
+                            // ⏳ İlkin ödənişə verilən möhlətlər (bax: OdenisMohlet ✓✓✓)
+                            .Include(c => c.IlkinMohletleri)
                             .OrderByDescending(c => c.Id)
                             .ToListAsync(cancellationToken);
     }

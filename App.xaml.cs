@@ -453,6 +453,8 @@ namespace EnterpriseAeroStudio
             services.AddTransient<IPartnerShareRepository, PartnerShareRepository>();
             services.AddTransient<IPartnerRepository, PartnerRepository>();
             services.AddTransient<IPartnerPaymentRepository, PartnerPaymentRepository>();
+        services.AddTransient<IOdenisMohletRepository, OdenisMohletRepository>();
+        services.AddTransient<IKassaHereketRepository, KassaHereketRepository>();
 
             // ---- Services ----
             services.AddTransient<ICarService, CarService>();
@@ -466,6 +468,8 @@ namespace EnterpriseAeroStudio
             services.AddTransient<ICreditService, CreditService>();
             services.AddTransient<ISaleService, SaleService>();
             services.AddTransient<IPartnerService, PartnerService>();
+        services.AddTransient<IMohletService, MohletService>();
+        services.AddSingleton<IKassaService, KassaService>();
 
             services.AddSingleton<IExportService, ExportService>();
             services.AddSingleton<IReportService, ReportService>();
@@ -500,6 +504,7 @@ namespace EnterpriseAeroStudio
             services.AddSingleton<CreditsViewModel>();
             services.AddSingleton<CreditTransactionsViewModel>();
             services.AddSingleton<FinanceViewModel>();
+        services.AddSingleton<KassaViewModel>();
             services.AddSingleton<PartnersViewModel>();
 
             // 📜 «Skript İdxalı» tabı ✓✓✓

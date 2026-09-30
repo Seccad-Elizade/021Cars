@@ -64,6 +64,16 @@ namespace Cas0201.Firebase
         public int FasileSaniye { get; set; } = 10;
 
         /// <summary>
+        /// ☁️ <b>BULUD SİNXRONİZASİYASI AKTİVDİRMİ?</b> ✓✓✓
+        /// <para>
+        /// <c>false</c> → körpü <b>HEÇ İŞLƏMİR</b> ✗ — buluddan heç nə OXUNMUR və
+        /// heç nə YAZILMIR ✗✓✓ (təmiz quraşdırma ✓: tətbiq <b>BOŞ</b> açılır ✓)
+        /// </para>
+        /// <para>⚙️ Dəyər <see cref="BuludAyarlari.Cari"/>.<c>Avtomatik</c>-dən gəlir ✓</para>
+        /// </summary>
+        public bool Aktiv { get; set; } = true;
+
+        /// <summary>
         /// 🗑️ <b>FİZİKİ SİLİNƏ?</b> ✓✓✓ — <c>true</c> (default ✓):
         /// SQLite-dan silinən qeyd buluddan <b>TAM SİLİNİR</b> ✓ (yer tutmur ✗ ✓)
         /// <para><c>false</c> → yalnız soft-delete ✓ (isDeleted = true ✓)</para>
@@ -197,6 +207,15 @@ namespace Cas0201.Firebase
         /// </summary>
         public void Basla()
         {
+            // ☁️ SÖNÜLÜDÜRSƏ → HEÇ BAŞLAMIR ✗✓✓ (təmiz quraşdırma ✓ — buluddan heç nə oxunmur ✗)
+            if (!Aktiv)
+            {
+                AppLogger.Melumat(
+                    "☁️ Bulud körpüsü SÖNÜLÜDÜR ✗ — avtomatik sinxron başlamadı ✓ " +
+                    "(yandırmaq: ⚙️ Tənzimləmələr → ☁️ BULUD SİNXRON ✓)");
+                return;
+            }
+
             lock (_dovruKilidi)
             {
                 if (Isleyir) return;                  // 🔁 artıq işləyir ✓ — ikinci dövr AÇILMIR ✗

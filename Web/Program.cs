@@ -206,6 +206,8 @@ builder.Services.AddTransient<ISaleRepository, SaleRepository>();
 builder.Services.AddTransient<IPartnerShareRepository, PartnerShareRepository>();
 builder.Services.AddTransient<IPartnerRepository, PartnerRepository>();
 builder.Services.AddTransient<IPartnerPaymentRepository, PartnerPaymentRepository>();
+builder.Services.AddTransient<IOdenisMohletRepository, OdenisMohletRepository>();
+builder.Services.AddTransient<IKassaHereketRepository, KassaHereketRepository>();
 
 
 // ---------------------------------------------------------------------- Services
@@ -217,6 +219,8 @@ builder.Services.AddTransient<IMediaService, MediaService>();
 builder.Services.AddTransient<ICreditService, CreditService>();
 builder.Services.AddTransient<ISaleService, SaleService>();
 builder.Services.AddTransient<IPartnerService, PartnerService>();
+builder.Services.AddTransient<IMohletService, MohletService>();
+builder.Services.AddSingleton<IKassaService, KassaService>();
 
 builder.Services.AddSingleton<IExportService, ExportService>();
 builder.Services.AddTransient<DbInitializer>();

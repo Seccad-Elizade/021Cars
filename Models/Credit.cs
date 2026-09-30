@@ -34,6 +34,67 @@ namespace EnterpriseAeroStudio.Models
         /// <summary>İlkin ödəniş (avans) məbləği (AZN).</summary>
         public decimal IlkinOdenis { get; set; }
 
+        // ====================================================================
+        //  ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT  (Kreditlər tabı ✓✓✓)
+        // --------------------------------------------------------------------
+        //  Müştəri BİR HİSSƏ avansı dərhal verir, qalanını söz verir:
+        //  «3 min nağd ilkin ödəniş, 10 günə 2 min nağd» ✓
+        //  → İlkinOdenis = 5 000 ✓  (möhlətlər BUNUN İÇİNDƏDİR ✓)
+        //  → Dərhal ödənilən = 5 000 − 2 000 = 3 000 ✓ (avtomatik hesablanır ✓)
+        //  BİRDƏN ÇOX möhlət ola bilər ✓ (bax: OdenisMohlet) ✓✓✓
+        // ====================================================================
+
+        /// <summary>Bu kreditin <b>ilkin ödənişinə</b> yazılmış möhlətlər ✓.</summary>
+        [NotMapped]
+        public List<OdenisMohlet> IlkinMohletleri { get; set; } = new();
+
+        /// <summary>Möhlətə salınmış (hələ ödənilməmiş də ola bilər) avans hissəsinin cəmi (₼).</summary>
+        [NotMapped]
+        public decimal IlkinMohletCemi => IlkinMohletleri.Sum(m => m.Mebleg);
+
+        /// <summary>
+        /// ⏳ HƏLƏ ÖDƏNİLMƏMİŞ möhlətlərin cəmi (₼) — «gözlənilən pul» ✓✓✓
+        /// <para>Kassa axınında gəlirə YAZILMIR ✗ — yalnız pul gələndə yazılır ✓</para>
+        /// </summary>
+        [NotMapped]
+        public decimal IlkinMohletGozlenilen =>
+            IlkinMohletleri.Where(m => !m.Odenilib).Sum(m => m.Mebleg);
+
+        /// <summary>
+        /// 💰 İlkin ödənişin <b>DƏRHAL</b> ödənilən hissəsi (₼) = avans − möhlətlər ✓✓✓
+        /// </summary>
+        [NotMapped]
+        public decimal IlkinDerhalOdenilen => Math.Max(0m, IlkinOdenis - IlkinMohletCemi);
+
+        /// <summary>İlkin ödənişə möhlət yazılıbmı?</summary>
+        [NotMapped]
+        public bool IlkinMohletVar => IlkinMohletleri.Count > 0;
+
+        /// <summary>
+        /// İlkin ödənişin yanında göstərilən möhlət xülasəsi:
+        /// «⏳ Möhlət: 2 000,00 ₼ (10 günə) · dərhal 3 000,00 ₼».
+        /// </summary>
+        [NotMapped]
+        public string IlkinMohletMetni
+        {
+            get
+            {
+                if (IlkinMohletleri.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                var setirler = IlkinMohletleri
+                    .OrderBy(m => m.Tarix)
+                    .ThenBy(m => m.Id)
+                    .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni}{(m.Odenilib ? " ✅" : string.Empty)}");
+
+                return $"⏳ Möhlət: {IlkinMohletCemi:N2} ₼  ·  dərhal {IlkinDerhalOdenilen:N2} ₼"
+                       + $"  ({string.Join(" · ", setirler)})";
+            }
+        }
+
+
         /// <summary>
         /// Kreditləşdirilən (faktiki borc) məbləğ = Mebleg − İlkin ödəniş.
         /// Ödəniş qrafiki bunun üzərindən hesablanır.

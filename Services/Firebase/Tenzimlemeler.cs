@@ -56,6 +56,20 @@ namespace Cas0201.Firebase
         /// <summary>⚙️ Cari ayarlar ✓ (tətbiq boyu BİR ✓)</summary>
         [JsonIgnore] public static BuludAyarlari Cari { get; private set; } = new();
 
+        /// <summary>
+        /// 🆕 <b>TƏMİZ QURAŞDIRMA?</b> ✓✓✓ — yerli <c>bulud_ayarlari.json</c> faylı
+        /// <b>YOX</b> ikən <c>true</c> olur ✓
+        /// <para>
+        /// ⚠ Nə üçün vacibdir? Təmiz quraşdırmada tətbiq <b>HEÇ NƏ</b> çəkməməlidir ✗ —
+        /// nə verilənlər ✓, nə də buluddaki ayarlar ✓ (əks halda buluddaki
+        /// «Avtomatik: true» yerli «söndürülmüş» vəziyyəti geri yandırırdı ✗✓✓✓)
+        /// </para>
+        /// <para>
+        /// 🔓 İstifadəçi ayarı ÖZÜ saxlayan kimi (<c>💾 YADDA SAXLA</c> ✓) bu qapı açılır ✓
+        /// </para>
+        /// </summary>
+        [JsonIgnore] public static bool TemizQurasdirma { get; private set; }
+
         /// <summary>📣 Ayar dəyişdi ✓ (UI + körpü yenilənir ✓)</summary>
         public static event Action? Deyisdi;
 
@@ -73,12 +87,20 @@ namespace Cas0201.Firebase
             ? $"✅ Dəyişiklik icazəniz var ✓ ({AuthService.Cari?.RolMetni})"
             : "⛔ Bu ayarları yalnız 👑 BAŞ ADMIN və 🛡️ BAŞ İNZİBATÇI dəyişə bilər ✗";
 
-        /// <summary>📖 Yerli fayldan yükləyir ✓ (yoxdursa standart ✓)</summary>
+        /// <summary>📖 Yerli fayldan yükləyir ✓ (yoxdursa standard ✓)</summary>
         public static void Yukle()
         {
+            // 🆕 ★ TƏMİZ QURAŞDIRMA AŞKARLANMASI ★ ✓✓✓
+            //   ⚠️ Fayl YOXDURSA → bu, YENİ quraşdırmadır ✓ →
+            //      bulud sinxronizasiyası STANDART OLARAQ SÖNÜLÜ başlayır ✗✓✓
+            //   (əks halda tətbiq ilk saniyədən buluddaki KÖHNƏ maşınları/kreditləri
+            //    yerli bazaya «çəkirdi» ✗ → müştəri paketində başqasının datası
+            //    görünürdü ✗✓✓✓ — istifadəçi tələbi: «içində heç bir maşın datası olmadan» ✓)
+            var faylVar = File.Exists(Fayl);
+
             try
             {
-                if (File.Exists(Fayl))
+                if (faylVar)
                 {
                     Cari = JsonSerializer.Deserialize<BuludAyarlari>(File.ReadAllText(Fayl))
                            ?? new BuludAyarlari();
@@ -88,6 +110,26 @@ namespace Cas0201.Firebase
             {
                 AppLogger.Xeberdarliq($"⚠️ Ayar faylı oxunmadı ✗ → standart ✓ — {ex.Message}");
                 Cari = new BuludAyarlari();
+            }
+
+            if (!faylVar)
+            {
+                TemizQurasdirma = true;      // 🆕 ★ təmiz quraşdırma qapısı ★ ✓✓✓
+                Cari.Avtomatik = false;
+                Cari.SonDeyisen = Environment.MachineName;
+                Cari.Yenilenme = FirebaseOptions.UtcIndi();
+
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Fayl) ?? ".");
+                    File.WriteAllText(Fayl, JsonSerializer.Serialize(Cari,
+                        new JsonSerializerOptions { WriteIndented = true }));
+                }
+                catch { }
+
+                AppLogger.Melumat(
+                    "🆕 Təmiz quraşdırma ✓ — bulud sinxronizasiyası SÖNÜLÜ başladı ✗ " +
+                    "(tətbiq BOŞ açılır ✓ · yandırmaq üçün: ⚙️ Tənzimləmələr → ☁️ BULUD SİNXRON ✓)");
             }
 
             Normalize();
@@ -118,6 +160,10 @@ namespace Cas0201.Firebase
                 if (usbSaniye.HasValue) Cari.UsbSaniye = usbSaniye.Value;
                 if (yerliSaniye.HasValue) Cari.YerliSaniye = yerliSaniye.Value;
                 if (avtomatik.HasValue) Cari.Avtomatik = avtomatik.Value;
+
+                // 🔓 İstifadəçi (👑 Admin / 🛡️ Asif) ayarı ÖZÜ saxladı ✓ →
+                //    təmiz quraşdırma qapısı AÇILIR ✓ (bulud sinxron artıq mümkündür ✓✓✓)
+                TemizQurasdirma = false;
 
                 Normalize();
 
@@ -175,6 +221,16 @@ namespace Cas0201.Firebase
         public static async Task YukleBuluddanAsync(
             FirebaseRestClient klient, CancellationToken ct = default)
         {
+            // 🆕 ★ TƏMİZ QURAŞDIRMA ★ ✓✓✓ — yerli ayar faylı YOX idi ✓ →
+            //   buluddan AYAR ÇƏKİLMİR ✗✓✓ (əks halda buluddaki «Avtomatik: true»
+            //   yerli «söndürülmüş» vəziyyəti DƏRHAL geri yandırırdı ✗ →
+            //   yeni quraşdırmada KÖHNƏ maşınlar yerli bazaya çəkilirdi ✗✗✗)
+            //   ✔ İstifadəçi ayarı ÖZÜ saxlayan kimi («💾 YADDA SAXLA» ✓) bu qapı açılır ✓
+            if (TemizQurasdirma)
+            {
+                return;
+            }
+
             try
             {
                 var node = await klient.OxuAsync(NodeAdi, ct).ConfigureAwait(false);
@@ -245,6 +301,11 @@ namespace Cas0201.Firebase
                 kopru.FasileSaniye = Math.Clamp(Cari.FirebaseSaniye, 10, 3600);   // ⏱️ ✓
                 kopru.YedekSaniye = Math.Clamp(Cari.UsbSaniye, 120, 86400);       // 💾 ✓
                 kopru.YerliYedekSaniye = Math.Clamp(Cari.YerliSaniye, 120, 86400); // 🖥️ ✓
+
+                // ☁️ ③ AKTİV/SÖNÜLÜ ✓✓✓ — ★ KÖRPÜ AÇARI ★
+                //    false → körpü HEÇ İŞLƏMİR ✗ (buluddan heç nə OXUNMUR ✗✓✓)
+                //    ✔ Təmiz quraşdırmada standart olaraq SÖNÜLÜDÜR ✓
+                kopru.Aktiv = Cari.Avtomatik;
             }
             catch (Exception ex)
             {

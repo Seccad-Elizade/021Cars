@@ -18,7 +18,7 @@
     <AssemblyName>021Cars_Installer</AssemblyName>
     <RootNamespace>Cas0201.Setup</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>6.2.0</Version>
+    <Version>6.2.2</Version>
     <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
     <Product>021Cars — Avtomobil Parkı</Product>
     <Company>021Cars</Company>

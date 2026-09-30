@@ -43,6 +43,14 @@ namespace EnterpriseAeroStudio.Services
         private const string SenedQrupu = "📄 Sənədləşmə & DYP Xərcləri";
         private const string AlisQrupu = "💰 Alış & Maya Xərcləri";
 
+        /// <summary>
+        /// 📜 <b>SKRİPT İDXALI QRUPU</b> ✓✓✓ — idxal zamanı YARANAN (yəni
+        /// proqramın standart siyahısında olmayan) bütün kateqoriyalar bu
+        /// qrupda toplanır ✓. Proqram qrupu <b>ÖZÜ yaradır</b> ✓ — beləliklə
+        /// standart qruplar («⚙️ Mühərrik…» · «👤 Usta…») təmiz qalır ✓✓✓
+        /// </summary>
+        private const string SkriptQrupu = Catalog.ImportedExpenseGroup;
+
         /// <summary>Bir uyğunlaşdırma qaydası: açar sözlər → qrup + (varsa) kateqoriya ✓.</summary>
         private sealed record Qayda(string[] Acarlar, string Qrup, string? Kategoriya);
 
@@ -178,6 +186,22 @@ namespace EnterpriseAeroStudio.Services
                 return sonuc;
             }
 
+            // ================================================================
+            //  📜 SKRİPT İDXALI QRUPU  (yalnız YAZARKƏN ✓)
+            // ----------------------------------------------------------------
+            //  ① «📜 Skript İdxalı» qrupu yoxdursa YARADILIR ✓
+            //  ② Əvvəlki idxallarda yaranmış (standart olmayan) kateqoriyalar
+            //     + onların xərc sətirləri həmin qrupa KÖÇÜRÜLÜR ✓✓✓
+            //  ⚠ Bu addım kataloq oxunmadan ƏVVƏL yerinə yetirilir ✓ —
+            //     beləliklə uyğunlaşdırma artıq DÜZGÜN qrupu görür ✓✓✓
+            // ================================================================
+            var qrupKocurme = new KocurmeNeticesi(0, 0);
+
+            if (yaz)
+            {
+                qrupKocurme = await _kataloq.MoveImportedCategoriesToGroupAsync(cancellationToken);
+            }
+
             // Kateqoriya bazası BİR DƏFƏ oxunur ✓ (sürət ✓)
             var (kataloq, movcudQruplar) = await KataloquOkuAsync(cancellationToken);
 
@@ -190,6 +214,14 @@ namespace EnterpriseAeroStudio.Services
                 ? "📥 SKRİPT İDXALI — məlumatlar bazaya YAZILIR ✓"
                 : "🔎 SKRİPT YOXLAMASI — heç nə yazılmır ✗ (yalnız nə olacağı göstərilir ✓)");
             sonuc.Yaz($"📅 {DateTime.Now:dd.MM.yyyy HH:mm} · 📜 skriptdə {siyahi.Count} avtomobil ✓");
+            sonuc.Yaz($"📜 Kateqoriya qrupu: «{SkriptQrupu}» ✓ (yeni kateqoriyalar avtomatik burada toplanır ✓)");
+
+            if (qrupKocurme.KateqoriyaSayi > 0 || qrupKocurme.XercSayi > 0)
+            {
+                sonuc.Yaz($"      ↳ köhnə idxal kateqoriyaları köçürüldü: " +
+                          $"{qrupKocurme.KateqoriyaSayi} kateqoriya · {qrupKocurme.XercSayi} xərc sətri ✓");
+            }
+
             sonuc.Yaz(new string('─', 66));
 
             var sira = 0;
@@ -509,7 +541,13 @@ namespace EnterpriseAeroStudio.Services
         //    ② AÇAR SÖZLƏR    → «Usta xərci» → «Usta haqqı (Digər)» ✓
         //    ③ OXŞARLIQ ≥62 % → «Maşın bağlanma…» ≈ «Maşının bağlanma…» ✓
         //    ④ ŞƏXS ADI       → tək sözlü ad → «👤 Usta & İşçilik» qrupunda ✓
-        //    ⑤ YENİ KATEQORİYA → «⚙️ Mühərrik & Ehtiyat Hissələri» qrupunda ✓
+        //    ⑤ YENİ KATEQORİYA → 📜 «Skript İdxalı» qrupunda ✓✓✓
+        // --------------------------------------------------------------------
+        //  📜 QRUPLAŞDIRMA QAYDASI:
+        //    · Mövcud kateqoriya → ÖZ qrupu qalır ✓ (heç nə dəyişmir ✗)
+        //    · Yaranan kateqoriya STANDART siyahıdadırsa → öz standart qrupu ✓
+        //    · Yaranan kateqoriya YENİDİRSƏ → «📜 Skript İdxalı» qrupu ✓✓✓
+        //      (əvvəl standart qrupların içinə düşürdü ✗ → oranı qarışdırırdı ✗)
         // ====================================================================
 
         /// <summary>Kateqoriya və qrup siyahılarını bazadan oxuyur (bir dəfə ✓).</summary>
@@ -574,13 +612,17 @@ namespace EnterpriseAeroStudio.Services
                                            $"açar söz → «{movcud.Kategoriya}» ✓");
                 }
 
+                var yeniQrup = YeniKategoriyaQrupu(qayda.Qrup, hedef);
+
                 return new UygunNetice(
-                    qayda.Qrup,
+                    yeniQrup,
                     hedef,
-                    MovcudDeyil(movcudQruplar, yeniQruplar, qayda.Qrup),
-                    YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, qayda.Qrup, hedef),
+                    MovcudDeyil(movcudQruplar, yeniQruplar, yeniQrup),
+                    YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, yeniQrup, hedef),
                     false,
-                    qayda.Kategoriya is null ? "açar söz → qrup ✓" : "açar söz → yeni kateqoriya ➕");
+                    qayda.Kategoriya is null
+                        ? $"açar söz → 📜 «{yeniQrup}» qrupu ✓"
+                        : $"açar söz → yeni kateqoriya ➕ · 📜 «{yeniQrup}»");
             }
 
             // ③ OXŞARLIQ (62 %-dən yuxarı ✓)
@@ -600,24 +642,41 @@ namespace EnterpriseAeroStudio.Services
                 MetinUygunlasdirici.BoyukHerfleBaslayir(tasvir) &&
                 !HissaSozleri.Contains(norm))
             {
+                var qrup = YeniKategoriyaQrupu(UstaQrupu, temiz);
+
                 return new UygunNetice(
-                    UstaQrupu,
+                    qrup,
                     temiz,
-                    MovcudDeyil(movcudQruplar, yeniQruplar, UstaQrupu),
-                    YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, UstaQrupu, temiz),
+                    MovcudDeyil(movcudQruplar, yeniQruplar, qrup),
+                    YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, qrup, temiz),
                     false,
-                    "şəxs / usta adı ✓");
+                    $"şəxs / usta adı ✓ · 📜 «{qrup}»");
             }
 
-            // ⑤ YENİ KATEQORİYA — ehtiyat hissələri qrupunda ✓
+            // ⑤ YENİ KATEQORİYA — 📜 «Skript İdxalı» qrupunda toplanır ✓✓✓
+            var sonQrup = YeniKategoriyaQrupu(StandartQrup, temiz);
+
             return new UygunNetice(
-                StandartQrup,
+                sonQrup,
                 temiz,
-                MovcudDeyil(movcudQruplar, yeniQruplar, StandartQrup),
-                YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, StandartQrup, temiz),
+                MovcudDeyil(movcudQruplar, yeniQruplar, sonQrup),
+                YeniKategoriyaKimiYaz(yeniKategoriyalar, kataloq, sonQrup, temiz),
                 false,
-                "yeni kateqoriya ➕");
+                $"yeni kateqoriya ➕ · 📜 «{sonQrup}»");
         }
+
+        /// <summary>
+        /// YENİ yaradılacaq kateqoriyanın qrupu ✓✓✓
+        /// <list type="bullet">
+        ///   <item>Kateqoriya proqramın <b>STANDART</b> siyahısındadırsa →
+        ///         öz standart qrupu ✓ (məs. silinmiş «Naklatka» yenidən
+        ///         «⚙️ Mühərrik…» qrupunda yaranır ✓)</item>
+        ///   <item>Standart <b>DEYİLSƏ</b> → «📜 Skript İdxalı» qrupu ✓✓✓
+        ///         (skript idxalının yaratdığı hər şey bir yerdə toplanır ✓)</item>
+        /// </list>
+        /// </summary>
+        private static string YeniKategoriyaQrupu(string standartQrup, string ad)
+            => Catalog.IsStandardCategory(standartQrup, ad) ? standartQrup : SkriptQrupu;
 
         /// <summary>Qrup mövcuddursa <c>false</c>; bu idxalda yeni yaradılacaqsa <c>true</c> ✓.</summary>
         private static bool MovcudDeyil(HashSet<string> movcudQruplar, HashSet<string> yeniQruplar, string qrup)

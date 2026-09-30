@@ -17,6 +17,12 @@ namespace EnterpriseAeroStudio.ViewModels
         public CreditTransactionsViewModel CreditTransactions { get; }
         public FinanceViewModel Finance { get; }
 
+        /// <summary>
+        /// «💵 Kassa» tabının ViewModel-i — kassaya DAXİL OLAN ✓ və kassadan
+        /// ÇIXAN ✗ bütün pulun vahid jurnalı ✓ (möhlətlər də buradan idarə olunur ✓✓✓)
+        /// </summary>
+        public KassaViewModel Kassa { get; }
+
         /// <summary>«👥 Tərəfdaşlar» tabının ViewModel-i — tərəfdaş bölgüsü mərkəzi.</summary>
         public PartnersViewModel Partners { get; }
 
@@ -297,6 +303,18 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>📋 Seçilmiş istifadəçi (cədvəldən ✓)</summary>
         [ObservableProperty] private Services.Istifadeci? secilmisIstifadeci;
 
+        /// <summary>
+        /// 🛡️ Cədvəldə seçilən istifadəçinin <b>İLK</b> rolu ✓
+        /// <para>
+        /// «SON ADMIN-in rolu dəyişdirilə bilməz ✗» qoruması üçün saxlanılır ✓
+        /// (rol dəyişdirildikdən sonra köhnə dəyəri bilmək lazımdır ✓)
+        /// </para>
+        /// </summary>
+        private Services.IstifadeciRolu? _orijinalRol;
+
+        partial void OnSecilmisIstifadeciChanged(Services.Istifadeci? value)
+            => _orijinalRol = value?.Rol;
+
         [ObservableProperty] private string yeniAd = string.Empty;
         [ObservableProperty] private string yeniIstifadeciAdi = string.Empty;
         [ObservableProperty] private string yeniSifre = string.Empty;
@@ -394,14 +412,46 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
-            if (Services.AuthService.AdMovcuddur(istifadeci.IstifadeciAdi, istifadeci))
+            if (string.IsNullOrWhiteSpace(istifadeci.IstifadeciAdi))
             {
-                IstifadeciMesaji = "⚠️ Bu istifadəçi adı artıq mövcuddur ✗";
+                IstifadeciMesaji = "⚠️ «Giriş adı (login)» boş ola bilməz ✗";
                 return;
             }
 
-            IstifadeciMesaji = Services.AuthService.YaddaSaxlaVeQeyd();
+            if (string.IsNullOrWhiteSpace(istifadeci.Sifre))
+            {
+                IstifadeciMesaji = "⚠️ «🔑 KOD (şifrə)» boş ola bilməz ✗";
+                return;
+            }
+
+            if (Services.AuthService.AdMovcuddur(istifadeci.IstifadeciAdi, istifadeci))
+            {
+                IstifadeciMesaji = "⚠️ Bu giriş adı (login) artıq mövcuddur ✗";
+                return;
+            }
+
+            // ⚠ SON ADMIN-in rolu dəyişdirilə bilməz ✗ (sistem kilidlənər ✗)
+            if (_orijinalRol == Services.IstifadeciRolu.Admin
+                && istifadeci.Rol != Services.IstifadeciRolu.Admin
+                && !Services.AuthService.Istifadeciler.Any(i =>
+                       i.Rol == Services.IstifadeciRolu.Admin && !ReferenceEquals(i, istifadeci)))
+            {
+                istifadeci.Rol = Services.IstifadeciRolu.Admin;   // geri qaytarılır ✓
+                IstifadeciMesaji = "⚠️ SON ADMIN-in rolu dəyişdirilə bilməz ✗ (tam giriş itər ✗)";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(istifadeci.Ad))
+            {
+                istifadeci.Ad = istifadeci.IstifadeciAdi;   // Ad boşdursa giriş adı ilə eyniləşir ✓
+            }
+
+            Services.AuthService.YaddaSaxla();
+            _orijinalRol = istifadeci.Rol;
             IstifadecileriDoldur();
+
+            IstifadeciMesaji =
+                $"✅ «{istifadeci.Ad}» saxlanıldı ✓ — adı · 🔑 KOD · rol yeniləndi ✓";
         }
 
         /// <summary>➖ Seçilmiş istifadəçini silir ✓ (hər kəs silə bilər ✓)</summary>
@@ -413,8 +463,21 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
-            IstifadeciMesaji = Services.AuthService.Sil(istifadeci);
-            SecilmisIstifadeci = null;
+            var ad = string.IsNullOrWhiteSpace(istifadeci.Ad)
+                ? istifadeci.IstifadeciAdi
+                : istifadeci.Ad;
+
+            var netice = Services.AuthService.Sil(istifadeci);
+
+            IstifadeciMesaji = netice.StartsWith('✅')
+                ? $"✅ «{ad}» silindi ✓"
+                : netice;
+
+            if (IstifadeciMesaji.StartsWith('✅'))
+            {
+                SecilmisIstifadeci = null;
+            }
+
             IstifadecileriDoldur();
         }
 
@@ -1059,14 +1122,15 @@ namespace EnterpriseAeroStudio.ViewModels
             yield return ("📅 Kredit Ödəniş Qrafiki", Credits);             // 5
             yield return ("🏷️ Kredit Əlavə Gəlir/Xərc", CreditTransactions); // 6
             yield return ("📊 Maliyyə Paneli", Finance);                    // 7
-            yield return ("🗄️ Satılan & Krediti Bitmiş", SalesArchive);     // 8
-            yield return ("🤝 Barter Keçmişi", Credits);                    // 9
-            yield return ("📤 Transfer (gizli)", Credits);                  // 10
-            yield return ("📤 Transfer", Credits);                          // 11
-            yield return ("👥 Tərəfdaşlar", Partners);                      // 12
-            yield return ("🌐 Veb Sayt", Web);                              // 13
-            yield return ("⚙️ Tənzimləmələr", this);                        // 14
-            yield return ("📜 Skript İdxalı", Skript);                      // 15
+            yield return ("💵 Kassa", Kassa);                               // 8
+            yield return ("🗄️ Satılan & Krediti Bitmiş", SalesArchive);     // 9
+            yield return ("🤝 Barter Keçmişi", Credits);                    // 10
+            yield return ("📤 Transfer (gizli)", Credits);                  // 11
+            yield return ("📤 Transfer", Credits);                          // 12
+            yield return ("👥 Tərəfdaşlar", Partners);                      // 13
+            yield return ("🌐 Veb Sayt", Web);                              // 14
+            yield return ("⚙️ Tənzimləmələr", this);                        // 15
+            yield return ("📜 Skript İdxalı", Skript);                      // 16
         }
 
         // ====================================================================
@@ -1202,6 +1266,7 @@ namespace EnterpriseAeroStudio.ViewModels
             CreditsViewModel credits,
             CreditTransactionsViewModel creditTransactions,
             FinanceViewModel finance,
+            KassaViewModel kassa,
             PartnersViewModel partners,
             WebViewModel web,
             ScriptImportViewModel skript,
@@ -1224,6 +1289,7 @@ namespace EnterpriseAeroStudio.ViewModels
             Credits = credits;
             CreditTransactions = creditTransactions;
             Finance = finance;
+            Kassa = kassa;
             Partners = partners;
             Web = web;
 
@@ -1351,8 +1417,8 @@ namespace EnterpriseAeroStudio.ViewModels
             await Expenses.LoadAsync();
 
             // ⏳ Qalan tablar: indi yox — istifadəçi keçəndə yüklənəcək ✓
-            //   (16 tab var ✓ — 0 və 1 artıq yüklənib ✓)
-            for (var i = 2; i < 16; i++)
+            //   (17 tab var ✓ — 0 və 1 artıq yüklənib ✓)
+            for (var i = 2; i < 17; i++)
             {
                 _çirkliTablar.Add(i);
             }

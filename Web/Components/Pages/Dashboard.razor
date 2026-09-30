@@ -7,6 +7,9 @@
 @inject IExpenseService ExpenseService
 @inject ISaleService SaleService
 @inject ICreditService CreditService
+@inject IPartnerShareRepository PartnerShares
+@inject IKassaHereketRepository KassaHereketler
+@inject IPartnerPaymentRepository TerefdasOdenisleri
 @inject UiState Ui
 
 <PageTitle>İdarə Paneli — Avtomobil Parkı</PageTitle>
@@ -51,11 +54,11 @@ else
 
     <div class="card">
         <div class="card-head">
-            <div class="card-title">📈 Son 12 ay — Gəlir / Xərc / Mənfəət</div>
+            <div class="card-title">📈 Son 12 ay — KASSA AXINI (Gəlir / Xərc)  ·  masaüstü Maliyyə Paneli ilə EYNİ düstur ✓</div>
             <div class="legend">
-                <span><i style="background:#16a34a"></i>Gəlir</span>
-                <span><i style="background:#dc2626"></i>Xərc</span>
-                <span><i style="background:#2563eb"></i>Mənfəət</span>
+                <span><i style="background:#16a34a"></i>Gəlir (kassaya daxil)</span>
+                <span><i style="background:#dc2626"></i>Xərc (kassadan çıxan)</span>
+                <span><i style="background:#2563eb"></i>Xalis kassa axını</span>
             </div>
         </div>
         <div class="card-body">
@@ -68,7 +71,7 @@ else
                 <div class="chart">
                     @foreach (var point in _chart)
                     {
-                        <div class="chart-col" title="@($"{point.Label}: Gəlir {AppFormat.Money(point.Income)} | Xərc {AppFormat.Money(point.Expense)} | Mənfəət {AppFormat.Money(point.Profit)}")">
+                        <div class="chart-col" title="@($"{point.Label}: Gəlir {AppFormat.Money(point.Income)} | Xərc {AppFormat.Money(point.Expense)} | Xalis kassa axını {AppFormat.Money(point.Profit)}")">
                             <div class="chart-bars">
                                 <div class="chart-bar income" style="@($"height:{point.IncomeHeight:F1}%")"></div>
                                 <div class="chart-bar expense" style="@($"height:{point.ExpenseHeight:F1}%")"></div>
@@ -131,6 +134,15 @@ else
             var credits      = await CreditService.GetCreditsAsync();
             var transactions = await CreditService.GetTransactionsAsync();
 
+            // 👥 Tərəfdaş payları ✓ + ✍ əl ilə kassa hərəkətləri ✓
+            //    (vahid kassa düsturu üçün — bax: KassaHesabi ✓✓✓)
+            var shares = (await PartnerShares.GetAllAsync()).ToList();
+            var manual = (await KassaHereketler.GetAllOrderedAsync()).ToList();
+
+            // 👥 FAKTİKİ tərəfdaş ödənişləri ✓✓✓ — YALNIZ bunlar kassadan çıxır ✗
+            //    (hesablanmış paylar ödəniş edilənə qədər kassada qalır ✓)
+            var payOdenisleri = (await TerefdasOdenisleri.GetOrderedAsync()).ToList();
+
             _carStats        = CarService.BuildStats(cars);
             _expenseStats    = ExpenseService.BuildStats(expenses);
             _saleStats       = SaleService.BuildStats(sales);
@@ -139,7 +151,7 @@ else
             _creditPortfolio = credits.Where(c => c.Status != "Bağlı").Sum(c => c.Kreditlesdirilen);
             _creditPayments  = transactions.Where(t => t.Nov == "Gəlir").Sum(t => t.Mebleg);
 
-            BuildChart(sales, expenses);
+            BuildChart(sales, expenses, credits, transactions, shares, manual, payOdenisleri);
 
             // ANBARA yönəldilən (bu ay) — XƏRC DEYİL, AKTİVDİR.
             var monthStart2 = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
@@ -165,8 +177,26 @@ else
         }
     }
 
-    /// <summary>Son 12 ay üzrə gəlir / xərc / mənfəət sütunlarını hesablayır.</summary>
-    private void BuildChart(IReadOnlyList<Sale> sales, IReadOnlyList<ExpenseItem> expenses)
+    /// <summary>
+    /// Son 12 ay üzrə KASSA AXINI sütunları ✓✓✓
+    /// <para>
+    /// ⚠ ƏVVƏL burada İKİNCİ bir düstur var idi ✗ → möhlətlər ✓ əl ilə
+    /// yazılan hərəkətlər ✓ tərəfdaş bölgüsü ✗ burada GÖRÜNMÜRDÜ ✗✓✓
+    /// </para>
+    /// <para>
+    /// ✅ İNDİ: <b>masaüstü «Maliyyə Paneli» ✓ «💵 Kassa» ✓ VEB — HAMISI
+    /// EYNİ düsturdan istifadə edir</b> (<see cref="KassaHesabi"/>) ✓ →
+    /// rəqəmlər HƏMİŞƏ üst-üstə düşür ✓✓✓
+    /// </para>
+    /// </summary>
+    private void BuildChart(
+        IReadOnlyList<Sale> sales,
+        IReadOnlyList<ExpenseItem> expenses,
+        IReadOnlyList<Credit> credits,
+        IReadOnlyList<CreditTransaction> transactions,
+        IReadOnlyList<PartnerShare> shares,
+        IReadOnlyList<KassaHereket> manual,
+        IReadOnlyList<PartnerPayment> payOdenisleri)
     {
         var columns = new List<(string Label, decimal Income, decimal Expense, decimal Profit)>();
         var today = DateTime.Today;
@@ -175,19 +205,27 @@ else
         for (var i = 0; i < 12; i++)
         {
             var from = start.AddMonths(i);
-            var to = from.AddMonths(1);
+            var to = from.AddMonths(1).AddDays(-1);     // ayın SON GÜNÜ (daxil ✓)
 
-            // PROFESSIONAL UÇOT: maşın ALIŞI xərc DEYİL — bu, ANBARA (aktivə)
-            // yönəldilən vəsaitdir. Xərc yalnız maşın SATILANDA yaranır
-            // (satılan malın mayası). Ofis xərcləri dövr xərci sayılır.
-            var monthSales = sales.Where(s => s.SatisTarixi >= from && s.SatisTarixi < to).ToList();
-            var monthExpenses = expenses.Where(e => e.Tarix >= from && e.Tarix < to).ToList();
+            // 💵 VAHİD DÜSTUR — KassaHesabi ✓✓✓ (düstur TƏKRARLANMIR ✗)
+            var hesabat = KassaHesabi.Qur(
+                sales,
+                credits,
+                transactions,
+                expenses,
+                KassaHesabi.KreditPaylariniSec(shares),
+                KassaHesabi.SatisPaylariniSec(shares),
+                payOdenisleri,
+                manual,
+                from,
+                to);
 
-            var income = monthSales.Sum(s => s.SatisQiymeti);
-            var expense = monthSales.Sum(s => s.MayaDeyeri)                                  // satılan malın mayası
-                          + monthExpenses.Where(e => Catalog.IsOffice(e.Teyinat)).Sum(e => e.Mebleg);
+            columns.Add((
+                $"{AppFormat.MonthShort(from.Month)} {from:yy}",
+                hesabat.Daxilolma,
+                hesabat.Xerc,
+                hesabat.Xalis));
 
-            columns.Add(($"{AppFormat.MonthShort(from.Month)} {from:yy}", income, expense, income - expense));
         }
 
         var max = columns

@@ -36,6 +36,12 @@ namespace EnterpriseAeroStudio.Data
         public DbSet<Partner> Partners => Set<Partner>();
         public DbSet<PartnerPayment> PartnerPayments => Set<PartnerPayment>();
 
+        /// <summary>⏳ Möhlətə verilmiş ödənişlər (ilkin ödəniş ✓ nisyə satış ✓).</summary>
+        public DbSet<OdenisMohlet> OdenisMohletler => Set<OdenisMohlet>();
+
+        /// <summary>💵 Əl ilə yazılan kassa hərəkətləri.</summary>
+        public DbSet<KassaHereket> KassaHereketleri => Set<KassaHereket>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -49,6 +55,8 @@ namespace EnterpriseAeroStudio.Data
             modelBuilder.ApplyConfiguration(new PartnerShareConfiguration());
             modelBuilder.ApplyConfiguration(new PartnerConfiguration());
             modelBuilder.ApplyConfiguration(new PartnerPaymentConfiguration());
+            modelBuilder.ApplyConfiguration(new OdenisMohletConfiguration());
+            modelBuilder.ApplyConfiguration(new KassaHereketConfiguration());
         }
 
         // ====================================================================

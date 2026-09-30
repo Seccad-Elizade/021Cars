@@ -26,7 +26,9 @@ namespace EnterpriseAeroStudio.ViewModels
     ///   <item>Yalnız <b>200 sətirlik səhifə</b> oxunur ✓ (<c>LIMIT/OFFSET</c> ✓)</item>
     ///   <item>Axtarış <b>SQL-də</b> gedir ✓ + 350 ms «debounce» ✓ (hər hərfdə sorğu yox ✗)</item>
     ///   <item>Yekunlar <b>SQL <c>SUM</c></b> ilə ✓ (yaddaşa yükləmədən ✓)</item>
-    ///   <item>Sətirlər <b>bir bildirişlə</b> yazılır ✓ (<c>ReplaceAll</c> / <c>AddRange</c> ✓)</item>
+    ///   <item>Sətirlər <b>TƏHLÜKƏSİZ</b> yazılır ✓ — <c>ReplaceAll</c> → tək <c>Reset</c> ✓ ·
+    ///         <c>AddRange</c> → tək-tək <c>Add</c> ✓✓✓ (⚠ WPF çox-elementli «range»
+    ///         bildirişini DƏSTƏKLƏMİR ✗ → «items source is inconsistent» xətası ✗✓✓)</item>
     ///   <item>Bütün ağır iş <b>arxa fonda</b> ✓ → pəncərə heç vaxt donmur ✓✓✓</item>
     /// </list>
     /// </para>
@@ -258,18 +260,60 @@ namespace EnterpriseAeroStudio.ViewModels
             var səhifə = await Task.Run(() =>
                 _expenseService.GetPageAsync(skip, SehifeOlcusu, süzgəc, sıra, azalan));
 
-            if (temizle)
+            try
             {
-                Expenses.ReplaceAll(səhifə.Setirler);   // ✅ TƏK `Reset` hadisəsi ✓
+                if (temizle)
+                {
+                    Expenses.ReplaceAll(səhifə.Setirler);   // ✅ TƏK `Reset` hadisəsi ✓
+                }
+                else
+                {
+                    Expenses.AddRange(səhifə.Setirler);     // ✅ TƏHLÜKƏSİZ `Add` bildirişləri ✓ (scroll pozulmur ✓)
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Expenses.AddRange(səhifə.Setirler);     // ✅ TƏK `Add` hadisəsi ✓ (scroll pozulmur ✓)
+                // 🛟 QALXAN ✓ — WPF cədvəli ilə uyğunsuzluq
+                //   («An ItemsControl is inconsistent with its items source») yaranarsa
+                //   proqram ÇÖKMÜR ✗ → siyahı TAM yenidən yazılır (`Reset` ✓) ✓✓✓
+                _logger.LogWarning(ex, "Cədvəl yenilənərkən WPF uyğunsuzluğu — tam yeniləmə ilə düzəldilir.");
+                SəhifəniTamYenile(səhifə.Setirler);
             }
 
             UmumiSay = səhifə.UmumiSay;
             DahaVar = Expenses.Count < UmumiSay;
             VeziyyetMetni = $"{Expenses.Count:N0} / {UmumiSay:N0} sətir göstərilir";
+        }
+
+        /// <summary>
+        /// 🛟 <b>QALXAN (EHTİYAT) YENİLƏMƏ</b> ✓✓✓
+        /// <para>
+        /// WPF cədvəli ilə siyahı arasında uyğunsuzluq yaranarsa (nadir hal ✗) —
+        /// siyahı <b>layout-dan kənarda</b>, <c>Reset</c> bildirişi ilə TAM yenidən
+        /// yazılır ✓ → cədvəl özünü bərpa edir ✓ (proqram bağlanmır ✗✓✓)
+        /// </para>
+        /// </summary>
+        private void SəhifəniTamYenile(IEnumerable<ExpenseItem> setirler)
+        {
+            var siyahı = setirler.ToList();
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+
+            if (dispatcher is null)
+            {
+                return;
+            }
+
+            dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+            {
+                try
+                {
+                    Expenses.ReplaceAll(siyahı);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Cədvəl tam yenilənə bilmədi.");
+                }
+            }));
         }
 
         /// <summary>🚀 Yekun məbləğlər — SQL-də hesablanır ✓ (arxa fonda ✓).</summary>

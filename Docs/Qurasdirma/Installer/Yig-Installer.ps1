@@ -44,6 +44,15 @@ foreach ($q in @($publish, $webPublish)) {
     if (Test-Path $q) { Remove-Item $q -Recurse -Force }
 }
 
+# ⚠⚠ `obj`/`bin` DƏ TƏMİZLƏNMƏLİDİR ✓✓✓ — ★ VACİB ★ (2026-09-29)
+#    Köhnə build qalıqları qalsa → VEB layihəsinin (.NET 10) runtime faylları
+#    masaüstü publish-inə qarışır ✗ → coreclr 10.x + WindowsBase 8.x ✗ →
+#    «Could not load System.Runtime / WindowsBase» ✗ → proqram AÇILMIR ✗✓✓
+foreach ($q in @("bin\Release\net8.0-windows", "obj\Release\net8.0-windows")) {
+    $tam = Join-Path $kök $q
+    if (Test-Path $tam) { Remove-Item $tam -Recurse -Force -EA 0 }
+}
+
 # ────────────────────────────────────────────────────────────────────────────
 #  ① 🏗️ MASAÜSTÜ TƏTBİQ → publish\ ✓ (TƏMİZ qovluğa ✓✓✓)
 #     Yalnız bu publish əsl self-contained WPF fayllarını verir ✓
@@ -68,27 +77,31 @@ if (Test-Path $web) {
 }
 
 # ────────────────────────────────────────────────────────────────────────────
-#  ②ᵇ 🔀 BİRLƏŞDİRMƏ ✓✓✓ — Web-in YALNIZ ÇATIŞMAYAN faylları köçürülür ✓
-#      (mövcud fayllar TOXUNULMUR ✗ → tətbiqin əsl WPF faylları qorunur ✓✓✓)
+#  ②ᵇ 🔀 BİRLƏŞDİRMƏ ✓✓✓ — Web «Web\» ALT QOVLUĞUNA köçürülür ✓✓✓ (2026-09-29)
+#      ★ VACİB ★: web .NET 10, masaüstü .NET 8-dir ✗ → EYNİ qovluqda
+#      saxlanılsa `coreclr.dll` · `System.Runtime.dll` TOQQUŞUR ✗ →
+#      biri MÜTLƏQ çökməli olur ✗✓✓ → indi web ÖZ runtime-ı ilə AYRI
+#      «Web\» qovluğunda işləyir ✓✓✓ (masaüstü onu orada tapır ✓)
 # ────────────────────────────────────────────────────────────────────────────
 $köçürülən = 0
+$webHedef  = Join-Path $publish "Web"
 
 if (Test-Path $webPublish) {
-    Write-Host "  ②ᵇ Web faylları birləşdirilir (yalnız çatışmayanlar ✓)…" -ForegroundColor Yellow
+    Write-Host "  ②ᵇ Web tətbiqi AYRI «Web\» qovluğuna köçürülür…" -ForegroundColor Yellow
+
+    if (Test-Path $webHedef) { Remove-Item $webHedef -Recurse -Force }
 
     Get-ChildItem $webPublish -Recurse -File | ForEach-Object {
         $nisbi = $_.FullName.Substring($webPublish.Length + 1)
-        $hedef = Join-Path $publish $nisbi
+        $hedef = Join-Path $webHedef $nisbi
 
-        if (-not (Test-Path $hedef)) {
-            New-Item -ItemType Directory -Path (Split-Path $hedef -Parent) -Force | Out-Null
-            Copy-Item $_.FullName $hedef -Force
-            $köçürülən++
-        }
+        New-Item -ItemType Directory -Path (Split-Path $hedef -Parent) -Force | Out-Null
+        Copy-Item $_.FullName $hedef -Force
+        $köçürülən++
     }
 
     Remove-Item $webPublish -Recurse -Force -EA 0
-    Write-Host ("     ✓ Web-dən " + $köçürülən + " fayl əlavə olundu ✓") -ForegroundColor Green
+    Write-Host ("     ✓ Web-dən " + $köçürülən + " fayl «Web\» qovluğuna köçürüldü ✓") -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -103,6 +116,55 @@ if ($wpfKB -lt 500) {
 }
 
 Write-Host ("     ✓ WPF faylları düzgündür — WindowsBase.dll = " + $wpfKB + " KB ✓") -ForegroundColor Green
+
+# ────────────────────────────────────────────────────────────────────────────
+#  ②.5 🧹 DATA TƏMİZLİYİ — ★ VACİB ★ ✓✓✓
+#     ⚠ Müştəri paketində HEÇ BİR MAŞIN · KREDİT · XƏRC · İSTİFADƏÇİ datası
+#       OLMAMALIDIR ✗ (tələb: «içində heç bir maşın datası olmadan» ✓)
+#     → publish\ içində baza/JSON tapılsa SİLİNİR ✗ → payload-a DÜŞMÜR ✗✓✓
+# ────────────────────────────────────────────────────────────────────────────
+Write-Host "  ②.5 Təmizlik: baza / data faylları yoxlanılır…" -ForegroundColor Yellow
+
+$dataAdlari = @(
+    "avtopark.db", "avtopark.db-wal", "avtopark.db-shm", "021cars_data.db", "backup.db",
+    "istifadeciler.json", "bulud_ayarlari.json", "transfer-sexler.json",
+    "data_usb.json", "offline_queue.json", "app_errors.log", "app_errors.old.log"
+)
+
+$tapılan = @()
+
+foreach ($ad in $dataAdlari) {
+    $tam = Join-Path $publish $ad
+    if (Test-Path $tam) { $tapılan += $tam }
+}
+
+# həmçinin hər hansı *.db / *.db-* faylı (alt qovluqlar daxil ✓)
+$tapılan += (Get-ChildItem $publish -Recurse -File -EA 0 |
+    Where-Object { $_.Name -like "*.db" -or $_.Name -like "*.db-*" -or $_.Name -like "*.db.*" } |
+    ForEach-Object { $_.FullName })
+
+$tapılan = $tapılan | Sort-Object -Unique
+
+if ($tapılan.Count -gt 0) {
+    Write-Host "     ⚠ DATA FAYLLARI TAPILDI → SİLİNİR ✗✓✓" -ForegroundColor Magenta
+
+    foreach ($f in $tapılan) {
+        Write-Host ("        ✗ " + $f.Replace($publish + "\", "")) -ForegroundColor DarkMagenta
+        Remove-Item $f -Force -EA 0
+    }
+} else {
+    Write-Host "     ✓ Təmizdir — baza / data faylı YOXDUR ✓ (paket BOŞ açılacaq ✓)" -ForegroundColor Green
+}
+
+# 📎 Media / Yedəklər / Hesabatlar / Loglar da paketə DÜŞMÜR ✗
+foreach ($q in @("Media", "Yedekler", "Hesabatlar", "AutocodePDF", "Logs")) {
+    $tam = Join-Path $publish $q
+
+    if (Test-Path $tam) {
+        Remove-Item $tam -Recurse -Force -EA 0
+        Write-Host ("        ✗ qovluq silindi: " + $q) -ForegroundColor DarkMagenta
+    }
+}
 
 # ────────────────────────────────────────────────────────────────────────────
 #  ③ 📦 PAYLOAD.ZIP — INSTALLER QOVLUĞUNDA ✓✓✓
@@ -128,6 +190,34 @@ if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $müvəqqəti "*") -DestinationPath $zip -CompressionLevel Optimal -Force
 
 Write-Host ("     payload.zip hazir ✓ - " + [math]::Round((Get-Item $zip).Length / 1MB, 1) + " MB ✓") -ForegroundColor Green
+
+# ────────────────────────────────────────────────────────────────────────────
+#  ③.5 🔎 YOXLAMA — paketdə BAZA / MAŞIN DATASI YOXDURMU? ★ VACİB ★ ✓✓✓
+# ────────────────────────────────────────────────────────────────────────────
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+$zx = [IO.Compression.ZipFile]::OpenRead($zip)
+$bazaIcleri = @($zx.Entries | Where-Object {
+    $_.FullName -like "*.db" -or $_.FullName -like "*.db-*" -or $_.FullName -like "*.db.*" -or
+    $_.FullName -like "*avtopark*" -or $_.FullName -like "*istifadeciler*" -or
+    $_.FullName -like "*bulud_ayarlari*" })
+$zexe = @($zx.Entries | Where-Object { $_.Name -eq "EnterpriseAeroStudio.exe" })
+$zx.Dispose()
+
+if ($bazaIcleri.Count -gt 0) {
+    Write-Host "  XETA: payload.zip içində baza/data faylı VAR ✗ — paket TƏMİZ DEYİL ✗" -ForegroundColor Red
+
+    foreach ($b in $bazaIcleri) { Write-Host ("        ✗ " + $b.FullName) -ForegroundColor Red }
+
+    return
+}
+
+if ($zexe.Count -eq 0) {
+    Write-Host "  XETA: payload.zip içində EnterpriseAeroStudio.exe YOXDUR ✗" -ForegroundColor Red
+    return
+}
+
+Write-Host "     ✓ YOXLAMA: paket TƏMİZDİR ✓ — baza · maşın · istifadəçi · bulud datası YOXDUR ✓✓✓" -ForegroundColor Green
 
 # ────────────────────────────────────────────────────────────────────────────
 #  ④ 🏗️ TƏK FAYLLI INSTALLERİN ÖZÜNÜ YIĞ ✓✓✓
@@ -156,7 +246,8 @@ Write-Host "  ===========================================================" -Fore
 Write-Host "  HAZIRDIR - TƏK FAYL INSTALLER ✓✓✓" -ForegroundColor Green
 Write-Host "  ===========================================================" -ForegroundColor DarkCyan
 Write-Host ("  FAYL: " + $inst) -ForegroundColor White
-Write-Host ("  ÖLÇÜ: " + $instMB + " MB   (147 MB civarı = payload İÇİNDƏDİR ✓)") -ForegroundColor Gray
+Write-Host ("  ÖLÇÜ: " + $instMB + " MB   (~180 MB civarı = payload + tətbiq İÇİNDƏDİR ✓)") -ForegroundColor Gray
+Write-Host "  🧹 PAKET TƏMİZDİR ✓ — içində BAZA · MAŞIN · KREDİT · İSTİFADƏÇİ datası YOXDUR ✗✓✓" -ForegroundColor Green
 Write-Host ""
 Write-Host "  İSTİFADƏ:" -ForegroundColor Cyan
 Write-Host "     ① YALNIZ bu bir .exe faylını müştəriyə verin ✓" -ForegroundColor Cyan

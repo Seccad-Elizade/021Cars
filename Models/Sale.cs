@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using EnterpriseAeroStudio.Services;
 
 namespace EnterpriseAeroStudio.Models
 {
@@ -74,18 +75,96 @@ namespace EnterpriseAeroStudio.Models
         public decimal NagdMebleg =>
             IsBarter ? Math.Max(0m, SatisQiymeti - BarterMebleg) : SatisQiymeti;
 
+        // ====================================================================
+        //  ⏳ MÖHLƏTLİ (NİSYƏ) SATIŞ — «nə vaxt, nə qədər ödəniləcək» ✓✓✓
+        // --------------------------------------------------------------------
+        //  Satış formasında ödəniş üsulu «Möhlət (nisyə)» seçiləndə müştərinin
+        //  söz verdiyi ödənişlər sətir-sətir yazılır ✓ (BİRDƏN ÇOX ✓):
+        //
+        //      Satış qiyməti : 22 000,00 ₼
+        //      Dərhal        :  7 000,00 ₼   (avtomatik = qiymət − möhlətlər ✓)
+        //      Möhlətlər     : 10 000,00 ₼ → 21.10.2026
+        //                       5 000,00 ₼ → 21.11.2026
+        // ====================================================================
+
+        /// <summary>Bu satışa yazılmış möhlət (nisyə) ödənişləri ✓.</summary>
+        [NotMapped]
+        public List<OdenisMohlet> Mohletler { get; set; } = new();
+
+        /// <summary>Möhlətə salınmış məbləğlərin cəmi (₼).</summary>
+        [NotMapped]
+        public decimal MohletCemi => Mohletler.Sum(m => m.Mebleg);
+
+        /// <summary>Möhlətli satışdırmı? (ödəniş üsulu «Möhlət (nisyə)» ✓)</summary>
+        [NotMapped]
+        public bool IsMohletli => Catalog.IsMohletliSatis(OdenisUsulu);
+
+        /// <summary>Möhlət yazılıbmı?</summary>
+        [NotMapped]
+        public bool MohletVar => Mohletler.Count > 0;
+
+        /// <summary>Hələ ödənilməmiş möhlətlərin cəmi (₼) — gözlənilən pul ✓.</summary>
+        [NotMapped]
+        public decimal MohletGozlenilen => Mohletler.Where(m => !m.Odenilib).Sum(m => m.Mebleg);
+
+        /// <summary>
+        /// 💰 SATIŞDA DƏRHAL ödənilən pul (₼) = nağd hissə − möhlətlər ✓✓✓
+        /// (barter hissəsi onsuz da pul deyil ✗)
+        /// </summary>
+        [NotMapped]
+        public decimal DerhalOdenilen => Math.Max(0m, NagdMebleg - MohletCemi);
+
+        /// <summary>Möhlət xülasəsi: «⏳ 10 000,00 ₼ → 21.10.2026 · 5 000,00 ₼ → 21.11.2026».</summary>
+        [NotMapped]
+        public string MohletMetni
+        {
+            get
+            {
+                if (Mohletler.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                var setirler = Mohletler
+                    .OrderBy(m => m.Tarix)
+                    .ThenBy(m => m.Id)
+                    .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni}{(m.Odenilib ? " ✅" : string.Empty)}");
+
+                return $"⏳ Möhlət {MohletCemi:N2} ₼  ({string.Join(" · ", setirler)})";
+            }
+        }
+
+
         /// <summary>Cədvəldə göstərilən ödəniş üsulu nişanı.</summary>
         [NotMapped]
         public string OdenisUsuluMetni =>
-            IsBarter ? "🔄 Barter" : $"💵 {OdenisUsulu}".TrimEnd();
+            IsBarter ? "🔄 Barter"
+                     : IsMohletli ? "⏳ Möhlət (nisyə)"
+                                  : $"💵 {OdenisUsulu}".TrimEnd();
 
         /// <summary>
         /// Cədvəllərdə göstərilən ödəniş mətni: barter satışlarda
-        /// «🔄 8 000 ₼ + 💵 2 000 ₼», digərlərində üsulun adı.
+        /// «🔄 8 000 ₼ + 💵 2 000 ₼», möhlətli satışlarda
+        /// «⏳ nisyə — dərhal 7 000 ₼ + möhlət 15 000 ₼», digərlərində üsulun adı.
         /// </summary>
         [NotMapped]
-        public string OdenisMetni =>
-            IsBarter && BarterMebleg > 0m ? OdenisBolqusuMetni : OdenisUsulu;
+        public string OdenisMetni
+        {
+            get
+            {
+                if (IsBarter && BarterMebleg > 0m)
+                {
+                    return OdenisBolqusuMetni;
+                }
+
+                if (IsMohletli || MohletVar)
+                {
+                    return $"{DerhalOdenilen:N2} ₼ dərhal + {MohletCemi:N2} ₼ möhlət";
+                }
+
+                return OdenisUsulu;
+            }
+        }
 
         /// <summary>
         /// Ödəniş bölgüsünün qısa təsviri

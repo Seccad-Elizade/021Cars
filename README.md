@@ -1,4 +1,4 @@
-# 🚗 021Cars — Avtomobil Parkı
+﻿# 🚗 021Cars — Avtomobil Parkı
 
 > **Avtomobil parkı idarəetmə sistemi** — masaüstü (WPF) + veb + Firebase bulud sinxronizasiyası + 💾 USB yedəkləmə + 🚀 **avtomatik güncəlləmə**
 
@@ -25,6 +25,18 @@
 
 ---
 
+## 🆕 VERSİYA 6.2.2 — 🌊 SƏHİFƏ SCROLL-U + 🐞 ÇÖKMƏ DÜZƏLİŞİ
+
+| # | Nə düzəldi |
+|---|---|
+| ① | 🌊 **BÜTÜN tablara SƏHİFƏ SCROLL-U** ✓ — Avto Park · Satış · Kreditlər · Qrafik · Əlavə Gəlir/Xərc · Satılan & Bitmiş · Tərəfdaşlar (Ümumi Xərclər · Maliyyə · Tənzimləmələr · Kalkulyator-da artıq var idi ✓) → uzun forma + cədvəl **BİRLİKDƏ** sürüşür ✓✓✓ |
+| ② | 🐞 **«An ItemsControl is inconsistent with its items source»** çökməsi ✗ → `BulkObservableCollection.AddRange` artıq **tək-tək `Add()`** edir ✓ (WPF çox-elementli bildirişi dəstəkləmir ✗) + yükləmə `LoadingRow`-dan çıxarıldı ✓ (600 ms taymer ✓) |
+| ③ | ⚡ **VİRTUALİZASİYA QORUNDU** ✓ — səhifə scroll-u içindəki cədvəllər `MaxHeight` ilə pəncərə hündürlüyünə məhdudlaşdırılır ✓ · **`FallbackValue=700` MÜTLƏQ LAZIMDIR** ✓✓✓ (əks halda ilk ölçmə sonsuz hündürlüklə keçir ✗ → 20 000 sətir = **64 SANİYƏ** ✗; `FallbackValue` ilə **0.4 saniyə** ✓) |
+| ④ | 🧹 **Publish təmizliyi** ✓ — `qur.ps1` və `Yig-Installer.ps1` artıq `obj`/`bin`-i **təmizləyir** ✓ (köhnə qalıqlar .NET 10 fayllarını qarışdırırdı ✗ → proqram açılmırdı ✗✓✓) |
+| ⑤ | 🌐 **Veb tətbiq AYRI «Web\» qovluğuna** köçürüldü ✓ (web .NET 10, masaüstü .NET 8 → eyni qovluqda runtime TOQQUŞURDU ✗✓✓) |
+
+---
+
 ## 🚀 AVTOMATİK GÜNCƏLLƏMƏ (necə işləyir)
 
 | # | Nə baş verir |
@@ -43,14 +55,30 @@
 
 ## 📤 YENİ VERSİYA BURAXMAQ (developer üçün)
 
+> ⚠⚠ **VACİB — PUBLISH TƏMİZ OLMALIDIR** ✓✓✓ (2026-09-29-dan ★)
+>
+> `qur.ps1` və `Yig-Installer.ps1` artıq `bin`/`obj`-i **özü** təmizləyir ✓ —
+> əl ilə `dotnet publish` edirsinizsə, **əvvəlcə** silin:
+>
+> ```powershell
+> Remove-Item bin\Release\net8.0-windows, obj\Release\net8.0-windows -Recurse -Force
+> ```
+>
+> Əks halda veb layihəsinin (.NET 10) runtime faylları masaüstü (.NET 8)
+> çıxışına **QARIŞIR** ✗ → `coreclr.dll` 10.x ✗ + `WindowsBase.dll` 8.x ✗ →
+> «Could not load System.Runtime / WindowsBase» ✗ → **proqram HEÇ AÇILMIR** ✗✓✓
+>
+> 🌐 Veb tətbiq isə **«Web\» alt qovluğunda** saxlanılır ✓ (öz .NET 10
+> runtime-ı ilə ✓ — eyni qovluqda rüntaym toqquşur ✗✓✓)
+
 ### Adım 1 — 🔢 Versiyanı artırın
 
 ```xml
 <!-- EnterpriseAeroStudio.csproj -->
-<Version>6.2.0</Version>
+<Version>6.2.2</Version>
 
 <!-- Docs\Qurasdirma\Installer\021Cars_Installer.csproj -->
-<Version>6.2.0</Version>
+<Version>6.2.2</Version>
 ```
 
 ### Adım 2 — 📦 Installer-i yığın
@@ -70,7 +98,7 @@ cd C:\Users\021Cars_User\Desktop\Autocode\Docs\Qurasdirma
 
 **Skript avtomatik edir:**
 - 📤 kodu `github.com/Seccad-Elizade/021Cars`-a push edir ✓
-- 🏷️ `v6.2.0` teqini yaradır ✓
+- 🏷️ `v6.2.2` teqini yaradır ✓
 - 📦 **RELEASE** yaradır və installer-i **ASSET** kimi yükləyir ✓✓✓
 
 > 🔐 **Bir dəfə** token lazımdır: https://github.com/settings/tokens → «repo» →

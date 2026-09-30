@@ -82,14 +82,29 @@ namespace EnterpriseAeroStudio.Services
             "Nağd", "Kart / Köçürmə"
         };
 
-        /// <summary>Avtomobil SATIŞINDA ödəniş üsulları (barter daxil).</summary>
+        /// <summary>Avtomobil SATIŞINDA ödəniş üsulları (barter və möhlət daxil).</summary>
         public static IReadOnlyList<string> SalePaymentMethods { get; } = new[]
         {
-            "Nağd", "Kart / Köçürmə", "Barter"
+            "Nağd", "Kart / Köçürmə", BarterSale, MohletliSatis
         };
 
         /// <summary>Satış ödəniş üsulu: barter.</summary>
         public const string BarterSale = "Barter";
+
+        /// <summary>
+        /// Satış ödəniş üsulu: <b>⏳ MÖHLƏTLİ (nisyə) satış</b> ✓✓✓
+        /// <para>
+        /// Maşın nisyə verilir — pul <b>hissə-hissə, gələcək tarixlərdə</b> gəlir ✓.
+        /// Hər gələcək ödəniş <see cref="Models.OdenisMohlet"/> sətri kimi yazılır:
+        /// «nə vaxt → nə qədər» ✓ (birdən çox ola bilər ✓✓✓)
+        /// </para>
+        /// </summary>
+        public const string MohletliSatis = "Möhlət (nisyə)";
+
+        /// <summary>Möhlətli satışdırmı?</summary>
+        public static bool IsMohletliSatis(string? usul)
+            => string.Equals(usul, MohletliSatis, StringComparison.Ordinal);
+
 
         /// <summary>Avtomobil ALIŞINDA ödəniş üsulları (əlavə gəlir/xərc üçün deyil).</summary>
         public static IReadOnlyList<string> PurchaseMethods { get; } = new[]
@@ -280,5 +295,48 @@ namespace EnterpriseAeroStudio.Services
         /// <summary>Verilmiş təyinat ofis xərcidirmi?</summary>
         public static bool IsOffice(string? destination)
             => string.Equals(destination, OfficeDestination, StringComparison.Ordinal);
+
+        // ====================================================================
+        //  📜 SKRİPT İDXALI QRUPU  (skript idxalı üçün avtomatik qrup ✓✓✓)
+        // --------------------------------------------------------------------
+        //  Skript idxalı zamanı MÖVCUD OLMAYAN kateqoriyalar avtomatik
+        //  yaradılır ✗ → əvvəl onlar standart qrupların (Mühərrik · Usta …)
+        //  içinə düşürdü ✗ və oranı qarışdırırdı ✗✓✓
+        //  İNDİ isə proqram ÖZÜ «📜 Skript İdxalı» qrupunu yaradır ✓ və
+        //  idxalda yaranan BÜTÜN kateqoriyalar orada toplanır ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 📜 Skript idxalı ilə yaranan kateqoriyaların <b>AVTOMATİK qrupu</b> ✓✓✓
+        /// (proqram bu qrupu özü yaradır ✓ — istifadəçi ad seçmir ✓)
+        /// </summary>
+        public const string ImportedExpenseGroup = "📜 Skript İdxalı";
+
+        /// <summary>
+        /// Kateqoriya proqramın <b>STANDART</b> (daxili) siyahısındadırmı? ✓
+        /// <para>
+        /// <c>false</c> → kateqoriya <b>sonradan</b> yaranıb ✓ (skript idxalı ✓)
+        /// → «📜 Skript İdxalı» qrupuna köçürülür ✓✓✓
+        /// </para>
+        /// <para>
+        /// Müqayisə «ə/ş/ç/ğ/ı» fərqini nəzərə almır ✓ (məs. «malyar» = «Malyar» ✓)
+        /// </para>
+        /// </summary>
+        public static bool IsStandardCategory(string? group, string? category)
+        {
+            if (string.IsNullOrWhiteSpace(group) || string.IsNullOrWhiteSpace(category))
+            {
+                return true;   // qrup sətri (kateqoriyasız) standart sayılır ✓
+            }
+
+            if (!Categories.TryGetValue(group, out var items))
+            {
+                return false;
+            }
+
+            var norm = MetinUygunlasdirici.Normallasdir(category);
+
+            return items.Any(item => MetinUygunlasdirici.Normallasdir(item) == norm);
+        }
     }
 }
