@@ -18,8 +18,14 @@ namespace EnterpriseAeroStudio.Views
     /// </summary>
     public partial class GuncellemeWindow : Window
     {
-        /// <summary>📦 Tapılan güncəlləmə ✓ (əl ilə rejimdə <c>null</c> ✓)</summary>
-        private readonly GuncellemeMelumati? _m;
+        /// <summary>
+        /// 📦 Tapılan güncəlləmə ✓ (əl ilə rejimdə əvvəlcə <c>null</c> ✓ — yoxlama tapanda DOLDURULUR ✓✓✓)
+        /// <para>
+        /// 🐞 ƏVVƏL bu sahə <c>readonly</c> idi ✗ → əl ilə açılan pəncərədə
+        /// <c>null</c> qalırdı ✗ → «🚀 GÜNCƏLLƏ» düyməsi <b>SƏSSİZCƏ HEÇ NƏ ETMİRDİ</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        private GuncellemeMelumati? _m;
 
         /// <summary>🎉 Avtomatik popup? ✓ (yoxsa 🔍 əl ilə yoxlama ✓)</summary>
         private readonly bool _avtomatik;
@@ -199,10 +205,16 @@ namespace EnterpriseAeroStudio.Views
 
                 if (m is not null)
                 {
+                    // ★ VACİB ★ — tapılan məlumat YADDA SAXLANILIR ✓✓✓
+                    //    (əks halda «🚀 GÜNCƏLLƏ» düyməsi işləmirdi ✗)
+                    _m = m;
+
                     MelumatiDoldur(m);
                     RejimGoster(Rejim.Yenivar);
                     return;
                 }
+
+                _m = null;
 
                 RejimGoster(GuncellemeXidmeti.CariVəziyyət == GuncellemeXidmeti.Vəziyyət.Xeta
                     ? Rejim.Xeta
@@ -251,11 +263,71 @@ namespace EnterpriseAeroStudio.Views
         {
             if (_yuklenir) return;
 
-            // 🛡️ Bu düymə yalnız güncəlləmə tapıldıqda görünür ✓ (tip təhlükəsizliyi ✓)
+            // 🛡️ «HEÇ NƏ OLMUR» QORUYUCUSU ✓✓✓ — ★ VACİB ★
+            //    Əl ilə rejimdə məlumat əldə yoxdursa → burada ƏLDƏ EDİLİR ✓
+            //    (əvvəl səssizcə `return` edirdi ✗ → istifadəçi «heç nə olmur» deyirdi ✗✓✓)
             var m = _m;
+
+            if (m is null)
+            {
+                _yuklenir = true;
+
+                GuncelleButton.IsEnabled = false;
+                SonraButton.IsEnabled = false;
+                Zolaq.Visibility = Visibility.Visible;
+                Zolaq.IsIndeterminate = true;
+                StatusText.Text = "🔍 GitHub yoxlanılır…";
+
+                try
+                {
+                    m = await GuncellemeXidmeti.YoxlaAsync();
+
+                    if (m is null)
+                    {
+                        Zolaq.IsIndeterminate = false;
+                        Zolaq.Visibility = Visibility.Collapsed;
+                        StatusText.Text = "👍 Yeni versiya yoxdur ✓ — proqramınız ən son versiyadadır ✓";
+
+                        MessageBox.Show(
+                            "👍 Yeni versiya yoxdur ✓\n\n" +
+                            $"🏷️ Cari versiya: {GuncellemeXidmeti.CariVersiyaMetni} — ən son versiyadadır ✓",
+                            "021Cars — Güncəlləmə",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+
+                        return;
+                    }
+
+                    _m = m;
+
+                    MelumatiDoldur(m);
+                    RejimGoster(Rejim.Yenivar);
+                }
+                catch (Exception ex)
+                {
+                    Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə düyməsi (yoxlama)");
+                    StatusText.Text = "⚠️ Yoxlama alınmadı ✗ — " + ex.Message;
+                    return;
+                }
+                finally
+                {
+                    _yuklenir = false;
+                    GuncelleButton.IsEnabled = true;
+                    SonraButton.IsEnabled = true;
+                    Zolaq.IsIndeterminate = false;
+                }
+            }
+
             if (m is null) return;
 
             _yuklenir = true;
+
+            // 📜 Loq ✓ — gələcəkdə problem olsa DƏRHAL görünür ✓✓✓
+            try
+            {
+                Cas0201.Firebase.AppLogger.Melumat(
+                    $"🚀 «GÜNCƏLLƏ» basıldı ✓ — {m.Versiya} ({m.Olcu / 1024 / 1024} MB) ✓ → yükləmə başlayır ✓");
+            }
+            catch { }
 
             GuncelleButton.IsEnabled = false;
             SonraButton.IsEnabled = false;

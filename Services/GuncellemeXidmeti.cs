@@ -478,6 +478,16 @@ namespace EnterpriseAeroStudio.Services
                     return null;
                 }
 
+                // 🧹 ⚠️ WINDOWS «İNTERNETDƏN YÜKLƏNDİ» İŞARƏSİ SİLİNİR ✓✓✓ — ★ VACİB ★
+                //    (Zone.Identifier ✗ → SmartScreen installer-i bloklaya bilər ✗
+                //     → istifadəçi «heç nə olmur» deyir ✗✓✓)
+                try
+                {
+                    var zona = hedef + ":Zone.Identifier";
+                    if (File.Exists(zona)) File.Delete(zona);
+                }
+                catch { }
+
                 Cas0201.Firebase.AppLogger.Melumat($"✅ Güncəlləmə yükləndi ✓ — {ölçü / 1024 / 1024} MB ✓");
                 return hedef;
             }
