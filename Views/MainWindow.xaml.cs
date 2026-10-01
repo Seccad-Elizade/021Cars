@@ -572,6 +572,143 @@ namespace EnterpriseAeroStudio.Views
             }
         }
 
+        /// <summary>
+        /// 🩺 <b>BAĞLANTINI YOXLA</b> ✓✓✓ (v6.2.13) — oxu + yazma testi ✓
+        /// <para>
+        /// ⚠ ƏVVƏL bu yoxlama <b>HEÇ BİR YERDƏN çağırılmırdı</b> ✗ →
+        /// istifadəçi «niyə sinxronlaşmır?» sualına cavab tapa bilmirdi ✗✓✓
+        /// ✅ İNDİ: bir kliklə URL · token · OXUMA və YAZMA nəticəsi görünür ✓
+        /// </para>
+        /// </summary>
+        private async void BuludSinaqEt_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                BuludAyarNeticeText.Text = "🩺 Yoxlanılır… ✓";
+                BuludAyarNeticeText.Foreground = System.Windows.Media.Brushes.LightSkyBlue;
+
+                var netice = App.Kopru is null
+                    ? "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓"
+                    : await App.Kopru.SinaqEtAsync();
+
+                BuludAyarNeticeText.Text = netice;
+                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
+            }
+            catch (Exception ex)
+            {
+                Cas0201.Firebase.AppLogger.Xeta(ex, "bulud sınaq");
+                BuludAyarNeticeText.Text = "⚠️ Yoxlama alınmadı ✗ — " + ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// 🔥 <b>BULUDU SIFIRLA + YERLİ MƏLUMATI GÖNDƏR</b> ✓✓✓ (v6.2.13)
+        /// <para>İstifadəçi tələbi: «Firebasedaki bütün dataları sil və proqramımızdaki datanı ötür» ✓✓✓</para>
+        /// </summary>
+        private async void BuluduSifirlaGonder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!Cas0201.Firebase.BuludAyarlari.IcazeVar)
+                {
+                    BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
+                    return;
+                }
+
+                if (App.Kopru is null)
+                {
+                    BuludAyarNeticeText.Text = "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓";
+                    return;
+                }
+
+                var təsdiq = MessageBox.Show(
+                    this,
+                    "🔥 BULUD TAM SIFIRLANSIN VƏ YERLİ MƏLUMAT GÖNDƏRİLSİN?\n\n" +
+                    "① 🗑️ Firebase-dəki kök «021Cars» qovluğu TAM SİLİNİR ✓\n" +
+                    "② ⬆️ Bu kompüterdəki BÜTÜN məlumat buluda yenidən yazılır ✓:\n" +
+                    "      🚗 maşınlar · 💸 xərclər · 💰 satışlar · 💳 kreditlər\n" +
+                    "      ⏳ möhlətlər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
+                    "✅ Nəticə: bulud = bu kompüterin TAM surəti ✓\n" +
+                    "   Digər kompüterlər növbəti sinxronda hər şeyi alacaq ✓\n\n" +
+                    "⚠ Diqqət: buluddaki köhnə/natamam məlumat SİLİNİR ✗\n" +
+                    "   (yerli məlumata HEÇ NƏ olmur ✓✓✓)",
+                    "🔥 Buludu sıfırla + göndər",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning,
+                    MessageBoxResult.No);
+
+                if (təsdiq != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                BuludAyarNeticeText.Text = "🔥 Bulud sıfırlanır və məlumat göndərilir… ✓ (bir neçə saniyə ✓)";
+
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+                (int Push, int Silme) netice;
+
+                try
+                {
+                    // 🛡️ Fon ipində ✓ (UI donmur ✗)
+                    netice = Task.Run(() => App.Kopru!.HamisiniGonderAsync(true))
+                        .GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    System.Windows.Input.Mouse.OverrideCursor = null;
+                }
+
+                // 🔄 UI yenilənir ✓
+                if (DataContext is ViewModels.MainViewModel vm)
+                {
+                    vm.HamisiniIndiYenileCommand.Execute(null);
+                }
+
+                // ================================================================
+                //  ⏱️ SİNXRON FASİLƏSİNİ 10 SANİYƏYƏ SAL ✓✓✓  (v6.2.13)
+                // ----------------------------------------------------------------
+                //  ⚠ Buluddaki ayar 300 saniyə (5 dəqiqə) idi ✗ → istifadəçi
+                //  «5 dəqiqə sonra yaşıl oldu» deyə şikayət etdi ✗✓✓
+                //  ✅ Sıfırlama ilə birlikdə 10 saniyə yazılır ✓ (sürətli sinxron ✓)
+                // ================================================================
+                try
+                {
+                    var ayarKlient = new Cas0201.Firebase.FirebaseRestClient(
+                        new Cas0201.Firebase.FirebaseOptions());
+
+                    await Cas0201.Firebase.BuludAyarlari.YaddaSaxlaAsync(
+                        ayarKlient, firebaseSaniye: 10, avtomatik: true);
+
+                    Cas0201.Firebase.BuludAyarlari.TətbiqEt(App.Kopru);
+                    App.Kopru?.Basla();
+                }
+                catch { }
+
+                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
+                BuludAyarNeticeText.Text =
+                    $"✅ BULUD SIFIRLANDI VƏ YENİDƏN YAZILDI ✓\n" +
+                    $"☁️ {netice.Push} qeyd buluda göndərildi ✓ · 🗑️ {netice.Silme} ✓\n" +
+                    $"⚠ Bulud bağlantısı: {(App.Kopru?.Onlayn == true ? "işləyir ✓" : "YOXDUR ✗")}" +
+                    (App.Kopru?.SonXeta is { Length: > 0 } x ? $"\n❌ Son xəta: {x}" : "");
+
+                MessageBox.Show(
+                    this,
+                    $"✅ HAZIRDIR ✓\n\n☁️ {netice.Push} qeyd buluda yazıldı ✓\n\n" +
+                    "🖥️ Digər kompüterdə 1 dəqiqə gözləyin ✓ yaxud orada\n" +
+                    "⚙️ Tənzimləmələr → «⬇️ BULUDDAN MƏLUMATI GÖTÜR» basın ✓",
+                    "Uğurlu ✓",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Input.Mouse.OverrideCursor = null;
+                Cas0201.Firebase.AppLogger.Xeta(ex, "buludu sıfırla");
+                BuludAyarNeticeText.Text = "⚠️ Alınmadı ✗ — " + ex.Message;
+            }
+        }
+
         /// <summary>💾 YADDA SAXLA — yerli fayl ✓ + Firebase ✓ + dərhal tətbiq ✓</summary>
         private async void BuludAyarSaxla_Click(object sender, RoutedEventArgs e)
         {

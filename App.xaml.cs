@@ -418,30 +418,16 @@ namespace EnterpriseAeroStudio
                     return;
                 }
 
-                // ④ ❓ İstifadəçidən soruşulur ✓
-                var cavab = MessageBox.Show(
-                    window,
-                    "🆕 YENİ KOMPÜTER AŞKARLANDI\n\n" +
-                    "Bu kompüterdə HEÇ BİR məlumat yoxdur (təmiz quraşdırma).\n\n" +
-                    "☁️ Firebase buludundaki bütün məlumat indi götürülsün?\n\n" +
-                    "   🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar\n" +
-                    "   💸 xərclər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
-                    "✅ «Bəli»  → məlumat buluddan götürülür ✓ və avtomatik sinxron\n" +
-                    "                İŞƏ DÜŞÜR ✓ (10–60 saniyə çəkə bilər ✓)\n" +
-                    "✗ «Xeyr»  → proqram BOŞ açılır ✓ (sonra: ⚙️ Tənzimləmələr →\n" +
-                    "                «⬇️ BULUDDAN GÖTÜR», və ya 💾 USB taxın)",
-                    "☁️ Buluddan məlumat götürülsün?",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question,
-                    MessageBoxResult.Yes);
-
-                if (cavab != MessageBoxResult.Yes)
-                {
-                    Cas0201.Firebase.AppLogger.Melumat(
-                        "🆕 İlk yükləmə İSTİFADƏÇİ tərəfindən təxirə salındı ✓ — tətbiq boş açıldı ✓");
-
-                    return;
-                }
+                // ================================================================
+                //  ⬇️ AVTOMATİK — İSTİFADƏÇİDƏN SORUŞULMUR ✓✓✓  (v6.2.13)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: modal sual verilirdi ✗ → istifadəçi «əllə basmaq
+                //  lazım idi» deyə şikayət etdi ✗✓✓
+                //  ✅ İNDİ: boş baza + təmiz quraşdırma → məlumat AVTOMATİK
+                //  buluddan götürülür ✓ (yalnız BOŞ bazada ✓ — təhlükəsiz ✓✓✓)
+                // ================================================================
+                Cas0201.Firebase.AppLogger.Melumat(
+                    "🆕 Boş baza aşkarlandı ✓ — bulud məlumatı AVTOMATİK götürülür ✓ (sual verilmir ✓)");
 
                 // ⑤⑥ ⬇️ Faktiki yükləmə + nəticə ✓
                 BuluddanIlkYukle(window);

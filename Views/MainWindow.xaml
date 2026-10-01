@@ -5690,6 +5690,20 @@
                                                         Click="BuluddanGotur_Click"
                                                         ToolTip="🆕 YENİ KOMPÜTER: buluddaki BÜTÜN məlumatı (🚗 maşın · 💳 kredit · ⏳ möhlət · 💰 satış · 💸 xərc · 👥 tərəfdaş · 💵 kassa) yerli bazaya götürür ✓ və avtomatik sinxronu İŞƏ SALIR ✓ — USB taxmağa ehtiyac YOXDUR ✓✓✓"/>
 
+                                                <!-- 🩺🔬 DİAQNOSTİKA VƏ 🔥 SIFIRLA+GÖNDƏR ✓✓✓ (v6.2.13) -->
+                                                <UniformGrid Columns="2" Margin="0,6,0,0">
+                                                    <Button Content="🩺  Bağlantını yoxla" Style="{StaticResource iOSButton}"
+                                                            Height="30" Margin="0,0,4,0" Background="#334155"
+                                                            Foreground="#E2E8F0" FontSize="10.5" Cursor="Hand"
+                                                            Click="BuludSinaqEt_Click"
+                                                            ToolTip="🔬 REAL yoxlama ✓ — URL · token · OXUMA (GET) və YAZMA (PUT) testi edir ✓ · HTTP kodunu OLDUĞU KİMİ göstərir ✓ (xəta GİZLƏDİLMİR ✗✓✓)"/>
+                                                    <Button Content="🔥  Sıfırla + göndər" Style="{StaticResource iOSButton}"
+                                                            Height="30" Margin="4,0,0,0" Background="#7C2D12"
+                                                            Foreground="#FFEDD5" FontSize="10.5" Cursor="Hand"
+                                                            Click="BuluduSifirlaGonder_Click"
+                                                            ToolTip="🔥 BULUDU TAM SİLİR ✓ sonra YERLİ BAZADAKI BÜTÜN məlumatı (🚗 maşın · 💸 xərc · 💰 satış · 💳 kredit · ⏳ möhlət · 👥 tərəfdaş · 💵 kassa) buluda YAZIR ✓✓✓ · digər kompüterlər növbəti sinxronda hər şeyi alır ✓"/>
+                                                </UniformGrid>
+
                                                 <Button Content="💾  YADDA SAXLA" Style="{StaticResource iOSButton}"
                                                         Height="32" HorizontalContentAlignment="Center" Padding="12,0"
                                                         Margin="0,10,0,0" Background="#0369A1" Foreground="#E0F2FE"

@@ -288,6 +288,98 @@ namespace Cas0201.Firebase
             return SonCekilenSayi;
         }
 
+        /// <summary>
+        /// 🔥 <b>BULUDU TAM SIFIRLA + YERLİ MƏLUMATI GÖNDƏR</b> ✓✓✓  (v6.2.13)
+        /// <para>
+        /// İstifadəçi tələbi: «Firebasedaki bütün dataları sil və proqramımızdaki
+        /// datanı ötür Firebase-ə» ✓✓✓
+        /// </para>
+        /// <list type="number">
+        ///   <item>🗑️ <paramref name="buluduSil"/> = true → buludun kökü
+        ///   (<c>021Cars</c>) <b>TAM SİLİNİR</b> ✓ (bütün köhnə/natamam məlumat ✗)</item>
+        ///   <item>🧠 yaddaşdaki hash/açar xəritələri təmizlənir ✓ →
+        ///   heç bir qeyd «dəyişməyib» sayılmır ✗✓✓</item>
+        ///   <item>🗄️ yerli <c>bulud_izleme</c> cədvəli təmizlənir ✓</item>
+        ///   <item>⬆️ <b>YERLİ BAZADAKI BÜTÜN MƏLUMAT</b> buluda göndərilir ✓✓✓</item>
+        /// </list>
+        /// <para>
+        /// ⚠ Nəticə: bulud yerli bazanın <b>TAM surəti</b> olur ✓ —
+        /// digər kompüterlər növbəti sinxronda hər şeyi alır ✓✓✓
+        /// </para>
+        /// </summary>
+        public async Task<(int Push, int Silme)> HamisiniGonderAsync(
+            bool buluduSil, CancellationToken ct = default)
+        {
+            try
+            {
+                // ☁️ Körpü aktiv olmalıdır ✓ (yoxdursa heç nə göndərilmir ✗)
+                Aktiv = true;
+
+                // ① 🗑️ BULUDU TAM SIFIRLA ✓
+                if (buluduSil)
+                {
+                    var uğur = await _klient.FizikiSilAsync(string.Empty, ct).ConfigureAwait(false);
+
+                    AppLogger.Melumat(uğur
+                        ? "🔥 BULUD TAM SIFIRLANDI ✓ — köhnə məlumat silindi ✓"
+                        : "⚠️ Bulud sıfırlanmadı ✗ — əlaqəni yoxlayın ✓");
+                }
+
+                // ② 🧠 Hash/açar xəritələri təmizlə ✓ → HAMISI «dəyişib» sayılır ✓
+                _sonHash.Clear();
+                _sonAçarlar.Clear();
+
+                // ③ 🗄️ Yerli sinxron izlərini təmizlə ✓
+                await IzlemeTemizleAsync(ct).ConfigureAwait(false);
+
+                // ④ ⬆️ YERLİ MƏLUMATI GÖNDƏR ✓✓✓
+                await BirDovruAsync(ct).ConfigureAwait(false);
+
+                AppLogger.Melumat(
+                    $"🔥 HAMISI GÖNDƏRİLDİ ✓ — ☁️ {SonPushSayi} qeyd buluda yazıldı ✓ · 🗑️ {SonSilmeSayi} ✓");
+
+                return (SonPushSayi, SonSilmeSayi);
+            }
+            catch (Exception ex)
+            {
+                SonXeta = ex.Message;
+                AppLogger.Xeta(ex, "hamisini göndər");
+                return (0, 0);
+            }
+        }
+
+        /// <summary>🗄️ <c>bulud_izleme</c> cədvəlini TAM təmizləyir ✓ (köhnə «sinxronlandı» izləri ✗)</summary>
+        private async Task IzlemeTemizleAsync(CancellationToken ct)
+        {
+            try
+            {
+                using var qap = _srv.CreateScope();
+                using var db = qap.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                using var cx = new SqliteConnection(db.Database.GetConnectionString());
+                await cx.OpenAsync(ct).ConfigureAwait(false);
+
+                CedveliYarat(cx);
+
+                using var əmr = cx.CreateCommand();
+                əmr.CommandText = "DELETE FROM bulud_izleme;";
+
+                var say = await əmr.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+
+                AppLogger.Melumat($"🧹 Bulud izləmə cədvəli təmizləndi ✓ — {say} köhnə iz silindi ✓");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "izləmə təmizləmə");
+            }
+        }
+
+        /// <summary>
+        /// 🩺 <b>BAĞLANTINI YOXLA</b> ✓✓✓ (v6.2.13) — oxu <b>və</b> yazma testi ✓
+        /// <para>⚠ Bu metod <b>HEÇ BİR XƏTANI GİZLƏTMİR</b> ✗ — HTTP kodlarını olduğu kimi qaytarır ✓✓✓</para>
+        /// </summary>
+        public Task<string> SinaqEtAsync(CancellationToken ct = default) => _klient.SinaqEtAsync(ct);
+
         /// <summary>🛑 Körpünü dayandırır ✓ (təkrar çağırış TƏHLÜKƏSİZ ✓)</summary>
         public void Dayandir()
         {

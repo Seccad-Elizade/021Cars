@@ -189,13 +189,89 @@ namespace Cas0201.Firebase
 
                 var mətn = await r.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
-                if (string.IsNullOrWhiteSpace(mətn) || mətn.Trim() == "null")
+                // ============================================================
+                //  📥 DİAQNOSTİKA (v6.2.13) — BOŞ cavab artıq SƏSSİZ DEYİL ✗✓✓
+                // ------------------------------------------------------------
+                //  ⚠ ƏVVƏL: boş/«null» cavab «boş obyekt» kimi qaytarılırdı ✗
+                //  → yuxarıda «heç nə çəkilmədi» ✗ və NİYƏ olduğu BİLİNMİRDİ ✗✓✓
+                //  ✅ İNDİ: hər oxuma loqa düşür ✓ (ölçü + status ✓)
+                // ============================================================
+                if (string.IsNullOrWhiteSpace(mətn))
                 {
+                    AppLogger.Xeberdarliq(
+                        $"⚠️ OXU «{yol}» BOŞ cavab ✗ (HTTP {(int)r.StatusCode}) — buludda bu bölmə yoxdur?");
+
                     return new JsonObject();
                 }
 
-                return JsonNode.Parse(mətn) as JsonObject ?? new JsonObject();
+                if (mətn.Trim() == "null")
+                {
+                    AppLogger.Melumat($"📥 OXU «{yol}» → buludda BOŞDUR ✓ (null ✓)");
+                    return new JsonObject();
+                }
+
+                AppLogger.Melumat($"📥 OXU «{yol}» → {(int)r.StatusCode} · {mətn.Length / 1024} KB ✓");
+
+                return CevirJsonNode(JsonNode.Parse(mətn));
             }, "Oxu " + yol, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 🔄 <b>JSON NODE-NU OBYEKTƏ ÇEVİRİR</b> ✓✓✓  (v6.2.13 — ★ KRİTİK DÜZƏLİŞ ★)
+        /// <para>
+        /// 🔥 <b>FIREBASE RTDB XÜSUSİYYƏTİ:</b> açar(lar) <b>bitişik ədəd</b>dirsə
+        /// (<c>1,2,3,4…</c> ✓ — bazadaki Id-lər belədir ✓) Firebase onları
+        /// <b>JSON MASSİVİ</b> kimi qaytarır ✗ (<c>[{…},{…}]</c> ✓),
+        /// obyekt kimi YOX ✗.
+        /// </para>
+        /// <para>
+        /// ⚠ ƏVVƏL: <c>JsonNode.Parse(mətn) as JsonObject</c> → massiv gələndə
+        /// <b>NULL</b> olurdu ✗ → <c>?? new JsonObject()</c> → <b>BOŞ obyekt</b> ✗
+        /// → «heç nə çəkilmədi» ✗ və <b>HEÇ BİR XƏTA GÖSTƏRİLMİRDİ</b> ✗✓✓
+        /// (istifadəçi şikayəti: «buluddan götür → 0 maşın» ✗✓✓)
+        /// </para>
+        /// <para>
+        /// ✅ İNDİ: massiv də <b>obyektə çevrilir</b> ✓ — açar kimi qeydin ÖZ
+        /// <c>id</c> sahəsi götürülür ✓ (yoxdursa massiv indeksi ✓: 0→1 ✓ Firebase qaydası ✓)
+        /// </para>
+        /// </summary>
+        private static JsonObject CevirJsonNode(JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject obyekt:
+                    return obyekt;
+
+                case JsonArray massiv:
+                {
+                    // 🔥 Bitişik ədəd açarlar → Firebase massiv qaytarır ✗ → düzəldirik ✓
+                    var çevrilmiş = new JsonObject();
+
+                    for (var i = 0; i < massiv.Count; i++)
+                    {
+                        if (massiv[i] is not JsonObject sətr) continue;
+
+                        // 🆔 AÇAR: qeydin ÖZ id-si ✓ (ən etibarlı ✓)
+                        var id = sətr["id"]?.ToString();
+
+                        // ⚠ id yoxdursa → Firebase qaydası: massiv indeksi i → açar (i+1) ✓
+                        var açar = string.IsNullOrWhiteSpace(id)
+                            ? (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            : id;
+
+                        // ⚠ `DeepClone` — node-un valideyn bağlantısını qoparır ✓ (vacib ✓)
+                        çevrilmiş[açar] = sətr.DeepClone();
+                    }
+
+                    AppLogger.Melumat(
+                        $"🔄 Firebase MASSİVİ obyektə çevrildi ✓ — {çevrilmiş.Count} qeyd ✓");
+
+                    return çevrilmiş;
+                }
+
+                default:
+                    return new JsonObject();
+            }
         }
 
         /// <summary>📥 Tək obyekti oxuyur ✓ (tapılmadısa <c>null</c> ✓)</summary>
