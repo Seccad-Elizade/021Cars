@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  📦 021Cars — QURAŞDIRICI (InstallerWindow.xaml.cs) ✓✓✓
 // ----------------------------------------------------------------------------
 //  ✅ QURAŞDIRMA: fayllar → seçilmiş qovluq ✓ · qısayollar ✓ · icazə ✓ · reyestr ✓
@@ -285,6 +285,44 @@ namespace Cas0201.Setup
             }
         }
 
+        /// <summary>
+        /// 🔢 <b>QURAŞDIRILAN VERSİYA</b> ✓✓✓ — reyestrdə düzgün versiya yazılsın ✓
+        /// <para>
+        /// 🐞 ƏVVƏL hər yerdə sabit <c>"6.0"</c> yazılırdı ✗ → «Proqramlar və
+        /// Xüsusiyyətlər» siyahısında versiya HƏMİŞƏ «6.0» görünürdü ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ İNDİ: versiya <b>faktiki fayldan</b> oxunur ✓ (payload-daki
+        /// <c>EnterpriseAeroStudio.exe</c> ✓) → həmişə düzgün olur ✓
+        /// </para>
+        /// </summary>
+        private static string QuraşdırılanVersiya(string qovluq)
+        {
+            try
+            {
+                var exe = Path.Combine(qovluq, ExeAdi);
+
+                if (File.Exists(exe))
+                {
+                    var v = FileVersionInfo.GetVersionInfo(exe);
+
+                    var mətn = v.ProductVersion ?? v.FileVersion;
+
+                    if (!string.IsNullOrWhiteSpace(mətn))
+                    {
+                        // «6.2.6+abcdef» → «6.2.6» ✓ (build metadatası kəsilir ✓)
+                        var plus = mətn.IndexOf('+');
+                        if (plus > 0) mətn = mətn[..plus];
+
+                        return mətn.Trim();
+                    }
+                }
+            }
+            catch { }
+
+            return "6.0";
+        }
+
         /// <summary>⏳ İşləyən tətbiqi (və veb serveri) bağlayır ✗✓✓ — fayllar kiliddən azad olsun ✓</summary>
         private static void BaglilariBagla()
         {
@@ -424,7 +462,7 @@ namespace Cas0201.Setup
 
                     if (açar is not null)
                     {
-                        açar.SetValue("DisplayVersion", "6.0");
+                        açar.SetValue("DisplayVersion", QuraşdırılanVersiya(_hedef));
                         açar.SetValue("InstallLocation", _hedef);
                         açar.SetValue("DisplayIcon", exe);
                         açar.SetValue("UninstallString",
@@ -765,7 +803,7 @@ namespace Cas0201.Setup
                 if (açar is not null)
                 {
                     açar.SetValue("DisplayName", AppAdi);
-                    açar.SetValue("DisplayVersion", "6.0");
+                    açar.SetValue("DisplayVersion", QuraşdırılanVersiya(_hedef));
                     açar.SetValue("Publisher", "021Cars");
                     açar.SetValue("InstallLocation", _hedef);
                     açar.SetValue("DisplayIcon", exe);

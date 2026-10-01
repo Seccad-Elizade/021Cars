@@ -1,4 +1,4 @@
-using EnterpriseAeroStudio.Models;
+﻿using EnterpriseAeroStudio.Models;
 using EnterpriseAeroStudio.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -30,6 +30,7 @@ namespace EnterpriseAeroStudio.Data
 
         public async Task InitializeAsync(CancellationToken cancellationToken = default)
         {
+
             var hasMigrations = _context.Database.GetMigrations().Any();
 
             if (hasMigrations)
@@ -54,6 +55,8 @@ namespace EnterpriseAeroStudio.Data
             LogCreditMathSelfCheck();
             _logger.LogInformation("Verilənlər bazası uğurla hazırlandı.");
         }
+
+
 
         /// <summary>
         /// 🎯 <b>TAM ÖDƏNİLMİŞ KREDİTLƏRİ AVTOMATİK BAĞLAYIR.</b>

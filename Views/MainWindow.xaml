@@ -1417,6 +1417,19 @@
                                                    FontSize="11" Foreground="#6B7280" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </DockPanel>
 
+                                    <Grid DockPanel.Dock="Top" Margin="2,0,2,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Height="28" VerticalContentAlignment="Center"
+                                                 Text="{Binding Credits.ContractSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Yazaraq axtarın: müqavilə №, müştəri adı, maşın markası / nömrəsi, status"/>
+                                        <Button Grid.Column="1" Content="✖ Təmizlə" Style="{StaticResource iOSButton}" Margin="6,0,0,0"
+                                                Padding="10,0" Background="#374151" Foreground="#F9FAFB"
+                                                Command="{Binding Credits.ClearContractFilterCommand}"
+                                                ToolTip="Axtarışı təmizlə və bütün müqavilələri göstər"/>
+                                    </Grid>
                                     <!-- ============================================================== -->
                                     <!-- 🧾 SEÇİLMƏN MÜQAVİLƏ — QISA MƏLUMAT ★ YUXARIDA ★ ✓✓✓            -->
                                     <!--    (№ · Müqavilə № · Müştəri · Avtomobil · Satış Qiyməti ·      -->
@@ -1464,19 +1477,6 @@
                                         </WrapPanel>
                                     </Border>
 
-                                    <Grid DockPanel.Dock="Top" Margin="2,0,2,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Height="28" VerticalContentAlignment="Center"
-                                                 Text="{Binding Credits.ContractSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Yazaraq axtarın: müqavilə №, müştəri adı, maşın markası / nömrəsi, status"/>
-                                        <Button Grid.Column="1" Content="✖ Təmizlə" Style="{StaticResource iOSButton}" Margin="6,0,0,0"
-                                                Padding="10,0" Background="#374151" Foreground="#F9FAFB"
-                                                Command="{Binding Credits.ClearContractFilterCommand}"
-                                                ToolTip="Axtarışı təmizlə və bütün müqavilələri göstər"/>
-                                    </Grid>
 
                                     <TextBlock DockPanel.Dock="Top"
                                                Text="🔍 Axtar: müqavilə №, müştəri, maşın markası / dövlət nömrəsi, status (məs. «bmw»)"

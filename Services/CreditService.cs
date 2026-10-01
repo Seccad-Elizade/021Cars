@@ -238,6 +238,32 @@ namespace EnterpriseAeroStudio.Services
             //  birbaşa «ödənilib» etmə) AVTOMATİK yaradılır ✓.
             var gecikmeBolunur = transaction.Nov == "Gecikmə" && transaction.Mebleg > 0m;
 
+            // ================================================================
+            //  🩺 SELF-HEALING ✓✓✓ — «bölgü TƏTBİQ OLUNUB ✓ amma məbləğlər 0» ✗
+            // ----------------------------------------------------------------
+            //  🐞 REAL XƏTA (istifadəçi): «əməliyyatlar görsənir amma məbləğ 0 yazır» ✗
+            //  Səbəb: formadaki pay məbləğləri hesablanmadan (0) göndərilirdi ✗ →
+            //  `Mebleg > 0` filtri onları ATIRDI ✗ → jurnalda pay ÜMUMİYYƏTLƏ
+            //  yaranmırdı ✗ (və ya 0 görünürdü ✗)✓✓
+            //
+            //  ✅ İNDİ: bölgü işarələnibsə ✓ və baza varsa ✓ → paylar BURADA
+            //  yenidən hesablanır ✓ (düstur: <see cref="PartnerMath.Distribute"/> ✓)
+            // ================================================================
+            if (paylar.Count == 0
+                && !gecikmeBolunur
+                && transaction.TerefdasBolguTetbiqOlunub
+                && transaction.BolguBazasi is decimal baza && baza > 0m)
+            {
+                var duzeldilmis = PartnerMath.CreateDefaultRows();
+
+                PartnerMath.Distribute(baza, duzeldilmis);
+
+                paylar = duzeldilmis
+                    .Where(s => s.Mebleg > 0m)
+                    .OrderBy(s => s.Sira)
+                    .ToList();
+            }
+
             if (gecikmeBolunur && paylar.Count == 0)
             {
                 paylar = BuildDelayShares(transaction.Mebleg);

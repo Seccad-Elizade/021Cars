@@ -371,9 +371,46 @@ namespace EnterpriseAeroStudio.Views
 
                 // 🚪 Proqram bağlanmalıdır ✗ — installer faylları dəyişəcək ✓
                 //    (installer sonra proqramı ÖZÜ yenidən açır ✓✓✓)
+                // ============================================================
+                //  🐞 REAL XƏTA (istifadəçi): «bağlanır yazır amma BAĞLANMIR ✗ →
+                //     özüm əl ilə bağlayıram, yoxsa "iki proqram açıq ola bilməz" ✗»
+                // ------------------------------------------------------------
+                //  Səbəb: `CixisLazim` FON THREAD-dən çağırılır ✗
+                //  (`Task.Delay(...).ContinueWith` ✓) → WPF-də `Application.Shutdown()`
+                //  YALNIZ UI thread-dən işləyir ✗ → istisna atılırdı ✗ və səssizcə
+                //  udulurdu ✗✓✓
+                //
+                //  ✅ İNDİ: ① UI thread-ə keçilir ✓ ② Shutdown ✓
+                //            ③ zəmanət: 3 saniyə sonra hələ də açıqdırsa → məcburi
+                //            `Environment.Exit` ✓✓✓ (installer mütləq gözləməsin ✗)
+                // ============================================================
                 GuncellemeXidmeti.CixisLazim += () =>
                 {
-                    try { Application.Current?.Shutdown(); } catch { }
+                    try
+                    {
+                        var app = Application.Current;
+
+                        if (app is null)
+                        {
+                            Environment.Exit(0);
+                            return;
+                        }
+
+                        app.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try { app.Shutdown(); } catch { }
+
+                            // 🛡️ ZƏMANƏT — 3 saniyə sonra proses hələ də varsa məcburi çıxış ✓
+                            Task.Delay(3000).ContinueWith(_ =>
+                            {
+                                try { Environment.Exit(0); } catch { }
+                            });
+                        }));
+                    }
+                    catch
+                    {
+                        try { Environment.Exit(0); } catch { }
+                    }
                 };
 
                 if (!GuncellemeXidmeti.BaslatGuncelleme(fayl!))
