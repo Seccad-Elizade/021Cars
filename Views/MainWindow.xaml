@@ -1411,7 +1411,7 @@
                                                    FontSize="11" Foreground="#6B7280" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </DockPanel>
 
-                                    <Grid DockPanel.Dock="Top" Margin="2,0,2,2">
+                                    <Grid DockPanel.Dock="Top" Margin="2,0,2,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -1424,10 +1424,6 @@
                                                 Command="{Binding Credits.ClearContractFilterCommand}"
                                                 ToolTip="Axtarışı təmizlə və bütün müqavilələri göstər"/>
                                     </Grid>
-
-                                    <TextBlock DockPanel.Dock="Top"
-                                               Text="🔍 Axtar: müqavilə №, müştəri, maşın markası / dövlət nömrəsi, status (məs. «bmw»)"
-                                               FontSize="10" Foreground="#6B7280" Margin="4,0,4,6" TextWrapping="Wrap"/>
 
                                     <DataGrid ItemsSource="{Binding Credits.FilteredContracts}" SelectedItem="{Binding Credits.SelectedCredit}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
