@@ -23,6 +23,18 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         public KassaViewModel Kassa { get; }
 
+        /// <summary>
+        /// 🔔 «🔔 Bildirişlər» tabının ViewModel-i ✓ — «bu gün hansı maşının ödənişi
+        /// var? nə vaxtdır?» ✓✓✓ (kredit taksitləri ✓ möhlətlər ✓ gecikmələr ✓)
+        /// </summary>
+        public BildirisViewModel Bildirisler { get; }
+
+        /// <summary>
+        /// 🗓️ «🗓️ Ödəniş Təqvimi» tabının ViewModel-i ✓ — «hansı ay hansı maşınlar
+        /// pul verəcək» ✓✓✓ (ay-ay cədvəl ✓)
+        /// </summary>
+        public TevimViewModel Tevim { get; }
+
         /// <summary>«👥 Tərəfdaşlar» tabının ViewModel-i — tərəfdaş bölgüsü mərkəzi.</summary>
         public PartnersViewModel Partners { get; }
 
@@ -1123,14 +1135,16 @@ namespace EnterpriseAeroStudio.ViewModels
             yield return ("🏷️ Kredit Əlavə Gəlir/Xərc", CreditTransactions); // 6
             yield return ("📊 Maliyyə Paneli", Finance);                    // 7
             yield return ("💵 Kassa", Kassa);                               // 8
-            yield return ("🗄️ Satılan & Krediti Bitmiş", SalesArchive);     // 9
-            yield return ("🤝 Barter Keçmişi", Credits);                    // 10
-            yield return ("📤 Transfer (gizli)", Credits);                  // 11
-            yield return ("📤 Transfer", Credits);                          // 12
-            yield return ("👥 Tərəfdaşlar", Partners);                      // 13
-            yield return ("🌐 Veb Sayt", Web);                              // 14
-            yield return ("⚙️ Tənzimləmələr", this);                        // 15
-            yield return ("📜 Skript İdxalı", Skript);                      // 16
+            yield return ("🔔 Bildirişlər", Bildirisler);                    // 9
+            yield return ("🗓️ Ödəniş Təqvimi", Tevim);                      // 10
+            yield return ("🗄️ Satılan & Krediti Bitmiş", SalesArchive);     // 11
+            yield return ("🤝 Barter Keçmişi", Credits);                    // 12
+            yield return ("📤 Transfer (gizli)", Credits);                  // 13
+            yield return ("📤 Transfer", Credits);                          // 14
+            yield return ("👥 Tərəfdaşlar", Partners);                      // 15
+            yield return ("🌐 Veb Sayt", Web);                              // 16
+            yield return ("⚙️ Tənzimləmələr", this);                        // 17
+            yield return ("📜 Skript İdxalı", Skript);                      // 18
         }
 
         // ====================================================================
@@ -1267,6 +1281,8 @@ namespace EnterpriseAeroStudio.ViewModels
             CreditTransactionsViewModel creditTransactions,
             FinanceViewModel finance,
             KassaViewModel kassa,
+            BildirisViewModel bildirisler,
+            TevimViewModel tevim,
             PartnersViewModel partners,
             WebViewModel web,
             ScriptImportViewModel skript,
@@ -1290,6 +1306,8 @@ namespace EnterpriseAeroStudio.ViewModels
             CreditTransactions = creditTransactions;
             Finance = finance;
             Kassa = kassa;
+            Bildirisler = bildirisler;
+            Tevim = tevim;
             Partners = partners;
             Web = web;
 
@@ -1417,8 +1435,8 @@ namespace EnterpriseAeroStudio.ViewModels
             await Expenses.LoadAsync();
 
             // ⏳ Qalan tablar: indi yox — istifadəçi keçəndə yüklənəcək ✓
-            //   (17 tab var ✓ — 0 və 1 artıq yüklənib ✓)
-            for (var i = 2; i < 17; i++)
+            //   (19 tab var ✓ — 0 və 1 artıq yüklənib ✓ · 🔔 Bildirişlər ✓ 🗓️ Təqvim ✓ daxil)
+            for (var i = 2; i < 19; i++)
             {
                 _çirkliTablar.Add(i);
             }

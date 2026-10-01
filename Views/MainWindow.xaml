@@ -1417,6 +1417,53 @@
                                                    FontSize="11" Foreground="#6B7280" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     </DockPanel>
 
+                                    <!-- ============================================================== -->
+                                    <!-- 🧾 SEÇİLMƏN MÜQAVİLƏ — QISA MƏLUMAT ★ YUXARIDA ★ ✓✓✓            -->
+                                    <!--    (№ · Müqavilə № · Müştəri · Avtomobil · Satış Qiyməti ·      -->
+                                    <!--     Aylıq Ödəniş · Status — cədvəlin ÜSTÜNDƏ, həmişə görünür ✓)  -->
+                                    <!-- ============================================================== -->
+                                    <Border DockPanel.Dock="Top" Background="#0F172A" CornerRadius="8"
+                                            BorderBrush="#334155" BorderThickness="1" Padding="10,8" Margin="2,0,2,6">
+                                        <WrapPanel>
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="№"/>
+                                            <TextBlock FontSize="12" FontWeight="Bold" Foreground="#60A5FA" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0" Text="{Binding Credits.SelectedCredit.SiraNomresi}"/>
+
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="Müqavilə №"/>
+                                            <TextBlock FontSize="12" FontWeight="Bold" Foreground="#F9FAFB" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0" Text="{Binding Credits.SelectedCredit.MuqavileNomresi}"/>
+
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="Müştəri"/>
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#A78BFA" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0" Text="{Binding Credits.SelectedCredit.Mustəri}"/>
+
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="Avtomobil"/>
+                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#38BDF8" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0" Text="{Binding Credits.SelectedCredit.Car.DisplayName}"/>
+
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="Satış Qiyməti"/>
+                                            <TextBlock FontSize="12" FontWeight="Bold" Foreground="#FBBF24" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0"
+                                                       Text="{Binding Credits.SelectedCredit.Mebleg, Converter={StaticResource Currency}}"/>
+
+                                            <TextBlock FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                       Text="Aylıq Ödəniş"/>
+                                            <TextBlock FontSize="12" FontWeight="Bold" Foreground="#34D399" VerticalAlignment="Center"
+                                                       Margin="0,0,16,0"
+                                                       Text="{Binding Credits.SelectedCredit.AylıqOdenis, Converter={StaticResource Currency}}"/>
+
+                                            <Border Background="#052E16" CornerRadius="9" Padding="9,2" VerticalAlignment="Center">
+                                                <TextBlock FontSize="11" FontWeight="Bold" Foreground="#34D399"
+                                                           Text="{Binding Credits.SelectedCredit.Status}"/>
+                                            </Border>
+                                        </WrapPanel>
+                                    </Border>
+
                                     <Grid DockPanel.Dock="Top" Margin="2,0,2,2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -4050,6 +4097,338 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+                <!-- ============================================================ -->
+                <!-- TAB: 🔔 BİLDİRİŞLƏR — «bu gün nə ödənilməlidir?» ✓✓✓         -->
+                <!-- ============================================================ -->
+                <TabItem Header="🔔 Bildirişlər">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False"
+                                  Padding="0,0,6,0">
+                        <StackPanel Margin="0,16,0,0">
+
+                            <!-- ============ DÖVR + FİLTR ============ -->
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="🔔 BİLDİRİŞLƏR — nə vaxt, kim, nə qədər ödəməlidir"
+                                               FontSize="14" FontWeight="Bold" Foreground="#F9FAFB"/>
+                                    <TextBlock FontSize="10" Foreground="#64748B" TextWrapping="Wrap" Margin="0,7,0,0"
+                                               Text="🏦 kredit taksitləri ✓ · ⏳ ilkin ödəniş möhlətləri ✓ · 🛒 nisyə satış möhlətləri ✓ · ⚠ ödənilməmiş gecikmə cərimələri ✓ — hər sətirdə «nə vaxtdır» göstərilir ✓ (BUGÜN ✓ · X günə ✓ · ⚠ X gün GECİKİB ✓)"/>
+
+                                    <WrapPanel Margin="0,14,0,0">
+                                        <StackPanel Margin="4">
+                                            <TextBlock Text="📅 Dövr" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox Width="150" ItemsSource="{Binding Bildirisler.DovrSecimleri}"
+                                                      SelectedItem="{Binding Bildirisler.SecilmisDovr}"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="4">
+                                            <TextBlock Text="🏷️ Növ" Style="{StaticResource FieldLabel}"/>
+                                            <ComboBox Width="230" ItemsSource="{Binding Bildirisler.NovSecimleri}"
+                                                      SelectedItem="{Binding Bildirisler.SecilmisNov}"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="4">
+                                            <TextBlock Text="🔎 Axtarış (müqavilə · müştəri · maşın)" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Width="230" Text="{Binding Bildirisler.Axtaris, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Məs. BMW · M-0007 · Rebbil"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="4" VerticalAlignment="Bottom">
+                                            <CheckBox Content="✅ Ödənilmişlər də göstərilsin"
+                                                      IsChecked="{Binding Bildirisler.OdenilmisDeGorsensin}"
+                                                      Foreground="#E2E8F0" FontSize="11.5" Margin="0,0,0,6"
+                                                      ToolTip="İşarələnməyəndə yalnız GÖZLƏNİLƏN ödənişlər görünür ✓"/>
+                                        </StackPanel>
+                                        <Button Content="↻ Yenilə" Style="{StaticResource iOSButton}" Background="#2563EB"
+                                                Foreground="White" Margin="16,20,4,0" Padding="14,0"
+                                                Command="{Binding Bildirisler.YenileCommand}"/>
+                                        <TextBlock Margin="16,22,4,0" VerticalAlignment="Center" FontSize="11.5"
+                                                   Foreground="#94A3B8" Text="{Binding Bildirisler.BugunMetni}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+
+                            <!-- ============ 📊 XÜLASƏ (KPI) ============ -->
+                            <UniformGrid Columns="5" Margin="0,0,0,14">
+                                <Border Background="#0B1220" CornerRadius="10" BorderBrush="#F59E0B" BorderThickness="1.5"
+                                        Padding="14,11" Margin="0,0,7,0">
+                                    <StackPanel>
+                                        <TextBlock Text="📅 BUGÜN ÖDƏNİLMƏLİ" FontSize="10" FontWeight="Bold" Foreground="#F59E0B"/>
+                                        <TextBlock Text="{Binding Bildirisler.BugunCemi, Converter={StaticResource Currency}}"
+                                                   FontSize="19" FontWeight="Bold" Foreground="#F59E0B" Margin="0,4,0,0"/>
+                                        <TextBlock FontSize="9.5" Foreground="#64748B"
+                                                   Text="{Binding Bildirisler.BugunSayi, StringFormat={}{0} ödəniş ✓}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#0B1220" CornerRadius="10" BorderBrush="#FB7185" BorderThickness="1.5"
+                                        Padding="14,11" Margin="7,0,7,0">
+                                    <StackPanel>
+                                        <TextBlock Text="⚠ GECİKMİŞ" FontSize="10" FontWeight="Bold" Foreground="{Binding Bildirisler.GecikmisRengi}"/>
+                                        <TextBlock Text="{Binding Bildirisler.GecikmisCemi, Converter={StaticResource Currency}}"
+                                                   FontSize="19" FontWeight="Bold" Foreground="{Binding Bildirisler.GecikmisRengi}" Margin="0,4,0,0"/>
+                                        <TextBlock FontSize="9.5" Foreground="#64748B"
+                                                   Text="{Binding Bildirisler.GecikmisSayi, StringFormat={}{0} ödənişin vaxtı keçib ⚠}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#0B1220" CornerRadius="10" BorderBrush="#FBBF24" BorderThickness="1"
+                                        Padding="14,11" Margin="7,0,7,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🗓 YAXIN 7 GÜN" FontSize="10" FontWeight="Bold" Foreground="#FBBF24"/>
+                                        <TextBlock Text="{Binding Bildirisler.HefteCemi, Converter={StaticResource Currency}}"
+                                                   FontSize="19" FontWeight="Bold" Foreground="#FBBF24" Margin="0,4,0,0"/>
+                                        <TextBlock FontSize="9.5" Foreground="#64748B"
+                                                   Text="{Binding Bildirisler.HefteSayi, StringFormat={}{0} ödəniş gəlir ✓}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#0B1220" CornerRadius="10" BorderBrush="#38BDF8" BorderThickness="1"
+                                        Padding="14,11" Margin="7,0,7,0">
+                                    <StackPanel>
+                                        <TextBlock Text="📆 YAXIN 30 GÜN" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                                        <TextBlock Text="{Binding Bildirisler.AyCemi, Converter={StaticResource Currency}}"
+                                                   FontSize="19" FontWeight="Bold" Foreground="#38BDF8" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#0B1220" CornerRadius="10" BorderBrush="#C084FC" BorderThickness="1"
+                                        Padding="14,11" Margin="7,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🕓 BÜTÜN GÖZLƏNİLƏN" FontSize="10" FontWeight="Bold" Foreground="#C084FC"/>
+                                        <TextBlock Text="{Binding Bildirisler.GozlenilenCemi, Converter={StaticResource Currency}}"
+                                                   FontSize="19" FontWeight="Bold" Foreground="#C084FC" Margin="0,4,0,0"/>
+                                        <TextBlock FontSize="9.5" Foreground="#64748B"
+                                                   Text="{Binding Bildirisler.GozlenilenSayi, StringFormat={}{0} ödəniş qalıb ✓}"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <!-- ============ ⚠️ TƏCİLİ (gecikmiş + bugün) ============ -->
+                            <Border Background="#1A0F14" CornerRadius="10" BorderBrush="#FB7185" BorderThickness="1.5"
+                                    Padding="12,10" Margin="0,0,0,14"
+                                    Visibility="{Binding Bildirisler.TeciliVar, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock Text="⚠️ TƏCİLİ — gecikmiş ✓ və BUGÜN ödənilməli olanlar" FontSize="12"
+                                               FontWeight="Bold" Foreground="#FB7185"/>
+                                    <ItemsControl ItemsSource="{Binding Bildirisler.TeciliBildirisler}" Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel Margin="0,0,0,4">
+                                                    <TextBlock DockPanel.Dock="Right" FontSize="12" FontWeight="Bold"
+                                                               Foreground="{Binding VeziyyetRengi}" Text="{Binding MeblegMetni}"/>
+                                                    <TextBlock FontSize="11.5" Foreground="#E2E8F0" TextWrapping="Wrap"
+                                                               Text="{Binding VaxtMetni}"/>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ============ 📋 BÜTÜN BİLDİRİŞLƏR (cədvəl) ============ -->
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="📋 BÜTÜN BİLDİRİŞLƏR — (soldan sağa: nə vaxt · nə vaxtdır · nə · kim · hansı maşın · nə qədər)"
+                                               FontSize="12" FontWeight="Bold" Foreground="#F9FAFB" Margin="4,2,4,8"/>
+
+                                    <DataGrid ItemsSource="{Binding Bildirisler.Bildirisler}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                              SelectionMode="Single" RowHeight="32" ColumnHeaderHeight="34"
+                                              MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="180"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="175"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="120"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="150"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="100"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="115"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="140"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Margin="2,0,2,14" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"
+                                       Text="{Binding Bildirisler.VeziyyetMetni}"/>
+                            <TextBlock Margin="2,0,2,14" FontSize="10" Foreground="#64748B" TextWrapping="Wrap"
+                                       Text="ℹ️ Ödənişlərin RƏSMİ (kanonik) qrafiki «📅 Kredit Ödəniş Qrafiki» tabındadır ✓ · burada isə bildiriş üçün sadə plan göstərilir ✓ (başlama tarixi + taksit · aylıq ödəniş ✓) · möhlətlər və gecikmə cərimələri də daxildir ✓"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ============================================================ -->
+                <!-- TAB: 🗓️ ÖDƏNİŞ TƏQVİMİ — «hansı ay hansı maşınlar pul verəcək» -->
+                <!-- ============================================================ -->
+                <TabItem Header="🗓️ Ödəniş Təqvimi">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False"
+                                  Padding="0,0,6,0">
+                        <StackPanel Margin="0,16,0,0">
+
+                            <!-- ============ FİLTR + XÜLASƏ ============ -->
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="🗓️ ÖDƏNİŞ TƏQVİMİ — ay-ay: hansı ay hansı maşınlar pul verəcək"
+                                               FontSize="14" FontWeight="Bold" Foreground="#F9FAFB"/>
+                                    <TextBlock FontSize="10" Foreground="#64748B" TextWrapping="Wrap" Margin="0,7,0,0"
+                                               Text="📅 solda AYLAR üzrə xülasə ✓ (cəmi · ödənilmiş · qalıq) — bir ayı seçin ✓ → sağda HƏMİN AYIN avtomobilləri ✓ · aşağıda isə həmin ayın bütün ödəniş sətirləri ✓✓✓ (kredit taksitləri ✓ möhlətlər ✓ gecikmə cərimələri ✓)"/>
+
+                                    <WrapPanel Margin="0,14,0,0">
+                                        <StackPanel Margin="4">
+                                            <TextBlock Text="🔎 Axtarış (müştəri · maşın · müqavilə · ay)" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Width="280" Text="{Binding Tevim.Axtaris, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="Məs. BMW · Rebbil · M-0007 · sentyabr"/>
+                                        </StackPanel>
+                                        <StackPanel Margin="4" VerticalAlignment="Bottom">
+                                            <CheckBox Content="🗓️ Yalnız BUGÜNDƏN sonrakı aylar"
+                                                      IsChecked="{Binding Tevim.YalnizGelecek}"
+                                                      Foreground="#E2E8F0" FontSize="11.5" Margin="0,0,0,6"/>
+                                        </StackPanel>
+                                        <Button Content="↻ Yenilə" Style="{StaticResource iOSButton}" Background="#2563EB"
+                                                Foreground="White" Margin="16,20,4,0" Padding="14,0"
+                                                Command="{Binding Tevim.YenileCommand}"/>
+                                    </WrapPanel>
+
+                                    <TextBlock Margin="4,10,0,0" FontSize="11.5" Foreground="#34D399" FontWeight="Bold"
+                                               TextWrapping="Wrap" Text="{Binding Tevim.ButunVeziyyet}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ============ 📅 AYLAR  +  🚘 HƏMİN AYIN MAŞINLARI ============ -->
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.25*"/>
+                                    <ColumnDefinition Width="14"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 📅 AYLAR -->
+                                <Border Grid.Column="0" Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                                        BorderThickness="1" Padding="10" Effect="{StaticResource GlassShadow}">
+                                    <StackPanel>
+                                        <TextBlock Text="📅 AYLAR ÜZRƏ XÜLASƏ — bir ayı seçin ✓" FontSize="12"
+                                                   FontWeight="Bold" Foreground="#F9FAFB" Margin="4,2,4,8"/>
+                                        <DataGrid ItemsSource="{Binding Tevim.Aylar}" SelectedItem="{Binding Tevim.SecilmisAy}"
+                                                  AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                                  SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                                  MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=430, TargetNullValue=430}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="🗓 AY" Binding="{Binding AyAdi}" Width="*" MinWidth="115"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="Ödəniş" Binding="{Binding SetirSayi}" Width="60"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="CƏMİ" Binding="{Binding CemiMetni}" Width="100"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="✅ Ödənilib" Binding="{Binding OdenilmisMetni}" Width="100"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="⚠ QALIQ" Binding="{Binding QaliqMetni}" Width="100"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 🚘 HƏMİN AYIN MAŞINLARI -->
+                                <Border Grid.Column="2" Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                                        BorderThickness="1" Padding="10" Effect="{StaticResource GlassShadow}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Tevim.SecilmisAyAdi}" FontSize="12.5" FontWeight="Bold"
+                                                   Foreground="#60A5FA" Margin="4,2,4,2"/>
+                                        <TextBlock Text="🚘 HƏMİN AYIN MAŞINLARI — hansı maşın nə qədər ödəyəcək ✓"
+                                                   FontSize="10.5" Foreground="#94A3B8" Margin="4,0,4,8" TextWrapping="Wrap"/>
+                                        <DataGrid ItemsSource="{Binding Tevim.AyAvtomobilleri}"
+                                                  AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                                  SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                                  MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=330, TargetNullValue=330}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="🚘 Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="125"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="95"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="100"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                                <DataGridTextColumn Header="Günlər" Binding="{Binding Tarixler}" Width="95"
+                                                                    ElementStyle="{StaticResource GridCellText}"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <TextBlock Margin="4,8,4,0" FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"
+                                                   Text="{Binding Tevim.SecilmisAyVeziyyet}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- ============ 📄 SEÇİLMİŞ AYIN BÜTÜN ÖDƏNİŞLƏRİ ============ -->
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Tevim.SecilmisAyAdi, StringFormat=📄 {0} — bütün ödəniş sətirləri ✓}"
+                                               FontSize="12" FontWeight="Bold" Foreground="#F9FAFB" Margin="4,2,4,8"/>
+                                    <DataGrid ItemsSource="{Binding Tevim.AySetirleri}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                              SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                              MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=430, TargetNullValue=430}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="175"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="175"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="140"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="95"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ============ 🔎 AXTARIŞ NƏTİCƏLƏRİ (bütün aylar üzrə) ============ -->
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14" Padding="10"
+                                    Visibility="{Binding Tevim.AxtarisVar, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock Text="🔎 AXTARIŞ NƏTİCƏLƏRİ — bütün aylar üzrə ✓" FontSize="12"
+                                               FontWeight="Bold" Foreground="#FBBF24" Margin="4,2,4,8"/>
+                                    <DataGrid ItemsSource="{Binding Tevim.AxtarisSetirleri}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                              SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                              MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=330, TargetNullValue=330}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="175"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="140"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Margin="2,0,2,14" FontSize="10" Foreground="#64748B" TextWrapping="Wrap"
+                                       Text="ℹ️ Bu cədvəl «🔔 Bildirişlər» tabı ilə EYNİ mənbədən qurulur ✓ (kredit taksitləri ✓ möhlətlər ✓ gecikmə cərimələri ✓) — rəqəmlər həmişə üst-üstə düşür ✓✓✓ · rəsmi/kanonik qrafik: «📅 Kredit Ödəniş Qrafiki» tabı ✓"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
 
 
                 <!-- ============================================================ -->

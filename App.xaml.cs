@@ -505,6 +505,8 @@ namespace EnterpriseAeroStudio
             services.AddSingleton<CreditTransactionsViewModel>();
             services.AddSingleton<FinanceViewModel>();
         services.AddSingleton<KassaViewModel>();
+            services.AddSingleton<BildirisViewModel>();
+            services.AddSingleton<TevimViewModel>();
             services.AddSingleton<PartnersViewModel>();
 
             // 📜 «Skript İdxalı» tabı ✓✓✓
