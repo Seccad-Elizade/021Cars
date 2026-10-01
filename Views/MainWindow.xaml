@@ -1398,8 +1398,8 @@
 
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.5*"/>
-                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="360"/>
                             </Grid.ColumnDefinitions>
 
                             <Border Grid.Column="0" Background="#111827" CornerRadius="12" BorderBrush="#1F2937" BorderThickness="1" Padding="6" Margin="0,0,8,0" Effect="{StaticResource GlassShadow}">
@@ -1470,7 +1470,7 @@
                                                 <TextBlock Text="MÜQAVİLƏ" Style="{StaticResource CardSectionHeader}"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="112"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
@@ -1479,24 +1479,24 @@
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Müştəri" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Müştəri" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Credits.SelectedCredit.Mustəri}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Avtomobil" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Avtomobil" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Credits.SelectedCredit.Car.DisplayName}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Başlama tarixi" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Başlama tarixi" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Credits.SelectedCredit.BaslamaTarixi, StringFormat=dd.MM.yyyy}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                                 </Grid>
                                                 <Border Height="1" Background="#1F2937" Margin="0,6,0,10"/>
 
                                                 <TextBlock Text="MALİYYƏ" Style="{StaticResource CardSectionHeader}"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="112"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
@@ -1508,20 +1508,20 @@
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Satış Qiyməti" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Satış Qiyməti" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="0" Grid.Column="1" TextAlignment="Right"
                                                                Text="{Binding Credits.SelectedCredit.Mebleg, Converter={StaticResource Currency}}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="İlkin Ödəniş" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="İlkin Ödəniş" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="1" Grid.Column="1" TextAlignment="Right"
                                                                Text="{Binding Credits.SelectedCredit.IlkinOdenis, Converter={StaticResource Currency}}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kreditləşdirilən" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Kreditləşdirilən" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="2" Grid.Column="1" TextAlignment="Right" Foreground="#FBBF24"
                                                                Text="{Binding Credits.SelectedCredit.Kreditlesdirilen, Converter={StaticResource Currency}}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
                                                     <!-- 🆕 FAİZ + KREDİTİN QİYMƏTİ — Kreditləşdirilənin ALTINDA -->
                                                     <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
@@ -1530,15 +1530,15 @@
                                                                ToolTip="Faiz = Kreditləşdirilən × Faiz% ÷ 100   ·   Qiymət = Kreditləşdirilən + Faiz"
                                                                Text="{Binding Credits.SelectedCredit.FaizVeQiymetMetni}"/>
 
-                                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Aylıq Ödəniş" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Aylıq Ödəniş" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="4" Grid.Column="1" TextAlignment="Right"
                                                                Text="{Binding Credits.SelectedCredit.AylıqOdenis, Converter={StaticResource Currency}}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Faiz / Müddət" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Faiz / Müddət" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="5" Grid.Column="1" TextAlignment="Right"
                                                                Text="{Binding Credits.SelectedFaizVeMuddet}"
-                                                               Style="{StaticResource CardValue}"/>
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                                 </Grid>
                                                 <Border Height="1" Background="#1F2937" Margin="0,6,0,10"/>
 
@@ -1554,9 +1554,9 @@
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödənilib" Style="{StaticResource CardLabel}"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Qalıq" Style="{StaticResource CardLabel}"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Son ödəniş" Style="{StaticResource CardLabel}"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödənilib" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Qalıq" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Son ödəniş" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
 
                                                     <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#34D399" FontWeight="Bold" FontSize="12.5"
                                                                Text="{Binding Credits.SelectedOdenilen, Converter={StaticResource Currency}}"/>
