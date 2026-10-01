@@ -16,6 +16,13 @@ namespace EnterpriseAeroStudio.Services
         private readonly IRepository<Credit> _credits;
         private readonly IRepository<CreditTransaction> _transactions;
         private readonly IRepository<MediaAttachment> _attachments;
+
+        /// <summary>
+        /// ⏳ Möhlətlər — silinən kredit/satışın möhlətləri DƏ surətə düşməlidir ✓✓✓
+        /// (v6.2.11 — bax: <see cref="RestoreAsync"/>).
+        /// </summary>
+        private readonly IOdenisMohletRepository _mohletler;
+
         private readonly ILogger<TrashService> _logger;
 
         /// <summary>Dövrə istinadların JSON-da sonsuz döngə yaratmaması üçün.</summary>
@@ -33,6 +40,7 @@ namespace EnterpriseAeroStudio.Services
             IRepository<Credit> credits,
             IRepository<CreditTransaction> transactions,
             IRepository<MediaAttachment> attachments,
+            IOdenisMohletRepository mohletler,
             ILogger<TrashService> logger)
         {
             _cars = cars;
@@ -41,6 +49,7 @@ namespace EnterpriseAeroStudio.Services
             _credits = credits;
             _transactions = transactions;
             _attachments = attachments;
+            _mohletler = mohletler;
             _logger = logger;
 
             try
@@ -91,6 +100,23 @@ namespace EnterpriseAeroStudio.Services
                 {
                     snapshot.Transactions.Add(transaction);
                 }
+
+                // ⏳ Kreditin İLKİN ÖDƏNİŞ möhlətləri də surətə düşür ✓✓✓ (v6.2.11)
+                foreach (var mohlet in await _mohletler.FindAsync(
+                             m => m.CreditId == credit.Id, cancellationToken))
+                {
+                    snapshot.Mohletler.Add(mohlet);
+                }
+            }
+
+            // ⏳ Satışların (nisyə) möhlətləri də surətə düşür ✓✓✓ (v6.2.11)
+            foreach (var sale in snapshot.Sales)
+            {
+                foreach (var mohlet in await _mohletler.FindAsync(
+                             m => m.SaleId == sale.Id, cancellationToken))
+                {
+                    snapshot.Mohletler.Add(mohlet);
+                }
             }
 
             foreach (var expense in snapshot.Expenses)
@@ -133,7 +159,16 @@ namespace EnterpriseAeroStudio.Services
                 Sales = { sale }
             };
 
-            snapshot.Note = $"{sale.SatisTarixi:dd.MM.yyyy} · {sale.Mustəri} · {sale.SatisQiymeti:N2} ₼";
+            // ⏳ Satışın MÖHLƏTLƏRİ də surətə düşür ✓✓✓ (v6.2.11)
+            //  (əks halda Ctrl+Z bərpasından sonra möhlətlər İTİRİRDİ ✗)
+            foreach (var mohlet in await _mohletler.FindAsync(
+                         m => m.SaleId == saleId, cancellationToken))
+            {
+                snapshot.Mohletler.Add(mohlet);
+            }
+
+            snapshot.Note = $"{sale.SatisTarixi:dd.MM.yyyy} · {sale.Mustəri} · {sale.SatisQiymeti:N2} ₼" +
+                            (snapshot.Mohletler.Count > 0 ? $" · {snapshot.Mohletler.Count} möhlət" : string.Empty);
 
             return await WriteAsync(snapshot, cancellationToken);
         }
@@ -188,9 +223,18 @@ namespace EnterpriseAeroStudio.Services
                 snapshot.Transactions.Add(transaction);
             }
 
+            // ⏳ Kreditin MÖHLƏTLƏRİ də surətə düşür ✓✓✓ (v6.2.11)
+            //  (əks halda Ctrl+Z bərpasından sonra möhlətlər İTİRİRDİ ✗)
+            foreach (var mohlet in await _mohletler.FindAsync(
+                         m => m.CreditId == creditId, cancellationToken))
+            {
+                snapshot.Mohletler.Add(mohlet);
+            }
+
             snapshot.Note =
                 $"{credit.BaslamaTarixi:dd.MM.yyyy} · {credit.Mebleg:N2} ₼ · " +
-                $"{snapshot.Transactions.Count} əməliyyat";
+                $"{snapshot.Transactions.Count} əməliyyat" +
+                (snapshot.Mohletler.Count > 0 ? $" · {snapshot.Mohletler.Count} möhlət" : string.Empty);
 
             return await WriteAsync(snapshot, cancellationToken);
         }
@@ -267,7 +311,17 @@ namespace EnterpriseAeroStudio.Services
                 Credits = { credit }
             };
 
-            snapshot.Note = $"ƏVVƏLKİ: {credit.Mustəri} · {credit.Mebleg:N2} ₼ · {credit.Status}";
+            // ⏳ Redaktədən ƏVVƏLKİ möhlətlər də surətə düşür ✓✓✓ (v6.2.11)
+            //  (əks halda kredit redaktəsi Ctrl+Z ilə geri alınsa möhlətlər
+            //   YENİ vəziyyətdə qalırdı ✗ → «gözlənilən möhlət» səhv olurdu ✗)
+            foreach (var mohlet in await _mohletler.FindAsync(
+                         m => m.CreditId == creditId, cancellationToken))
+            {
+                snapshot.Mohletler.Add(mohlet);
+            }
+
+            snapshot.Note = $"ƏVVƏLKİ: {credit.Mustəri} · {credit.Mebleg:N2} ₼ · {credit.Status}" +
+                            (snapshot.Mohletler.Count > 0 ? $" · {snapshot.Mohletler.Count} möhlət" : string.Empty);
 
             return await WriteAsync(snapshot, cancellationToken);
         }
@@ -514,11 +568,14 @@ namespace EnterpriseAeroStudio.Services
             }
 
             // ---- 3) Satışlar ----
+            var salePairs = new List<(int OldId, Sale Entity)>();
             foreach (var sale in snapshot.Sales)
             {
+                var oldSaleId = sale.Id;
                 sale.Id = 0;
                 sale.CarId = MapCar(sale.CarId);
                 await _sales.AddAsync(sale, cancellationToken);
+                salePairs.Add((oldSaleId, sale));
             }
 
             // ---- 4) Kreditlər ----
@@ -556,6 +613,51 @@ namespace EnterpriseAeroStudio.Services
             }
 
             await _transactions.SaveChangesAsync(cancellationToken);
+
+            // ================================================================
+            //  ---- 5.5) ⏳ MÖHLƏTLƏR (yeni kredit / satış Id-lərinə bağlanır) ✓✓✓
+            // ----------------------------------------------------------------
+            //  İSTİFADƏÇİ TƏLƏBİ: kredit/satış silinəndə möhlətlər də silinir ✓
+            //  və BƏRPA (Ctrl+Z) edildikdə GERİ QAYTARILIR ✓✓✓  (v6.2.11)
+            //  ⚠ ƏVVƏL möhlətlər heç surətə salınmırdı ✗ → bərpadan sonra
+            //  İTİRİRDİ ✗ (kassa proqnozu + ödəniş qrafiki səhv olurdu ✗)
+            // ================================================================
+            var saleIdMap = salePairs.ToDictionary(p => p.OldId, p => p.Entity.Id);
+
+            foreach (var mohlet in snapshot.Mohletler)
+            {
+                var kohneKreditId = mohlet.CreditId;
+                var kohneSatisId = mohlet.SaleId;
+
+                mohlet.Id = 0;
+                mohlet.Credit = null;
+                mohlet.Sale = null;
+
+                mohlet.CreditId =
+                    kohneKreditId.HasValue
+                    && creditIdMap.TryGetValue(kohneKreditId.Value, out var yeniKreditId)
+                        ? yeniKreditId
+                        : null;
+
+                mohlet.SaleId =
+                    kohneSatisId.HasValue
+                    && saleIdMap.TryGetValue(kohneSatisId.Value, out var yeniSatisId)
+                        ? yeniSatisId
+                        : null;
+
+                // ⚠ Sahibi bərpa olunmadısa möhlət YAZILMIR ✓ (sahibsiz sətir yaratmırıq ✗)
+                if (mohlet.CreditId is null && mohlet.SaleId is null)
+                {
+                    continue;
+                }
+
+                await _mohletler.AddAsync(mohlet, cancellationToken);
+            }
+
+            if (snapshot.Mohletler.Count > 0)
+            {
+                await _mohletler.SaveChangesAsync(cancellationToken);
+            }
 
             // ---- 6) Sənəd / media faylları ----
             await RestoreMediaAsync(snapshot, fileName, carIdMap, cancellationToken);
@@ -711,6 +813,43 @@ namespace EnterpriseAeroStudio.Services
             var creditReverted = reverted;
             reverted = 0;
 
+            // ================================================================
+            //  ---- ⏳ MÖHLƏTLƏR (kredit redaktəsi geri alınır) ✓✓✓  (v6.2.11)
+            // ----------------------------------------------------------------
+            //  Kredit redaktə olunanda möhlətlər də dəyişə bilər ✓ →
+            //  Ctrl+Z edildikdə ƏVVƏLKİ möhlət siyahısı BÜTÖV bərpa olunur ✓
+            //  (əvvəlki sətirlər silinir ✓ surətdəkilər yenidən yazılır ✓)
+            // ================================================================
+            var mohletReverted = 0;
+
+            if (snapshot.Mohletler.Count > 0)
+            {
+                var kreditIdleri = snapshot.Mohletler
+                    .Where(m => m.CreditId.HasValue)
+                    .Select(m => m.CreditId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var kreditId in kreditIdleri)
+                {
+                    _mohletler.ClearTracker();
+                    await _mohletler.DeleteWhereAsync(
+                        m => m.CreditId == kreditId, cancellationToken);
+
+                    foreach (var mohlet in snapshot.Mohletler.Where(x => x.CreditId == kreditId))
+                    {
+                        mohlet.Id = 0;
+                        mohlet.Credit = null;
+                        mohlet.Sale = null;
+
+                        await _mohletler.AddAsync(mohlet, cancellationToken);
+                        mohletReverted++;
+                    }
+                }
+
+                await _mohletler.SaveChangesAsync(cancellationToken);
+            }
+
             // ---- AVTOMOBİL ----
             if (snapshot.Car is { } car)
             {
@@ -744,8 +883,9 @@ namespace EnterpriseAeroStudio.Services
             DeleteFile(path);
 
             _logger.LogWarning(
-                "DƏYİŞİKLİK GERİ ALINDI: {Kind} «{Title}» — {Exp} xərc, {Credit} kredit, {Car} avtomobil",
-                snapshot.Kind, snapshot.Title, expenseReverted, creditReverted, reverted);
+                "DƏYİŞİKLİK GERİ ALINDI: {Kind} «{Title}» — {Exp} xərc, {Credit} kredit, " +
+                "{Car} avtomobil, {Mohlet} möhlət",
+                snapshot.Kind, snapshot.Title, expenseReverted, creditReverted, reverted, mohletReverted);
 
             return snapshot;
         }

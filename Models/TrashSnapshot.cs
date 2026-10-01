@@ -53,13 +53,28 @@ namespace EnterpriseAeroStudio.Models
         public List<Sale> Sales { get; set; } = new();
         public List<Credit> Credits { get; set; } = new();
         public List<CreditTransaction> Transactions { get; set; } = new();
+
+        /// <summary>
+        /// ⏳ <b>MÖHLƏT ÖDƏNİŞLƏRİ</b> ✓✓✓  (v6.2.11)
+        /// <para>
+        /// Kreditin İLKİN ÖDƏNİŞİ və NİSYƏ SATIŞ üzrə «nə vaxt, nə qədər pul
+        /// gələcək» sətirləri ✓ (ödənilmiş ✓ + gözlənilən ✓).
+        /// </para>
+        /// <para>
+        /// ⚠ ƏVVƏL surətə SALINMIRDI ✗ → «🗑️ Sil» edib Ctrl+Z ilə (bərpa)
+        /// geri qaytaranda kredit/satış qayıdırdı, lakin <b>MÖHLƏTLƏR
+        /// İTİRİRDİ</b> ✗ → kassa proqnozu və ödəniş qrafiki səhv olurdu ✗✓✓
+        /// </para>
+        /// </summary>
+        public List<OdenisMohlet> Mohletler { get; set; } = new();
+
         public List<MediaAttachment> Attachments { get; set; } = new();
 
         /// <summary>Surətdə saxlanılan qeydlərin ümumi sayı.</summary>
         [NotMapped]
         public int TotalRecords =>
             (Car is null ? 0 : 1) + Expenses.Count + Sales.Count
-            + Credits.Count + Transactions.Count + Attachments.Count;
+            + Credits.Count + Transactions.Count + Mohletler.Count + Attachments.Count;
 
         /// <summary>Cədvəldə göstərilən izah mətni.</summary>
         [NotMapped]
@@ -74,6 +89,7 @@ namespace EnterpriseAeroStudio.Models
                 if (Sales.Count > 0) parts.Add($"{Sales.Count} satış");
                 if (Credits.Count > 0) parts.Add($"{Credits.Count} kredit");
                 if (Transactions.Count > 0) parts.Add($"{Transactions.Count} əməliyyat");
+                if (Mohletler.Count > 0) parts.Add($"{Mohletler.Count} möhlət");
                 if (Attachments.Count > 0) parts.Add($"{Attachments.Count} sənəd");
 
                 return parts.Count == 0 ? "—" : string.Join(" · ", parts);

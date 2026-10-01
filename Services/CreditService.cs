@@ -15,6 +15,12 @@ namespace EnterpriseAeroStudio.Services
         /// <summary>📤 Transfer = nağd SATIŞ ✓ → xeyir bizdə qalır ✓.</summary>
         private readonly ISaleRepository _sales;
 
+        /// <summary>
+        /// ⏳ Möhlətlər — kredit SİLİNƏNDƏ onun möhlətləri də silinməlidir ✓✓✓
+        /// (bax: <see cref="DeleteCreditAsync"/>).
+        /// </summary>
+        private readonly IOdenisMohletRepository _mohletler;
+
         private readonly ITrashService _trash;
         private readonly ILogger<CreditService> _logger;
 
@@ -24,6 +30,7 @@ namespace EnterpriseAeroStudio.Services
             IPartnerShareRepository shares,
             ICarRepository cars,
             ISaleRepository sales,
+            IOdenisMohletRepository mohletler,
             ITrashService trash,
             ILogger<CreditService> logger)
         {
@@ -32,6 +39,7 @@ namespace EnterpriseAeroStudio.Services
             _shares = shares;
             _cars = cars;
             _sales = sales;
+            _mohletler = mohletler;
             _trash = trash;
             _logger = logger;
         }
@@ -100,12 +108,34 @@ namespace EnterpriseAeroStudio.Services
             _credits.ClearTracker();
             _transactions.ClearTracker();
             _shares.ClearTracker();
+            _mohletler.ClearTracker();
+
+            // ================================================================
+            //  ⏳ KREDİTİN MÖHLƏTLƏRİ DƏ SİLİNİR ✓✓✓  (v6.2.11)
+            // ----------------------------------------------------------------
+            //  İSTİFADƏÇİ TƏLƏBİ: «kredit verilibsə möhlət, ödənilibsə və ya
+            //  ödənilməyibsə — kredit SİLİNƏNDƏ möhlətlər DƏ silinməlidir» ✓
+            //
+            //  ⚠ Möhlətlər əvvəl yalnız BAZADAKI «ON DELETE CASCADE» ilə
+            //  silinirdi ✗ → bu, `PRAGMA foreign_keys` açıq olmasından ASILI
+            //  idi ✗ (başqa alətlə yazılmış / köhnə bazalarda SÖNÜK ola bilər ✗
+            //  → möhlətlər SAHİBSİZ qalır ✗ → 📅 Təqvim və 🔔 Bildirişlər
+            //  tablarında silinmiş kreditin möhləti görünürdü ✗✓✓).
+            //  ✅ İNDİ: AÇIQ silinir ✓ — heç bir xarici şərtdən asılı deyil ✓
+            // ================================================================
+            var silinenMohlet = await _mohletler.DeleteWhereAsync(
+                m => m.CreditId == id, cancellationToken);
 
             // Kreditə bağlı hər şey BİRBAŞA BAZADAN silinir:
-            //   1) tərəfdaş payları      2) ödəniş əməliyyatları      3) kredit özü
+            //   1) tərəfdaş payları      2) ödəniş əməliyyatları
+            //   3) MÖHLƏTLƏR ✓ (yuxarıda) 4) kredit özü
             await _shares.DeleteWhereAsync(p => p.CreditId == id, cancellationToken);
             await _transactions.DeleteWhereAsync(t => t.CreditId == id, cancellationToken);
             await _credits.DeleteWhereAsync(c => c.Id == id, cancellationToken);
+
+            _logger.LogInformation(
+                "🗑️ Kredit #{Id} silindi — əməliyyatlar, paylar və {Mohlet} möhlət də silindi ✓",
+                id, silinenMohlet);
         }
 
         public async Task<IReadOnlyList<CreditTransaction>> GetTransactionsAsync(CancellationToken cancellationToken = default)
@@ -526,6 +556,18 @@ namespace EnterpriseAeroStudio.Services
 
                 // 📤 Transfer SATIŞI silinir ✓
                 _sales.ClearTracker();
+
+                // ⏳ Transfer satışının MÖHLƏTLƏRİ DƏ silinir ✓✓✓ (v6.2.11)
+                //  (əvvəl yalnız bazadakı CASCADE-dən asılı idi ✗ → sahibsiz
+                //   möhlətlər 📅 Təqvim / 🔔 Bildirişlər tablarında qalırdı ✗)
+                foreach (var transferSatisi in await _sales.FindAsync(
+                             s => s.CarId == kId && s.OdenisUsulu == "Transfer", cancellationToken))
+                {
+                    _mohletler.ClearTracker();
+                    await _mohletler.DeleteWhereAsync(
+                        m => m.SaleId == transferSatisi.Id, cancellationToken);
+                }
+
                 await _sales.DeleteWhereAsync(
                     s => s.CarId == kId && s.OdenisUsulu == "Transfer",
                     cancellationToken);

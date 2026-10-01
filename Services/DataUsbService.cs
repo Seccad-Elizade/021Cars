@@ -1250,7 +1250,20 @@ namespace EnterpriseAeroStudio.Services
         {
             "Avtomobiller", "Terefdaslar", "XercKataloqu", "Kreditler", "Xercler",
             "Satislar", "KreditEmeliyyatlari", "TerefdasPaylari",
-            "TerefdasOdenisleri", "Senedler"
+            "TerefdasOdenisleri", "Senedler",
+
+            // ================================================================
+            //  ✅ v6.2.11 — MÖHLƏTLƏR və MANUAL KASSA HƏRƏKƏTLƏRİ də birləşdirilir ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL BU İKİ CƏDVƏL BURADA YOX İDİ ✗ → 📥 «USB / başqa
+            //  kompüterdən məlumat götür» edildikdə:
+            //    • ⏳ bütün MÖHLƏT ödənişləri İTİRDİ ✗
+            //    • 💵 əl ilə yazılmış kassa hərəkətləri İTİRDİ ✗✓✓
+            //  (`CreditId` / `SaleId` xarici açarları artıq `XariciAcarlar`
+            //   xəritəsində idi ✓ → Id-lər avtomatik DÜZGÜN bağlanır ✓)
+            //  ⚠ Sıra VACİBDİR: valideynlər (Kreditler · Satislar) YUXARIDADIR ✓
+            // ================================================================
+            "OdenisMohletleri", "KassaHereketleri"
         };
 
         /// <summary>🔑 UNİKAL açar sütunları ✓ (toqquşmada mövcud sətir tapılır ✓ — dublikat yaranmır ✗✓✓)</summary>

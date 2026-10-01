@@ -14,6 +14,13 @@ namespace EnterpriseAeroStudio.Services
         private readonly IRepository<CreditTransaction> _creditTransactions;
         private readonly ISaleRepository _sales;
         private readonly IRepository<MediaAttachment> _attachments;
+
+        /// <summary>
+        /// ⏳ Möhlətlər — avtomobil (və onun kredit/satışları) silinəndə
+        /// möhlətlər də silinməlidir ✓✓✓ (v6.2.11).
+        /// </summary>
+        private readonly IOdenisMohletRepository _mohletler;
+
         private readonly ITrashService _trash;
         private readonly ILogger<CarService> _logger;
 
@@ -24,6 +31,7 @@ namespace EnterpriseAeroStudio.Services
             IRepository<CreditTransaction> creditTransactions,
             ISaleRepository sales,
             IRepository<MediaAttachment> attachments,
+            IOdenisMohletRepository mohletler,
             ITrashService trash,
             ILogger<CarService> logger)
         {
@@ -33,6 +41,7 @@ namespace EnterpriseAeroStudio.Services
             _creditTransactions = creditTransactions;
             _sales = sales;
             _attachments = attachments;
+            _mohletler = mohletler;
             _trash = trash;
             _logger = logger;
         }
@@ -487,6 +496,10 @@ namespace EnterpriseAeroStudio.Services
                 {
                     _credits.Remove(trackedCredit);
                 }
+
+                // ⏳ Kreditin İLKİN ÖDƏNİŞ möhlətləri DƏ silinir ✓✓✓ (v6.2.11)
+                _mohletler.ClearTracker();
+                await _mohletler.DeleteWhereAsync(m => m.CreditId == credit.Id, cancellationToken);
             }
 
             // Hər repo öz kontekstində saxlayır (AppDbContext transient-dir).
@@ -502,6 +515,10 @@ namespace EnterpriseAeroStudio.Services
                 {
                     _sales.Remove(tracked);
                 }
+
+                // ⏳ Satışın (nisyə) MÖHLƏTLƏRİ DƏ silinir ✓✓✓ (v6.2.11)
+                _mohletler.ClearTracker();
+                await _mohletler.DeleteWhereAsync(m => m.SaleId == sale.Id, cancellationToken);
             }
 
             await _sales.SaveChangesAsync(cancellationToken);
@@ -702,17 +719,46 @@ namespace EnterpriseAeroStudio.Services
                 await _attachments.SaveChangesAsync(cancellationToken);
             }
 
+            // ================================================================
+            //  ---- 6) Sahibi silinmiş MÖHLƏTLƏR ✓✓✓  (v6.2.11)
+            // ----------------------------------------------------------------
+            //  İSTİFADƏÇİ TƏLƏBİ: kredit/satış silinəndə möhlətlər də silinməlidir ✓
+            //  (ödənilmiş ✓ və ya gözlənilən ✓ — FƏRQ ETMİR ✓)
+            //  ⚠ Köhnə bazalarda (xarici alətlə yazılmış və ya FK nəzarəti
+            //  SÖNÜK halda yaranmış) SAHİBSİZ sətirlər qala bilər ✗ →
+            //  açılışda avtomatik təmizlənir ✓✓✓
+            // ================================================================
+            var saleIds = allSales.Select(s => s.Id).ToHashSet();
+            var mohletlerRemoved = 0;
+
+            foreach (var mohlet in await _mohletler.GetAllAsync(cancellationToken))
+            {
+                var sahibsiz =
+                    (mohlet.CreditId is int cid && !creditIds.Contains(cid)) ||
+                    (mohlet.SaleId is int sid && !saleIds.Contains(sid)) ||
+                    (mohlet.CreditId is null && mohlet.SaleId is null);
+
+                if (!sahibsiz)
+                {
+                    continue;
+                }
+
+                _mohletler.ClearTracker();
+                mohletlerRemoved += await _mohletler.DeleteWhereAsync(
+                    m => m.Id == mohlet.Id, cancellationToken);
+            }
+
             removed = expensesRemoved + salesRemoved + creditsRemoved
-                      + transactionsRemoved + attachmentsRemoved;
+                      + transactionsRemoved + attachmentsRemoved + mohletlerRemoved;
 
             if (removed > 0)
             {
                 _logger.LogWarning(
                     "Yetim qeydlər təmizləndi: {Count} ədəd " +
-                    "({Exp} xərc, {Sale} satış, {Credit} kredit, {Tx} əməliyyat, {Media} media) " +
-                    "— hesabatlar dəqiqləşdirildi.",
+                    "({Exp} xərc, {Sale} satış, {Credit} kredit, {Tx} əməliyyat, " +
+                    "{Media} media, {Mohlet} möhlət) — hesabatlar dəqiqləşdirildi.",
                     removed, expensesRemoved, salesRemoved, creditsRemoved,
-                    transactionsRemoved, attachmentsRemoved);
+                    transactionsRemoved, attachmentsRemoved, mohletlerRemoved);
             }
             else
             {

@@ -11,6 +11,10 @@ namespace EnterpriseAeroStudio.Services
         private readonly ICarRepository _cars;
         private readonly ICarService _carService;
         private readonly IPartnerShareRepository _shares;
+
+        /// <summary>⏳ Satış SİLİNƏNDƏ onun möhlətləri də silinməlidir ✓✓✓ (v6.2.11).</summary>
+        private readonly IOdenisMohletRepository _mohletler;
+
         private readonly ITrashService _trash;
         private readonly ILogger<SaleService> _logger;
 
@@ -19,6 +23,7 @@ namespace EnterpriseAeroStudio.Services
             ICarRepository cars,
             ICarService carService,
             IPartnerShareRepository shares,
+            IOdenisMohletRepository mohletler,
             ITrashService trash,
             ILogger<SaleService> logger)
         {
@@ -26,6 +31,7 @@ namespace EnterpriseAeroStudio.Services
             _cars = cars;
             _carService = carService;
             _shares = shares;
+            _mohletler = mohletler;
             _trash = trash;
             _logger = logger;
         }
@@ -214,8 +220,22 @@ namespace EnterpriseAeroStudio.Services
             // Avtomobil repo-su öz kontekstində saxlayır (AppDbContext transient-dir).
             await _cars.SaveChangesAsync(cancellationToken);
 
+            // ================================================================
+            //  ⏳ SATIŞIN MÖHLƏTLƏRİ DƏ SİLİNİR ✓✓✓  (v6.2.11)
+            // ----------------------------------------------------------------
+            //  İSTİFADƏÇİ TƏLƏBƏSİ: «satışda möhlət verilibsə — ödənilibsə və ya
+            //  ödənilməyibsə — satış SİLİNƏNDƏ möhlətlər DƏ silinməlidir» ✓
+            //  ✅ AÇIQ silinir ✓ (bazadakı CASCADE-dən asılı deyil ✓✓✓)
+            // ================================================================
+            _mohletler.ClearTracker();
+            var silinenMohlet = await _mohletler.DeleteWhereAsync(
+                m => m.SaleId == id, cancellationToken);
+
             _sales.Remove(sale);
             await _sales.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "🗑️ Satış #{Id} silindi — {Mohlet} möhlət ödənişi də silindi ✓", id, silinenMohlet);
         }
 
         public async Task DeleteSalesByCarAsync(int carId, CancellationToken cancellationToken = default)
@@ -224,14 +244,32 @@ namespace EnterpriseAeroStudio.Services
             //   sətirlər üçün DELETE göndərilir və «0 sətir» xətası yaranır ✗
             _sales.ClearTracker();
 
+            // ================================================================
+            //  ⏳ SATIŞLARIN MÖHLƏTLƏRİ DƏ SİLİNİR ✓✓✓  (v6.2.11)
+            // ----------------------------------------------------------------
+            //  ⚠ `DeleteWhereAsync` = `ExecuteDeleteAsync` → birbaşa SQL DELETE ✗
+            //  → EF möhlətləri GÖRMÜR ✗ → əvvəl yalnız bazadakı CASCADE-dən
+            //  asılı idi ✗. İndi açıq silinir ✓✓✓
+            // ================================================================
+            var satislar = await _sales.FindAsync(s => s.CarId == carId, cancellationToken);
+            var silinenMohlet = 0;
+
+            foreach (var satis in satislar)
+            {
+                _mohletler.ClearTracker();
+                silinenMohlet += await _mohletler.DeleteWhereAsync(
+                    m => m.SaleId == satis.Id, cancellationToken);
+            }
+
             // Satış qeydləri BİRBAŞA BAZADAN silinir (tracker-dən asılı deyil ✓)
             var silinen = await _sales.DeleteWhereAsync(s => s.CarId == carId, cancellationToken);
 
             if (silinen > 0)
             {
                 _logger.LogInformation(
-                    "🗑️ Avtomobilin {Count} satış qeydi silindi (geri qaytarma): CarId={CarId}",
-                    silinen, carId);
+                    "🗑️ Avtomobilin {Count} satış qeydi silindi (geri qaytarma): CarId={CarId} · " +
+                    "{Mohlet} möhlət də silindi ✓",
+                    silinen, carId, silinenMohlet);
             }
         }
 
