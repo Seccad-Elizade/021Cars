@@ -40,6 +40,19 @@ namespace EnterpriseAeroStudio.Views
             _viewModel = viewModel;
             DataContext = viewModel;
 
+            // ================================================================
+            //  🏷️ PƏNCƏRƏ BAŞLIĞI — cari versiya ASSEMBLY-dən oxunur ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL XAML-də «Avtomobil Parkı v6.2.2» SABİT yazılmışdı ✗ →
+            //    hər yeni buraxılışda KÖHNƏ versiya görünürdü ✗✓✓
+            //  ✅ İNDİ: csproj <Version> dəyişən kimi AVTOMATİK görünür ✓
+            // ================================================================
+            try
+            {
+                Title = $"Avtomobil Parkı v{GuncellemeXidmeti.CariVersiyaMetni} — Professional Fleet & Office Edition";
+            }
+            catch { }
+
             _viewModel.ArchiveRequested += OnArchiveRequested;
             _viewModel.Web.NavigateRequested += OnWebNavigateRequested;
 

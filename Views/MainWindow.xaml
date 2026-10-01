@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:svc="clr-namespace:EnterpriseAeroStudio.Services"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="Avtomobil Parkı v6.2.2 - Professional Fleet &amp; Office Edition"
+        Title="Avtomobil Parkı — Professional Fleet &amp; Office Edition"
         Height="940" Width="1550" MinHeight="600" MinWidth="1024"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Background="#0B0F17" Foreground="#F8FAFC"
@@ -1119,10 +1119,29 @@
                 <!-- TAB 4: KREDİTLƏR                                              -->
                 <!-- ============================================================ -->
                 <TabItem Header="💳 Kreditlər">
-                    <!-- 🌊 SƏHİFƏ SCROLL-U ✓ — uzun kredit forması + müqavilə cədvəli + kredit detalları
-                         BİRLİKDƏ sürüşür ✓ (cədvəl `MaxHeight` ilə məhduddur ✓ → virtualizasiya ✓✓✓)
-                         ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                    <!-- ================================================================
+                         ⚠ TAM SƏHİFƏ ŞAQULİ SCROLL SÖNDÜRÜLDÜ ✓✓✓  (v6.2.10 — LAYOUT DÜZƏLİŞİ)
+                         ================================================================
+                         ƏVVƏL: bu tab XARİCİ ScrollViewer içində idi ✗ →
+                           • ScrollViewer öz uşağına SONSUZ hündürlük verir ✗
+                             → `Grid.Row="*"` faktiki olaraq «Auto» kimi davranır ✗
+                           • sağdakı «📄 Seçilmiş Kredit Məlumatı» kartı ÇOX UZUNDUR
+                             (~1700px) → bütün sətrin hündürlüyü ona bərabər olur ✗
+                           • soldakı cədvəl `MaxHeight` (= görünən pəncərə) ilə
+                             məhdudlaşdığı üçün həmin NƏHƏNG sahənin ORTASINA düşürdü ✗
+                             → axtarış sətri ilə cədvəl arasında BÖYÜK BOŞLUQ ✗✓✓
+                             («searchbar ilə cədvəl arasında boşluq var çox» — İSTİFADƏÇİ)
+                         ══
+                         İNDİ: ScrollViewer qalır (struktur dəyişməz ✓) lakin şaquli
+                         scroll «Disabled» edildi → o, uşağına SONSUZ hündürlük VERMİR ✓
+                           • `Row=Auto` (kredit forması) + `Row=*` (cədvəl + kart) REAL işləyir ✓
+                           • cədvəl axtarış sətrinin ALTINDAN pəncərənin DİBİNƏ qədər uzanır ✓
+                           • sağdakı kart ÖZ daxili scroll-u ilə sürüşür ✓
+                           • DataGrid hündürlüyü MƏHDUD olduğu üçün virtualizasiya da işləyir ✓✓✓
+                         ⚠ Kredit forması çox uzundursa: `Row=0` daxilində `MaxHeight=215`
+                         + daxili şaquli scroll var ✓ (kiçik ekranda cədvəl yerini İTMİR ✓)
+                         ================================================================ -->
+                    <ScrollViewer VerticalScrollBarVisibility="Disabled"
                                   HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False"
                                   Padding="0,0,6,0">
@@ -1133,7 +1152,11 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,12">
+                            <!-- ⚠ MaxHeight=215 → kredit forması nə qədər uzun olsa da cədvəlin yerini ALMIR ✓
+                                 (kiçik ekranda forma öz daxilində sürüşür ✓✓✓) -->
+                            <ScrollViewer MaxHeight="215" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" Focusable="False">
                             <WrapPanel Orientation="Horizontal" VerticalAlignment="Top">
                                 <StackPanel Margin="4">
                                     <TextBlock Text="Müqavilə № (boş = avtomatik)" Style="{StaticResource FieldLabel}"/>
@@ -1394,6 +1417,7 @@
                                             Command="{Binding Credits.ClearFormCommand}"/>
                                 </StackPanel>
                             </WrapPanel>
+                            </ScrollViewer>
                         </Border>
 
                         <Grid Grid.Row="1">
@@ -1416,9 +1440,29 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Height="28" VerticalContentAlignment="Center"
+                                        <TextBox Grid.Column="0" Height="30" VerticalContentAlignment="Center"
                                                  Text="{Binding Credits.ContractSearchText, UpdateSourceTrigger=PropertyChanged}"
                                                  ToolTip="Yazaraq axtarın: müqavilə №, müştəri adı, maşın markası / nömrəsi, status"/>
+                                        <!-- 🔍 PLACEHOLDER — yalnız sahə BOŞ olanda görünür ✓ (klik buraxır → TextBox fokus alır ✓) -->
+                                        <TextBlock Grid.Column="0" Text="🔍 Müqavilə №, müştəri, avtomobil, status…"
+                                                   FontSize="11.5" Foreground="#64748B"
+                                                   VerticalAlignment="Center" Margin="10,0,8,0"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Credits.ContractSearchText}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Credits.ContractSearchText}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <Button Grid.Column="1" Content="✖ Təmizlə" Style="{StaticResource iOSButton}" Margin="6,0,0,0"
                                                 Padding="10,0" Background="#374151" Foreground="#F9FAFB"
                                                 Command="{Binding Credits.ClearContractFilterCommand}"
@@ -1427,16 +1471,21 @@
 
                                     <DataGrid ItemsSource="{Binding Credits.FilteredContracts}" SelectedItem="{Binding Credits.SelectedCredit}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              SelectionMode="Single" RowHeight="40" ColumnHeaderHeight="42"
-                                              MinHeight="380"
-                                              MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
+                                              SelectionMode="Single" RowHeight="38" ColumnHeaderHeight="40"
+                                              MinHeight="200">
+                                        <!-- ⚠ `MaxHeight` (ScrollViewer-ə bağlı) SİLİNDİ ✓ →
+                                             hündürlük artıq `Grid.Row="*"` ilə MƏHDUDDUR ✓
+                                             (MaxHeight + Stretch → WPF cədvəli sahənin ORTASINA qoyurdu ✗ →
+                                              axtarış sətri ilə cədvəl arasında böyük BOŞLUQ ✗) -->
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="45" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="100" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="*" MinWidth="110" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="*" MinWidth="150" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="120" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="150" MinWidth="105" ElementStyle="{StaticResource GridCellText}"/>
+                                            <!-- 🚘 Avtomobil adları ƏN UZUNDUR → bütün boş yer BURAYA verilir ✓
+                                                 (əvvəl Müştəri də «*» idi → qısa adlardan sonra böyük boşluq ✗) -->
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="*" MinWidth="190" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="135" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource GridCellText}"/>
                                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="85" ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
