@@ -309,6 +309,17 @@ namespace EnterpriseAeroStudio.ViewModels
         public bool IstifadeciIdarecisi =>
             Services.AuthService.Cari?.IdareciMi ?? false;
 
+        /// <summary>
+        /// 🔢 <b>İstifadəçi sayı mətni</b> ✓✓✓ (v6.2.12) — «👥 İSTİFADƏÇİ İDARƏETMƏSİ»
+        /// başlığının sağında göstərilir ✓
+        /// </summary>
+        public string IstifadeciSayiMetni => IstifadeciSiyahisi.Count switch
+        {
+            0 => "⚠ HEÇ KİM YOXDUR ✗",
+            1 => "1 istifadəçi ✓",
+            var say => $"{say} istifadəçi ✓"
+        };
+
         /// <summary>🔑 Kodlar (şifrələr) görünürmü? ✓ (yalnız idarəçilər ✓)</summary>
         public bool KodlarGoruner => IstifadeciIdarecisi;
 
@@ -386,6 +397,9 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 _istifadeciSiyahisi?.Add(istifadeci);
             }
+
+            // 🔢 Başlıqdaki say yenilənir ✓ (v6.2.12)
+            OnPropertyChanged(nameof(IstifadeciSayiMetni));
         }
 
         /// <summary>🔄 Siyahını bazadan yenidən oxuyur ✓</summary>

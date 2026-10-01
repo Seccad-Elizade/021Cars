@@ -285,6 +285,17 @@ namespace EnterpriseAeroStudio
                 window.Show();
 
                 // ================================================================
+                //  🆕 ☁️ YENİ KOMPÜTER — «BULUDDAN GÖTÜR?» ✓✓✓  (v6.2.12)
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: yeni kompüterə yükləyəndə tətbiq BOŞ
+                //    açılırdı ✗ (bulud sinxronu qəsdən sönülü ✓) → məlumat
+                //    görünmürdü ✗ və 💾 USB taxmağa MƏCBUR qalırdı ✗✓✓
+                //  ✅ İNDİ: təmiz quraşdırma + BOŞ baza → BİR DƏFƏ soruşulur ✓
+                //     «Bəli» → bütün məlumat buluddan DƏRHAL götürülür ✓✓✓
+                // ================================================================
+                IlkQurasdirmaYoxla(window);
+
+                // ================================================================
                 //  🔎 FON REJİMİNDƏ: KÖHNƏ XƏRC QEYDLƏRİNİN AXTARIŞ MƏTNİ ✓✓✓
                 // ----------------------------------------------------------------
                 //  • Bir dəfəlik işdir ✓ (sonrakı açılışlarda heç nə etmir ✗)
@@ -344,6 +355,145 @@ namespace EnterpriseAeroStudio
                     MessageBoxImage.Error);
                 Shutdown(-1);
             }
+        }
+
+        /// <summary>
+        /// 🆕 ☁️ <b>YENİ KOMPÜTER AŞKARLANMASI</b> ✓✓✓  (v6.2.12)
+        /// <para>
+        /// Təmiz quraşdırma (ayar faylı YOXDUR ✓) + baza BOŞDURSA → istifadəçidən
+        /// «buluddaki məlumat götürülsün?» soruşulur ✓✓✓
+        /// </para>
+        /// <para>
+        /// ✅ «Bəli» → bulud sinxronizasiyası AKTİV olur ✓ + DƏRHAL tam dövr işlədilir ✓
+        /// → 🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar · 💸 xərclər ·
+        /// 👥 tərəfdaşlar yerli bazaya yazılır ✓✓✓
+        /// </para>
+        /// <para>✗ «Xeyr» → heç nə edilmir ✓ (sonra ⚙️ Tənzimləmələr → «⬇️ BULUDDAN GÖTÜR» ✓)</para>
+        /// <para>
+        /// ⚠ <b>YALNIZ BİR DƏFƏ</b> ✓ — ayar faylı yaranan kimi <c>TemizQurasdirma</c>
+        /// <c>false</c> olur ✓ → növbəti açılışlarda soruşulmur ✗
+        /// </para>
+        /// <para>
+        /// 🛡️ Baza BOŞ deyilsə HEÇ SORUŞULMUR ✗ (mövcud məlumatı olan kompüterə bulud
+        /// «yad» məlumat gətirə bilməz ✗✓✓)
+        /// </para>
+        /// </summary>
+        private void IlkQurasdirmaYoxla(Window window)
+        {
+            try
+            {
+                // ① 🆕 Təmiz quraşdırmadır? (ayar faylı yoxdur ✓)
+                if (!Cas0201.Firebase.BuludAyarlari.TemizQurasdirma)
+                {
+                    return;
+                }
+
+                // ② ☁️ Bulud körpüsü hazırdır?
+                if (Kopru is null || _services is null)
+                {
+                    return;
+                }
+
+                // ③ 🗄️ Baza BOŞDURMU? (SİNXRON EF API ✓ — deadlock TƏHLÜKƏSİ YOXDUR ✗✓✓)
+                bool bos;
+
+                using (var bosScope = _services.CreateScope())
+                {
+                    var bosDb = bosScope.ServiceProvider
+                        .GetRequiredService<EnterpriseAeroStudio.Data.AppDbContext>();
+
+                    bos = !bosDb.Cars.Any()
+                          && !bosDb.Credits.Any()
+                          && !bosDb.Sales.Any()
+                          && !bosDb.Expenses.Any()
+                          && !bosDb.Partners.Any();
+                }
+
+                if (!bos)
+                {
+                    // ⚠ Məlumat var → bulud «ilk yükləmə» QADAĞANDIR ✗ (təhlükəsizlik ✓)
+                    Cas0201.Firebase.AppLogger.Melumat(
+                        "🆕 Təmiz quraşdırma ✓ lakin baza BOŞ DEYİL ✗ — ilk yükləmə soruşulmadı ✓");
+
+                    return;
+                }
+
+                // ④ ❓ İstifadəçidən soruşulur ✓
+                var cavab = MessageBox.Show(
+                    window,
+                    "🆕 YENİ KOMPÜTER AŞKARLANDI\n\n" +
+                    "Bu kompüterdə HEÇ BİR məlumat yoxdur (təmiz quraşdırma).\n\n" +
+                    "☁️ Firebase buludundaki bütün məlumat indi götürülsün?\n\n" +
+                    "   🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar\n" +
+                    "   💸 xərclər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
+                    "✅ «Bəli»  → məlumat buluddan götürülür ✓ və avtomatik sinxron\n" +
+                    "                İŞƏ DÜŞÜR ✓ (10–60 saniyə çəkə bilər ✓)\n" +
+                    "✗ «Xeyr»  → proqram BOŞ açılır ✓ (sonra: ⚙️ Tənzimləmələr →\n" +
+                    "                «⬇️ BULUDDAN GÖTÜR», və ya 💾 USB taxın)",
+                    "☁️ Buluddan məlumat götürülsün?",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.Yes);
+
+                if (cavab != MessageBoxResult.Yes)
+                {
+                    Cas0201.Firebase.AppLogger.Melumat(
+                        "🆕 İlk yükləmə İSTİFADƏÇİ tərəfindən təxirə salındı ✓ — tətbiq boş açıldı ✓");
+
+                    return;
+                }
+
+                // ⑤⑥ ⬇️ Faktiki yükləmə + nəticə ✓
+                BuluddanIlkYukle(window);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Input.Mouse.OverrideCursor = null;
+                _logger?.LogError(ex, "İlk quraşdırma bulud yoxlaması alınmadı.");
+            }
+        }
+
+        /// <summary>
+        /// ⬇️ <b>BULUDDAN İLK YÜKLƏMƏ</b> ✓✓✓ — məlumatı götürür + nəticəni göstərir ✓
+        /// (v6.2.12 — həm açılışda avtomatik ✓ həm ⚙️ Tənzimləmələr düyməsindən ✓)
+        /// </summary>
+        internal static int BuluddanIlkYukle(Window? window)
+        {
+            Cas0201.Firebase.AppLogger.Melumat("⬇️ İlk yükləmə başladı ✓ — buluddan məlumat götürülür…");
+
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+
+            int çekilen;
+
+            try
+            {
+                // 🛡️ `Task.Run` → fon ipi ✓ (SynchronizationContext YOXDUR ✗ →
+                //    EF davamı UI ipini gözləmir ✗ → DEADLOCK TƏHLÜKƏSİ YOXDUR ✓✓✓)
+                çekilen = Task.Run(() => App.Kopru!.IlkYuklemeAsync()).GetAwaiter().GetResult();
+            }
+            finally
+            {
+                System.Windows.Input.Mouse.OverrideCursor = null;
+            }
+
+            // 🔄 UI DƏRHAL yenilənir ✓ (bütün tablar ✓)
+            if (window?.DataContext is MainViewModel bVm)
+            {
+                bVm.HamisiniIndiYenileCommand.Execute(null);
+            }
+
+            MessageBox.Show(
+                window ?? Current.MainWindow,
+                "✅ BULUDDAN MƏLUMAT GÖTÜRÜLDÜ ✓\n\n" +
+                $"📥 {çekilen} qeyd yerli bazaya yazıldı ✓\n\n" +
+                "☁️ Avtomatik bulud sinxronizasiyası İŞLƏYİR ✓\n" +
+                "   (yeni dəyişikliklər hər 10 saniyədə avtomatik gedir ✓)\n\n" +
+                "⚠ Məlumat görünmürsə → «🔄 Bütün məlumatları yenilə» düyməsini basın ✓",
+                "Uğurlu ✓",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            return çekilen;
         }
 
         /// <summary>

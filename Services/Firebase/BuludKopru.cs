@@ -89,6 +89,12 @@ namespace Cas0201.Firebase
         /// </summary>
         public int ZibilSaxlamaGun { get; set; } = 60;
 
+        /// <summary>
+        /// 🔢 <b>Son dövrdə BULUDDAN yerli bazaya tətbiq olunan dəyişiklik sayı</b> ✓✓✓
+        /// (v6.2.12 — «N qeyd götürüldü ✓» mesajı üçün ✓)
+        /// </summary>
+        public int SonCekilenSayi { get; private set; }
+
         /// <summary>🔄 Hazırda sinxron gedir? ✓ (nazik loading bar üçün ✓)</summary>
         public bool SinxronGedir { get; private set; }
 
@@ -240,6 +246,48 @@ namespace Cas0201.Firebase
             _ = Task.Run(() => DovruAsync(token));
         }
 
+        /// <summary>
+        /// ⬇️ <b>İLK YÜKLƏMƏ — YENİ KOMPÜTER</b> ✓✓✓  (v6.2.12)
+        /// <para>
+        /// 🆕 <b>PROBLEM:</b> yeni kompüterdə təmiz quraşdırma → bulud sinxronizasiyası
+        /// qəsdən SÖNÜLÜ açılır ✓ (başqasının datası görünməsin ✗) → istifadəçi məlumatı
+        /// görmür ✗ və <b>💾 USB taxmağa MƏCBUR</b> qalırdı ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ <b>HƏLL:</b> bu metod BİR ÇAĞIRIŞDA hər şeyi edir:
+        /// </para>
+        /// <list type="number">
+        ///   <item>🔓 təmiz quraşdırma qapısı açılır ✓</item>
+        ///   <item>☁️ bulud sinxronizasiyası AKTİV edilir ✓ (yerli fayla yazılır ✓)</item>
+        ///   <item>▶️ körpü başladılır ✓ (hər 10 saniyədə avtomatik sinxron ✓)</item>
+        ///   <item>⬇️ <b>DƏRHAL</b> bir tam dövr işlədilir → bütün məlumat (maşın ✓ kredit ✓
+        ///   satış ✓ xərc ✓ tərəfdaş ✓) buluddan yerli bazaya <b>çəkilir</b> ✓✓✓</item>
+        /// </list>
+        /// <returns>Yerli bazaya tətbiq olunan dəyişiklik sayı ✓</returns>
+        /// </summary>
+        public async Task<int> IlkYuklemeAsync(CancellationToken ct = default)
+        {
+            AppLogger.Melumat("⬇️ İLK YÜKLƏMƏ başladı ✓ — buluddan məlumat götürülür…");
+
+            // ① 🔓 Təmiz quraşdırma qapısı açılır + sinxron AKTİV edilir ✓
+            BuludAyarlari.IlkYuklemeyeIzinVer();
+
+            // ② ⚙️ Ayarlar körpüyə dərhal tətbiq olunur ✓ (Aktiv = true ✓)
+            BuludAyarlari.TətbiqEt(this);
+
+            // ③ ▶️ Avtomatik dövr başladılır ✓ (artıq açıqdırsa təkrar açılmır ✗)
+            Basla();
+
+            // ④ ⬇️ DƏRHAL bir tam sinxron dövrü → məlumat aşağı çəkilir ✓✓✓
+            await SinxronDovruAsync(ct).ConfigureAwait(false);
+
+            AppLogger.Melumat(
+                $"⬇️ İLK YÜKLƏMƏ bitdi ✓ — {SonCekilenSayi} dəyişiklik yerli bazaya yazıldı ✓" +
+                (SonXeta is null ? " ✓" : $" · ⚠ xəta: {SonXeta}"));
+
+            return SonCekilenSayi;
+        }
+
         /// <summary>🛑 Körpünü dayandırır ✓ (təkrar çağırış TƏHLÜKƏSİZ ✓)</summary>
         public void Dayandir()
         {
@@ -364,7 +412,18 @@ namespace Cas0201.Firebase
                     async () => await CədvəliSinxronlaAsync(db, cx, "partnerPayments",
                         await db.PartnerPayments.AsNoTracking().ToListAsync(ct),
                         p => p.Id.ToString(CultureInfo.InvariantCulture),
-                        OdenisNode, bulud["partnerPayments"], zibil, ct)
+                        OdenisNode, bulud["partnerPayments"], zibil, ct),
+
+                    // ✅ v6.2.12 — ⏳ möhlətlər + 💵 kassa hərəkətləri də çəkilir ✓✓✓
+                    async () => await CədvəliSinxronlaAsync(db, cx, "odenisMohlets",
+                        await db.OdenisMohletler.AsNoTracking().ToListAsync(ct),
+                        m => m.Id.ToString(CultureInfo.InvariantCulture),
+                        MohletNode, bulud["odenisMohlets"], zibil, ct),
+
+                    async () => await CədvəliSinxronlaAsync(db, cx, "kassaHereketleri",
+                        await db.KassaHereketleri.AsNoTracking().ToListAsync(ct),
+                        k => k.Id.ToString(CultureInfo.InvariantCulture),
+                        KassaNode, bulud["kassaHereketleri"], zibil, ct)
                 };
 
                 foreach (var iş in işlər)
@@ -373,6 +432,8 @@ namespace Cas0201.Firebase
                 }
 
                 await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+                SonCekilenSayi = çekilen;   // 📊 UI: «N qeyd götürüldü ✓» (v6.2.12)
 
                 // ⬆️ ③ YERLİ → BULUD (dəyişənlər ✓ + silinənlər → tombstone ✓)
                 await BirDovruAsync(ct).ConfigureAwait(false);
@@ -438,6 +499,18 @@ namespace Cas0201.Firebase
 
                 push += await CədvəlGonderAsync("partnerPayments",
                     await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), OdenisNode, ct, Say);
+
+                // ================================================================
+                //  ✅ v6.2.12 — ⏳ MÖHLƏTLƏR və 💵 KASSA HƏRƏKƏTLƏRİ də buluda gedir ✓✓✓
+                //  (əvvəl YOX İDİ ✗ → yeni kompüterdə bu məlumat İTİRDİ ✗)
+                // ================================================================
+                push += await CədvəlGonderAsync("odenisMohlets",
+                    await db.OdenisMohletler.AsNoTracking().ToListAsync(ct),
+                    m => m.Id.ToString(), MohletNode, ct, Say);
+
+                push += await CədvəlGonderAsync("kassaHereketleri",
+                    await db.KassaHereketleri.AsNoTracking().ToListAsync(ct),
+                    k => k.Id.ToString(), KassaNode, ct, Say);
 
                 // 📎 ❌ MEDIA / PDF / ŞƏKİL GÖNDƏRİLMİR ✗✓✓ — YALNIZ fləşkartda qalır ✓
                 // 🏷️ Xərc kataloqu buluda getmir ✗ (lokal arayış cədvəlidir ✓)
@@ -738,6 +811,12 @@ namespace Cas0201.Firebase
                 Çevir(await db.PartnerShares.AsNoTracking().ToListAsync(ct), PayNode);
             nəticə["partnerPayments"] =
                 Çevir(await db.PartnerPayments.AsNoTracking().ToListAsync(ct), OdenisNode);
+
+            // ✅ v6.2.12 — ⏳ möhlətlər + 💵 kassa hərəkətləri də yedəyə daxildir ✓
+            nəticə["odenisMohlets"] =
+                Çevir(await db.OdenisMohletler.AsNoTracking().ToListAsync(ct), MohletNode);
+            nəticə["kassaHereketleri"] =
+                Çevir(await db.KassaHereketleri.AsNoTracking().ToListAsync(ct), KassaNode);
 
             return nəticə;
         }
@@ -1423,7 +1502,17 @@ namespace Cas0201.Firebase
         private static readonly string[] Kolleksiyalar =
         {
             "cars", "expenses", "sales", "credits", "creditTransactions",
-            "partners", "partnerShares", "partnerPayments"
+            "partners", "partnerShares", "partnerPayments",
+
+            // ================================================================
+            //  ✅ v6.2.12 — ⏳ MÖHLƏTLƏR və 💵 KASSA HƏRƏKƏTLƏRİ də sinxronlaşır ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL BUNLAR YOX İDİ ✗ → yeni kompüterə/müştəriyə məlumat
+            //  götürəndə möhlətlər və əl ilə yazılmış kassa qeydləri İTİRDİ ✗✓✓
+            //  (kassa proqnozu · ödəniş qrafiki · Bildirişlər səhv olurdu ✗)
+            //  ⚠ SIRA VACİBDİR ✗ — valideynlər (credits · sales) YUXARIDADIR ✓
+            // ================================================================
+            "odenisMohlets", "kassaHereketleri"
         };
 
         /// <summary>🚗 <b>Avtomobil</b> → Firebase node ✓ (sənəd faylları DAXİL DEYİL ✗ ✓)</summary>
@@ -1549,6 +1638,41 @@ namespace Cas0201.Firebase
             ["qaligPayi"] = p.QaligPayi,
             ["aktiv"] = p.Aktiv,
             ["sira"] = p.Sira
+        };
+
+        /// <summary>
+        /// ⏳ <b>MÖHLƏT ödənişi</b> → Firebase node ✓✓✓  (v6.2.12)
+        /// <para>İlkin ödəniş möhləti (kredit ✓) və nisyə satış möhləti (satış ✓).</para>
+        /// </summary>
+        private static Dictionary<string, object?> MohletNode(OdenisMohlet m) => new()
+        {
+            ["id"] = m.Id.ToString(CultureInfo.InvariantCulture),
+            ["menbe"] = m.Menbe,
+            ["creditId"] = m.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["saleId"] = m.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["sira"] = m.Sira,
+            ["tarix"] = m.Tarix.ToString("o", CultureInfo.InvariantCulture),
+            ["mebleg"] = (double)m.Mebleg,
+            ["odenisUsulu"] = m.OdenisUsulu,
+            ["odenilib"] = m.Odenilib,
+            ["odenilmeTarixi"] = m.OdenilmeTarixi?.ToString("o", CultureInfo.InvariantCulture),
+            ["qeyd"] = m.Qeyd
+        };
+
+        /// <summary>
+        /// 💵 <b>Kassa hərəkəti</b> (əl ilə gəlir/xərc) → Firebase node ✓✓✓  (v6.2.12)
+        /// </summary>
+        private static Dictionary<string, object?> KassaNode(KassaHereket k) => new()
+        {
+            ["id"] = k.Id.ToString(CultureInfo.InvariantCulture),
+            ["nov"] = k.Nov,
+            ["tarix"] = k.Tarix.ToString("o", CultureInfo.InvariantCulture),
+            ["kateqoriya"] = k.Kateqoriya,
+            ["mebleg"] = (double)k.Mebleg,
+            ["odenisUsulu"] = k.OdenisUsulu,
+            ["creditId"] = k.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["saleId"] = k.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["qeyd"] = k.Qeyd
         };
 
         /// <summary>💵 <b>Tərəfdaş ödənişi</b> → Firebase node ✓</summary>

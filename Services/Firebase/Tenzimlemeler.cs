@@ -137,6 +137,58 @@ namespace Cas0201.Firebase
         }
 
         /// <summary>
+        /// ⬇️ <b>İLK YÜKLƏMƏYƏ İCAZƏ VER</b> ✓✓✓  (v6.2.12 — YENİ KOMPÜTER)
+        /// <para>
+        /// Yeni kompüterdə tətbiq BOŞ açılır ✓ — istifadəçi «☁️ Buluddan götür» seçəndə
+        /// bu metod çağırılır və:
+        /// </para>
+        /// <list type="number">
+        ///   <item>🆕 təmiz quraşdırma qapısı <b>AÇILIR</b> ✓ (ayarlar buluddan da oxuna bilər ✓)</item>
+        ///   <item>☁️ bulud sinxronizasiyası <b>AKTİV</b> edilir ✓</item>
+        ///   <item>💾 vəziyyət YERLİ fayla yazılır ✓ (növbəti açılışda da aktiv qalsın ✓)</item>
+        /// </list>
+        /// <para>
+        /// ⚠ <b>BULUDA YAZILMIR</b> ✗ — bu, qəsdən belədir ✓: bir kompüterin «ilk yükləmə»
+        /// seçimi digər kompüterlərin ayarını DƏYİŞMƏMƏLİDİR ✗✓✓
+        /// </para>
+        /// <para>
+        /// 🔓 İCAZƏ TƏLƏB OLUNMUR ✗ — bu, ayar dəyişikliyi DEYİL ✓, ilk quraşdırma
+        /// bərpasıdır ✓ (hansı istifadəçi daxil olubsa da işləyir ✓)
+        /// </para>
+        /// </summary>
+        public static void IlkYuklemeyeIzinVer()
+        {
+            TemizQurasdirma = false;
+            Cari.Avtomatik = true;
+            Cari.SonDeyisen = Environment.MachineName;
+            Cari.Yenilenme = FirebaseOptions.UtcIndi();
+
+            Normalize();
+            YerliFaylaYaz();
+
+            AppLogger.Melumat(
+                "⬇️ İLK YÜKLƏMƏ rejimi ✓ — bulud sinxronizasiyası AKTİV edildi ✓ " +
+                "(məlumat buluddan götürülür ✓)");
+
+            Deyisdi?.Invoke();
+        }
+
+        /// <summary>💾 Cari ayarları YALNIZ yerli fayla yazır ✓ (buluda TOXUNMUR ✗)</summary>
+        private static void YerliFaylaYaz()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(Fayl) ?? ".");
+                File.WriteAllText(Fayl, JsonSerializer.Serialize(Cari,
+                    new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "ayar yerli fayl");
+            }
+        }
+
+        /// <summary>
         /// 💾 <b>YADDA SAXLA</b> ✓✓✓ — həm YERLİ fayla ✓ həm BULUDA ✓
         /// <para>🔐 Yalnız <see cref="IcazeVar"/> (Seccad ✓ · Asif ✓) icazəlidir ✗</para>
         /// </summary>

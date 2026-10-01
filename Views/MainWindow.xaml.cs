@@ -511,6 +511,67 @@ namespace EnterpriseAeroStudio.Views
             }
         }
 
+        /// <summary>
+        /// ⬇️ <b>BULUDDAN MƏLUMATI GÖTÜR</b> ✓✓✓  (v6.2.12 — YENİ KOMPÜTER / İLK YÜKLƏMƏ)
+        /// <para>
+        /// 🆕 İstifadəçi şikayəti: yeni kompüterdə məlumat gəlmirdi ✗ və 💾 USB taxmağa
+        /// məcbur qalırdı ✗✓✓ → bu düymə BİR KLİKLƏ hər şeyi həll edir:
+        /// bulud sinxronizasiyası AKTİV olur ✓ + bütün məlumat DƏRHAL aşağı çəkilir ✓
+        /// </para>
+        /// <para>⚠ İcazə: yalnız 👑 Admin və 🛡️ Asif ✓ (Sahil üçün panel gizlədilir ✗)</para>
+        /// </summary>
+        private void BuluddanGotur_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 🚗 İcazə yoxsa (Sahil) → düymə işləmir ✗
+                if (!Cas0201.Firebase.BuludAyarlari.IcazeVar)
+                {
+                    BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
+                    return;
+                }
+
+                if (App.Kopru is null)
+                {
+                    BuludAyarNeticeText.Text =
+                        "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓";
+                    return;
+                }
+
+                var təsdiq = MessageBox.Show(
+                    this,
+                    "⬇️ BULUDDAN MƏLUMAT GÖTÜRÜLSÜN?\n\n" +
+                    "☁️ Buluddaki BÜTÜN məlumat yerli bazaya götürülür ✓:\n" +
+                    "   🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar\n" +
+                    "   💸 xərclər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
+                    "🛡️ Yerli məlumat SİLİNMİR ✗ — yalnız buludda DAHA TƏZƏ olanlar\n" +
+                    "   tətbiq olunur ✓ (Last-Write-Wins ✓)\n\n" +
+                    "☁️ Avtomatik bulud sinxronizasiyası da İŞƏ DÜŞÜR ✓",
+                    "⬇️ Buluddan məlumat götür",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.Yes);
+
+                if (təsdiq != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                // ⬇️ Yükləmə + nəticə mesajı + UI yenilənməsi ✓
+                var say = App.BuluddanIlkYukle(this);
+
+                BuludAvtomatikQutusu.IsChecked = true;
+                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
+                BuludAyarNeticeText.Text =
+                    $"✅ {say} qeyd buluddan götürüldü ✓ — ☁️ avtomatik sinxron AKTİVDİR ✓";
+            }
+            catch (Exception ex)
+            {
+                Cas0201.Firebase.AppLogger.Xeta(ex, "buluddan gotur");
+                BuludAyarNeticeText.Text = "⚠️ Xəta ✗ — " + ex.Message;
+            }
+        }
+
         /// <summary>💾 YADDA SAXLA — yerli fayl ✓ + Firebase ✓ + dərhal tətbiq ✓</summary>
         private async void BuludAyarSaxla_Click(object sender, RoutedEventArgs e)
         {
