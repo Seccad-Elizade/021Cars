@@ -14,9 +14,12 @@ namespace EnterpriseAeroStudio.Models
     /// payları çıxıldıqdan sonra QALAN məbləği öz aralarında yarı-yarıya bölürlər.
     /// </para>
     /// </summary>
-    public class Partner
+    public class Partner : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Tərəfdaşın adı (Zaur, Eşqin, Asiman, Asif, Musa...).</summary>
         public string Ad { get; set; } = string.Empty;

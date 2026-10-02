@@ -5,9 +5,12 @@ namespace EnterpriseAeroStudio.Models
     /// <summary>
     /// Avtomobil parkındakı bir avtomobili təmsil edən əsas biznes obyekti.
     /// </summary>
-    public class CarItem
+    public class CarItem : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Marka / model adı.</summary>
         public string Marka { get; set; } = string.Empty;

@@ -14,9 +14,12 @@ namespace EnterpriseAeroStudio.Models
     /// Qalıq       :  3 500,00 ₼   ← tərəfdaşa hələ verilməli olan məbləğ
     /// </code>
     /// </summary>
-    public class PartnerPayment
+    public class PartnerPayment : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Pul verilən tərəfdaşın adı.</summary>
         public string Terefdas { get; set; } = string.Empty;

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 //  🌉 021Cars — BULUD KÖRPÜSÜ (10)  ★ TƏLƏB: «HƏR ŞEY 5 SANİYƏDƏN BİR BULUDA» ★
 // ----------------------------------------------------------------------------
 //  ✅ Tətbiqin SQLite-daki BÜTÜN məlumatını oxuyur ✓
@@ -295,6 +295,17 @@ namespace Cas0201.Firebase
                 return;
             }
 
+            // ================================================================
+            //  ⚡ v6.2.16 — «DƏRHAL GÖNDƏR» ABUNƏLİYİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ İstifadəçi tələbi: «bir kompüterdə maşın əlavə edirəm,
+            //    o birində dərhal görünsün» ✓✓✓
+            //  → hər yazmadan sonra dövr DƏRHAL oyanır ✓ (5 saniyə gözləmir ✗)
+            //  🛡️ İki dəfə abunə olmamaq üçün əvvəlcə AYRILIR ✓✓✓
+            // ================================================================
+            AppDbContext.VerilənlərDəyişdi -= TezGonder;
+            AppDbContext.VerilənlərDəyişdi += TezGonder;
+
             lock (_dovruKilidi)
             {
                 if (Isleyir) return;                  // 🔁 artıq işləyir ✓ — ikinci dövr AÇILMIR ✗
@@ -458,6 +469,9 @@ namespace Cas0201.Firebase
         {
             try
             {
+                // ⚡ «dərhal göndər» abunəliyi GÖTÜRÜLÜR ✗✓✓ (yaddaş sızmasın ✗)
+                AppDbContext.VerilənlərDəyişdi -= TezGonder;
+
                 lock (_dovruKilidi)
                 {
                     if (!Isleyir && _cts.IsCancellationRequested) return;   // 🔁 artıq dayanıb ✓
@@ -492,12 +506,39 @@ namespace Cas0201.Firebase
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(2, FasileSaniye)), ct)
-                        .ConfigureAwait(false);
+                    // ================================================================
+                    //  ⚡ v6.2.16 — DƏRHAL GÖNDƏR ✓✓✓
+                    //  ----------------------------------------------------------------
+                    //  ⚠ Yerli dəyişiklik oldusa (məs. maşın əlavə edildi ✓) →
+                    //    fasilə GÖZLƏNİLMİR ✗ → 400 ms sonra dövr keçir ✓✓✓
+                    //    (istifadəçi: «dərhal o birində görünsün» ✓)
+                    // ================================================================
+                    var fasilə = _tezGonder
+                        ? TimeSpan.FromMilliseconds(400)
+                        : TimeSpan.FromSeconds(Math.Max(2, FasileSaniye));
+
+                    _tezGonder = false;
+
+                    await Task.Delay(fasilə, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) { break; }
             }
         }
+
+        /// <summary>
+        /// ⚡ <b>DƏRHAL GÖNDƏR SİQNALI</b> ✓✓✓ (v6.2.16) — <see cref="AppDbContext.VerilənlərDəyişdi"/>
+        /// <para>
+        /// Yazmadan sonra çağırılır ✓ → dövrün fasiləsi 400 ms-ə düşür ✓✓✓
+        /// 🛡️ Yalnız bayraq qaldırılır ✗ — ayrı thread AÇILMIR ✗ (təhlükəsizdir ✓)
+        /// </para>
+        /// </summary>
+        private void TezGonder()
+        {
+            _tezGonder = true;
+        }
+
+        /// <summary>⚡ «Dərhal göndər» bayrağı ✓ (yazma zamanı qalxır ✓)</summary>
+        private volatile bool _tezGonder;
 
         /// <summary>
         /// 🔄 <b>İKİ TƏRƏFLİ SİNXRON DÖVRÜ</b> ✓✓✓
@@ -544,53 +585,53 @@ namespace Cas0201.Firebase
                 {
                     async () => await CədvəliSinxronlaAsync(db, cx, "cars",
                         await db.Cars.AsNoTracking().ToListAsync(ct),
-                        a => a.Id.ToString(CultureInfo.InvariantCulture),
+                        a => Acar(a),
                         CarNode, bulud["cars"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "expenses",
                         await db.Expenses.AsNoTracking().ToListAsync(ct),
-                        e => e.Id.ToString(CultureInfo.InvariantCulture),
+                        e => Acar(e),
                         XercNode, bulud["expenses"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "sales",
                         await db.Sales.AsNoTracking().ToListAsync(ct),
-                        s => s.Id.ToString(CultureInfo.InvariantCulture),
+                        s => Acar(s),
                         SatisNode, bulud["sales"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "credits",
                         await db.Credits.AsNoTracking().ToListAsync(ct),
-                        k => k.Id.ToString(CultureInfo.InvariantCulture),
+                        k => Acar(k),
                         KreditNode, bulud["credits"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "creditTransactions",
                         await db.CreditTransactions.AsNoTracking().ToListAsync(ct),
-                        t => t.Id.ToString(CultureInfo.InvariantCulture),
+                        t => Acar(t),
                         EmeliyyatNode, bulud["creditTransactions"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "partners",
                         await db.Partners.AsNoTracking().ToListAsync(ct),
-                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        p => Acar(p),
                         TerefdasNode, bulud["partners"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "partnerShares",
                         await db.PartnerShares.AsNoTracking().ToListAsync(ct),
-                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        p => Acar(p),
                         PayNode, bulud["partnerShares"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "partnerPayments",
                         await db.PartnerPayments.AsNoTracking().ToListAsync(ct),
-                        p => p.Id.ToString(CultureInfo.InvariantCulture),
+                        p => Acar(p),
                         OdenisNode, bulud["partnerPayments"], zibil, ct),
 
                     // ✅ v6.2.12 — ⏳ möhlətlər + 💵 kassa hərəkətləri də çəkilir ✓✓✓
                     async () => await CədvəliSinxronlaAsync(db, cx, "odenisMohlets",
                         await db.OdenisMohletler.AsNoTracking().ToListAsync(ct),
-                        m => m.Id.ToString(CultureInfo.InvariantCulture),
+                        m => Acar(m),
                         MohletNode, bulud["odenisMohlets"], zibil, ct),
 
                     async () => await CədvəliSinxronlaAsync(db, cx, "kassaHereketleri",
                         await db.KassaHereketleri.AsNoTracking().ToListAsync(ct),
-                        k => k.Id.ToString(CultureInfo.InvariantCulture),
+                        k => Acar(k),
                         KassaNode, bulud["kassaHereketleri"], zibil, ct)
                 };
 
@@ -651,30 +692,36 @@ namespace Cas0201.Firebase
                 await cx.OpenAsync(ct).ConfigureAwait(false);
                 CedveliYarat(cx);
 
+                // ================================================================
+                //  🔗 ƏLAQƏ XƏRİTƏLƏRİ ✓✓✓ (v6.2.16) — göndərilən node-lara
+                //  valideynin GUID-i («carBuludId» ✓) yazılsın deyə ✓✓✓
+                // ================================================================
+                await XəritələriDoldurAsync(db, ct).ConfigureAwait(false);
+
                 push += await CədvəlGonderAsync("cars",
-                    await db.Cars.AsNoTracking().ToListAsync(ct), a => a.Id.ToString(), CarNode, ct, Say, cx);
+                    await db.Cars.AsNoTracking().ToListAsync(ct), a => Acar(a), CarNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("expenses",
-                    await db.Expenses.AsNoTracking().ToListAsync(ct), e => e.Id.ToString(), XercNode, ct, Say, cx);
+                    await db.Expenses.AsNoTracking().ToListAsync(ct), e => Acar(e), XercNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("sales",
-                    await db.Sales.AsNoTracking().ToListAsync(ct), s => s.Id.ToString(), SatisNode, ct, Say, cx);
+                    await db.Sales.AsNoTracking().ToListAsync(ct), s => Acar(s), SatisNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("credits",
-                    await db.Credits.AsNoTracking().ToListAsync(ct), k => k.Id.ToString(), KreditNode, ct, Say, cx);
+                    await db.Credits.AsNoTracking().ToListAsync(ct), k => Acar(k), KreditNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("creditTransactions",
                     await db.CreditTransactions.AsNoTracking().ToListAsync(ct),
-                    t => t.Id.ToString(), EmeliyyatNode, ct, Say, cx);
+                    t => Acar(t), EmeliyyatNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partners",
-                    await db.Partners.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), TerefdasNode, ct, Say, cx);
+                    await db.Partners.AsNoTracking().ToListAsync(ct), p => Acar(p), TerefdasNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partnerShares",
-                    await db.PartnerShares.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), PayNode, ct, Say, cx);
+                    await db.PartnerShares.AsNoTracking().ToListAsync(ct), p => Acar(p), PayNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partnerPayments",
-                    await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), OdenisNode, ct, Say, cx);
+                    await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => Acar(p), OdenisNode, ct, Say, cx);
 
                 // ================================================================
                 //  ✅ v6.2.12 — ⏳ MÖHLƏTLƏR və 💵 KASSA HƏRƏKƏTLƏRİ də buluda gedir ✓✓✓
@@ -682,11 +729,11 @@ namespace Cas0201.Firebase
                 // ================================================================
                 push += await CədvəlGonderAsync("odenisMohlets",
                     await db.OdenisMohletler.AsNoTracking().ToListAsync(ct),
-                    m => m.Id.ToString(), MohletNode, ct, Say, cx);
+                    m => Acar(m), MohletNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("kassaHereketleri",
                     await db.KassaHereketleri.AsNoTracking().ToListAsync(ct),
-                    k => k.Id.ToString(), KassaNode, ct, Say, cx);
+                    k => Acar(k), KassaNode, ct, Say, cx);
 
                 // 📎 ❌ MEDIA / PDF / ŞƏKİL GÖNDƏRİLMİR ✗✓✓ — YALNIZ fləşkartda qalır ✓
                 // 🏷️ Xərc kataloqu buluda getmir ✗ (lokal arayış cədvəlidir ✓)
@@ -764,8 +811,8 @@ namespace Cas0201.Firebase
                 var tamYol = kolleksiya + "/" + açar;
 
                 // 🔑 HASH — audit sahələri DAXİL DEYİL ✗✓✓ (yalnız məzmun ✓)
-                var hash = Hesabla(System.Text.Json.JsonSerializer
-                    .Serialize(node, FirebaseOptions.Json));
+                //    ⚠ v6.2.16: KANONİK hash ✓ — bulud tərəfi ilə EYNİ nəticə ✓✓✓
+                var hash = HesablaMəzmun(node);
 
                 if (_sonHash.TryGetValue(tamYol, out var köhnə) &&
                     string.Equals(köhnə, hash, StringComparison.Ordinal))
@@ -811,21 +858,46 @@ namespace Cas0201.Firebase
             }
 
             // 🗑️ SQLite-dan SİLİNƏNLƏR → BULUDDAN SİLİNİR ✓✓✓ (yer tutmasın ✓)
+            // ================================================================
+            //  🛑 v6.2.16 — ★ KÜTLƏVİ SİLMƏ QORUYUCUSU ★
+            //  ----------------------------------------------------------------
+            //  ⚠ İstifadəçi tələbi: «əvvəl əlavə olunan qeyd SİLİNMƏMƏLİDİR» ✓✓✓
+            //  ⚠ TƏHLÜKƏ: baza sıfırlanırsa / açılmırsa ✗ → «hamısı silinib»
+            //    görünür ✗ → BÜTÜN BULUD SİLİNƏRDİ ✗✓✓ (fəlakət ✗)
+            //  ✅ İNDİ: itkinlərin sayı qeyri-təbii çoxdursa (10-dan artıq ✗
+            //    VƏ eyni zamanda 25%-dən çox ✗) → HEÇ NƏ SİLİNMİR ✗ ·
+            //    xəbərdarlıq yazılır ✓✓✓ (məlumat QORUNUR ✓)
+            // ================================================================
             if (_sonAçarlar.TryGetValue(kolleksiya, out var əvvəlki))
             {
-                foreach (var itmiş in əvvəlki.Except(indiki))
+                var itkinlər = əvvəlki.Except(indiki).ToList();
+
+                var qorxu = əvvəlki.Count > 0
+                            && itkinlər.Count > 10
+                            && itkinlər.Count * 4 > əvvəlki.Count;
+
+                if (qorxu)
                 {
-                    var uğur = FizikiSil
-                        ? await _klient.FizikiSilAsync(kolleksiya + "/" + itmiş, ct)
-                            .ConfigureAwait(false)
-                        : await SoftSilAsync(kolleksiya + "/" + itmiş, ct)
-                            .ConfigureAwait(false);
+                    AppLogger.Xeberdarliq(
+                        $"🛑 {kolleksiya}: {itkinlər.Count} qeyd «yoxdur» görünür ✗ — bu QEYRİ-TƏBİİdir ✓ → " +
+                        "TƏHLÜKƏSİZLİK üçün HEÇ NƏ SİLİNMƏDİ ✗✓✓ (məlumat QORUNDU ✓)");
+                }
+                else
+                {
+                    foreach (var itmiş in itkinlər)
+                    {
+                        var uğur = FizikiSil
+                            ? await _klient.FizikiSilAsync(kolleksiya + "/" + itmiş, ct)
+                                .ConfigureAwait(false)
+                            : await SoftSilAsync(kolleksiya + "/" + itmiş, ct)
+                                .ConfigureAwait(false);
 
-                    if (!uğur) break; // 🔌 offline ✓ → növbəti dövrdə ✓
+                        if (!uğur) break; // 🔌 offline ✓ → növbəti dövrdə ✓
 
-                    _sonHash.Remove(kolleksiya + "/" + itmiş);
-                    SilinenSayi++;
-                    silmeSayğacı(1);
+                        _sonHash.Remove(kolleksiya + "/" + itmiş);
+                        SilinenSayi++;
+                        silmeSayğacı(1);
+                    }
                 }
             }
 
@@ -1339,10 +1411,21 @@ namespace Cas0201.Firebase
             JsonObject? bulud,
             JsonObject? zibil,
             CancellationToken ct)
-            where T : class, new()
+            where T : class, IBuludIdli, new()
         {
             var izleme = IzlemeAl(cx, kol);
             var dəyişən = 0;
+
+            // ================================================================
+            //  🔗 ƏLAQƏ XƏRİTƏLƏRİ — hər cədvəldən ƏVVƏL yenilənir ✓✓✓ (v6.2.16)
+            //  ----------------------------------------------------------------
+            //  ⚠ Valideynlər ƏVVƏL gəlir ✓ (cars → sales/credits → …
+            //    → odenisMohlets/kassaHereketleri ✓) → uşaqlar onları TAPIR ✓
+            //  ⚠ SaveChanges BURADA çağırılır ✓ → əvvəlki cədvəlin yeni
+            //    qeydləri bazaya düşür ✓ → xəritələrə daxil olur ✓✓✓
+            // ================================================================
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await XəritələriDoldurAsync(db, ct).ConfigureAwait(false);
 
             // ① ☁️ BULUD → YERLİ ✓ (yalnız DAHA TƏZƏ olanlar ✓)
             if (bulud is not null)
@@ -1358,27 +1441,84 @@ namespace Cas0201.Firebase
                     // ⚖️ LWW: yerli daha təzədirsə → toxunmuruq ✗✓✓
                     if (uzaqVaxt <= (iz?.SonDeyisiklik ?? DateTime.MinValue)) continue;
 
+                    var uzaqBuludId = o["buludId"]?.ToString();
+
                     var yerliSətr = yerli.FirstOrDefault(x => açarAl(x) == id);
+
+                    // ================================================================
+                    //  🆔 KİMLİK YOXLAMASI ✓✓✓ (v6.2.16 — ★ ƏSAS DÜZƏLİŞ ★)
+                    // ----------------------------------------------------------------
+                    //  ⚠ PROBLEM (istifadəçi: «bir kompüterə maşın əlavə edirəm,
+                    //    o birində görünmür; əvvəlki qeyd silinir» ✗✓✓):
+                    //    hər kompüter ÖZ rəqəm ID-sini verirdi ✗ → ikisi də
+                    //    «232» yaradırdı ✗ → buluddan gələn qeyd YERLİ FƏRQLİ
+                    //    qeydlə eyni açar altında idi ✗ → ya üzərinə yazırdı ✗,
+                    //    ya da LWW «köhnədir» deyib HEÇ TƏTBİQ ETMİRDİ ✗✓✓
+                    //  ✅ İNDİ: «buludId» (GUID ✓) FƏRQLİDIRSƏ → bu AYRI QEYDDİR ✓
+                    //    → yerli «tutan» qeyd RE-KEY olunur ✓ (GUID alır ✓,
+                    //      buluddakı köhnə rəqəm node-u təmizlənir ✓)
+                    //    → gələn qeyd isə YENİ kimi əlavə olunur ✓✓✓
+                    //    ⇒ HEÇ BİR MƏLUMAT İTMİR ✗ · HEÇ NƏ SİLİNMİR ✗✓✓
+                    // ================================================================
+                    if (yerliSətr is not null && !EyniQeyddir(uzaqBuludId, (IBuludIdli)yerliSətr))
+                    {
+                        await TutaniAzadEtAsync(db, cx, kol, (IBuludIdli)yerliSətr, ct)
+                            .ConfigureAwait(false);
+
+                        yerli.Remove(yerliSətr);
+                        yerliSətr = null;   // ➕ aşağıda YENİ qeyd kimi əlavə olunur ✓
+                    }
 
                     if (yerliSətr is null)
                     {
-                        // ➕ YENİ QEYD (başqa kompüterdə yaranıb ✓) — İD SAXLANILIR ✓
+                        // ➕ YENİ QEYD (başqa kompüterdə yaranıb ✓)
                         var yeni = new T();
                         XüsuslarıTətbiq(yeni, o);
-                        XüsuslarıTətbiq(yeni, new JsonObject { ["id"] = id });
+
+                        var kok = (IBuludIdli)yeni;
+
+                        // 🔑 KİMLİK: GUID varsa → BuludId ✓ (açar odur ✓);
+                        //    yoxsa köhnə rəqəm ID ✓ (hər iki kompüterdə eynidir ✓)
+                        if (!string.IsNullOrWhiteSpace(uzaqBuludId))
+                        {
+                            kok.BuludId = uzaqBuludId;
+
+                            // ⚠ GUID-li qeydin yerli ID-si SƏRBƏSTDİR ✓ →
+                            //   EF özü YENİ ID verir ✓ (rəqəm toqquşması YARANMIR ✗✓✓)
+                            kok.Id = 0;
+                        }
+                        else if (int.TryParse(id, NumberStyles.Integer,
+                                 CultureInfo.InvariantCulture, out var uzaqId))
+                        {
+                            // 🏛️ KÖHNƏ qeyd ✓ — orijinal ID saxlanılır ✓
+                            //   (əlaqələr carId/creditId ilə işləyir ✓)
+                            kok.Id = uzaqId;
+                        }
+
+                        ƏlaqələriBağla(yeni, o);   // 🔗 *BuludId → yerli ID ✓✓✓
 
                         if (await YerliEkleAsync(db, yeni, ct).ConfigureAwait(false))
                         {
                             yerli.Add(yeni);
-                            IzlemeYaz(cx, kol, id, HesablaMəzmun(nodeAl(yeni)), uzaqVaxt, false);
+
+                            // ⚠ İzləməyə BULUDUN hash-i yazılır ✓ (yerlinin yox ✗) →
+                            //   dərhal geri göndərilmir ✗ → «sonsuz dövr» olmur ✗✓✓
+                            IzlemeYaz(cx, kol, id, HesablaMəzmun(o), uzaqVaxt, false);
                             dəyişən++;
+
+                            KökXəritələrəƏlavəEt(yeni);   // 🔗 uşaqlar üçün ✓
                         }
                     }
                     else
                     {
+                        // ============================================================
+                        //  ♻️ MÖVCUD QEYD — YALNIZ GƏLİŞDİRİLƏN sahələr ✓
+                        //  ⚠ `XüsuslarıTətbiq` artıq «id»/«buludId»-ni ötürmür ✗✓✓
+                        //    → yerli AÇAR və ƏLAQƏLƏR toxunulmaz qalır ✓✓✓
+                        // ============================================================
                         XüsuslarıTətbiq(yerliSətr, o);
                         db.Update(yerliSətr);
-                        IzlemeYaz(cx, kol, id, HesablaMəzmun(nodeAl(yerliSətr)), uzaqVaxt, false);
+                        IzlemeYaz(cx, kol, id, HesablaMəzmun(o), uzaqVaxt, false);
                         dəyişən++;
                     }
                 }
@@ -1420,9 +1560,80 @@ namespace Cas0201.Firebase
             return dəyişən;
         }
 
-        /// <summary>🔑 Məzmun hash-ı ✓ (nodeAl nəticəsi üzərindən ✓)</summary>
-        private static string HesablaMəzmun(Dictionary<string, object?> node) =>
-            Hesabla(System.Text.Json.JsonSerializer.Serialize(node, FirebaseOptions.Json));
+        /// <summary>
+        /// 🔑 <b>MƏZMUN HASH-I (KANONİK)</b> ✓✓✓ — həm YERLİ, həm BULUD node-u üçün
+        /// <b>EYNİ</b> nəticə verir ✓✓✓ (v6.2.16)
+        /// <para>
+        /// <b>Necə?</b>
+        /// </para>
+        /// <list type="number">
+        ///   <item>Açarlar <b>ƏLİFBA SIRASI</b> ilə düzülür ✗✓✓ (JSON-da sıra fərqli ola bilər ✗)</item>
+        ///   <item><c>null</c> dəyərlər ATILIR ✗✓✓ (Firebase <c>null</c>-u saxlamır ✗)</item>
+        ///   <item>Audit / identifikator sahələri ATILIR ✗✓✓
+        ///         (<c>id</c> · <c>buludId</c> · <c>updatedAt</c> · <c>updatedBy</c> ·
+        ///         <c>isDeleted</c> · <c>deletedAt</c>)</item>
+        ///   <item>Dəyərlər <b>eyni</b> JSON qaydası ilə yazılır ✓ (mətn <c>"..."</c> ·
+        ///         rəqəm <c>8000</c> · məntiqi <c>true</c>)</item>
+        /// </list>
+        /// <para>
+        /// ⚠ Bu olmasa iki kompüter <b>sonsuz</b> olaraq bir-birinin üzərinə yazırdı ✗✓✓
+        /// (çünki yerli <c>id</c> fərqlidir ✗ və açar sırası fərqlidir ✗)
+        /// </para>
+        /// </summary>
+        private static string HesablaMəzmun(Dictionary<string, object?> node)
+        {
+            var sətirlər = new List<(string Açar, string Dəyər)>();
+
+            foreach (var (açar, dəyər) in node)
+            {
+                if (dəyər is null || AuditSahələri.Contains(açar, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                sətirlər.Add((açar, System.Text.Json.JsonSerializer.Serialize(dəyər, FirebaseOptions.Json)));
+            }
+
+            return KanonikHash(sətirlər);
+        }
+
+        /// <summary>☁️ Buluddaki node-un eyni kanonik hash-ı ✓✓✓ (v6.2.16)</summary>
+        private static string HesablaMəzmun(JsonObject buludNodeu)
+        {
+            var sətirlər = new List<(string Açar, string Dəyər)>();
+
+            foreach (var cüt in buludNodeu)
+            {
+                if (cüt.Value is null || AuditSahələri.Contains(cüt.Key, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                sətirlər.Add((cüt.Key, cüt.Value.ToJsonString(FirebaseOptions.Json)));
+            }
+
+            return KanonikHash(sətirlər);
+        }
+
+        /// <summary>🧮 Kanonik hash ✓ — açarlar sıralanır ✓, dəyərlər eyni formada ✓</summary>
+        private static string KanonikHash(List<(string Açar, string Dəyər)> cütlər)
+        {
+            var sb = new System.Text.StringBuilder("{");
+            var ilk = true;
+
+            foreach (var (açar, dəyər) in cütlər.OrderBy(x => x.Açar, StringComparer.Ordinal))
+            {
+                if (!ilk)
+                {
+                    sb.Append(',');
+                }
+
+                sb.Append('"').Append(açar).Append("\":").Append(dəyər);
+                ilk = false;
+            }
+
+            return Hesabla(sb.Append('}').ToString());
+        }
 
         // ====================================================================
         //  🧠 İZLƏMƏ CƏDVƏLİ (bulud_izleme) — LWW-NİN ÜRƏYİ ✓✓✓
@@ -1454,7 +1665,14 @@ namespace Cas0201.Firebase
             {
                 if (cüt.Value is null) continue;
 
-                if (cüt.Key is "updatedAt" or "updatedBy" or "isDeleted" or "deletedAt") continue;
+                // ================================================================
+                //  🚫 «id» və «buludId» ÖTÜRÜLMÜR ✗✓✓ (v6.2.16)
+                // ----------------------------------------------------------------
+                //  ⚠ Bunlar KİMLİKDİR ✗ — yerli bazada AYRICA idarə olunur ✓.
+                //    Əks halda EF «açar dəyişdi» deyə sıradaş/dup yaradırdı ✗✓✓
+                // ================================================================
+                if (cüt.Key is "updatedAt" or "updatedBy" or "isDeleted" or "deletedAt"
+                    or "id" or "buludId") continue;
 
                 var p = tip.GetProperty(cüt.Key,
                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
@@ -1501,6 +1719,29 @@ namespace Cas0201.Firebase
         {
             var tip = entity.GetType();
 
+            // ================================================================
+            //  🔑 v6.2.16 — YENİ TİPLİ (GUID) QEYDLƏR ✗✓✓
+            //  ----------------------------------------------------------------
+            //  ⚠ Onların yerli ID-si SƏRBƏSTDİR ✗ → rəqəm toqquşması OLMAZ ✗✓✓
+            //    → EF özü ardıcıl nömrə verir ✓ (ən təhlükəsiz yol ✓)
+            //  ⚠ KÖHNƏ (rəqəm ID-li) qeydlər isə aşağıdaki XAM SQL ilə əlavə
+            //    olunur ✓ → orijinal ID saxlanılır ✓ (əlaqələr pozulmur ✗✓✓)
+            // ================================================================
+            if (entity is IBuludIdli kokIdli && kokIdli.Id == 0)
+            {
+                try
+                {
+                    db.Add(entity);
+                    AppLogger.Melumat($"➕ {tip.Name}: buluddan YENİ qeyd əlavə olundu ✓ (GUID açar ✓ · yeni yerli ID ✓)");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Xeta(ex, "yerli əlavə (GUID/yeni ID): " + tip.Name);
+                    return false;
+                }
+            }
+
             try
             {
                 await db.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
@@ -1545,7 +1786,23 @@ namespace Cas0201.Firebase
 
                 foreach (var x in parametrlər) əmr.Parameters.Add(x);
 
-                await əmr.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                var təsir = await əmr.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+
+                // ================================================================
+                //  🛑 v6.2.16 — ★ SƏSSİZ İTKİNİN QARŞISI ★
+                //  ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: «INSERT OR IGNORE» İD tutulanda SƏSSİZCƏ udurdu ✗
+                //    → «0 sətir əlavə olundu» ✗ · heç bir xəta YOX ✗
+                //    → qeyd yerli bazaya DÜŞMÜRDÜ ✗ və İZLƏMƏYƏ yazılırdı ✗
+                //    → HEÇ VAXT gəlmirdi ✗ (istifadəçi: «o birində görünmür» ✗✓✓)
+                //  ✅ İNDİ: nəticə YOXLANILIR ✓ → İD tutulubsa YENİ İD ilə
+                //    əlavə olunur ✓ · BİR QEYD DƏ İTMİR ✗✓✓
+                // ================================================================
+                if (təsir <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "İD tutulub ✗ → qeyd yeni yerli İD ilə əlavə olunacaq ✓");
+                }
 
                 // 🔢 SQLite sayğacını düzəlt ✓ (sonrakı əlavələr toqquşmasın ✗✓✓)
                 try
@@ -1560,20 +1817,33 @@ namespace Cas0201.Firebase
                 }
                 catch { }
 
-                db.ChangeTracker.Clear(); // ⚠ EF xəbərdar olsun ✓
-
+                // ⚠ v6.2.16: `ChangeTracker.Clear()` ÇIXARILDI ✗✓✓
+                //   Səbəb: həmin dövrdə əvvəlki sətirlərin TƏTBİQ OLUNMUŞ
+                //   dəyişikliklərini də SİLİRDİ ✗ (onlar növbəti dövrdə
+                //   «artıq sinxronlaşıb» sayılıb TƏTBİQ OLUNMURDU ✗✓✓)
                 AppLogger.Melumat($"➕ {cədvəl}: buluddan YENİ qeyd əlavə olundu ✓");
                 return true;
             }
             catch (Exception ex)
             {
-                // 🛡️ Zəmanət: qeyd İTMİR ✗ — EF ilə adi şəkildə əlavə olunur ✓
+                // ================================================================
+                //  🛡️ ZƏMANƏT: QEYD İTMİR ✗✓✓ (v6.2.16 — YENİ İD VERİLİR ✓)
+                //  ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL burada entity eyni İD ilə `Add` olunurdu ✗ →
+                //    yenə toqquşurdu ✗ → qeyd İTİRDİ ✗✓✓
+                //  ✅ İNDİ: İD SIFIRLANIR ✓ → EF özü YENİ (boş) İD verir ✓
+                //    → məlumat MÜTLƏQ yerli bazaya düşür ✓✓✓
+                // ================================================================
                 AppLogger.Xeberdarliq(
-                    $"⚠️ {tip.Name} İD ilə əlavə olunmadı ✗ ({ex.Message}) → adi üsulla ✓");
+                    $"⚠️ {tip.Name} orijinal İD ilə əlavə olunmadı ✗ ({ex.Message}) → YENİ İD ilə əlavə olunur ✓");
 
                 try
                 {
+                    if (entity is IBuludIdli sıfırla) sıfırla.Id = 0;
+
                     db.Add(entity);
+
+                    AppLogger.Melumat($"➕ {tip.Name}: buluddan YENİ qeyd əlavə olundu ✓ (yeni yerli İD ✓ · məlumat İTMƏDİ ✗✓✓)");
                     return true;
                 }
                 catch (Exception ex2)
@@ -1710,10 +1980,277 @@ namespace Cas0201.Firebase
             "odenisMohlets", "kassaHereketleri"
         };
 
+        /// <summary>
+        /// 🔑 <b>SİNXRON AÇARI</b> ✓✓✓ (v6.2.16) —
+        /// <see cref="IBuludIdli.SinxronAcar"/> ✓ (GUID varsa GUID ✓, yoxsa rəqəm ID ✓)
+        /// <para>⚠ İnterfeys metodu birbaşa sinif üzərindən çağırılmır ✗ → bu köməkçi vasitəsilə ✓</para>
+        /// </summary>
+        private static string Acar<T>(T e) where T : IBuludIdli => e.SinxronAcar;
+
+        /// <summary>
+        /// #️⃣ <b>MƏZMUN HASH-I</b> ✓✓✓ (v6.2.16) — <b>yalnız BİZNES sahələri</b> ✓
+        /// <list type="bullet">
+        ///   <item><c>id</c> ✗ — hər kompüterdə FƏRQLİ ola bilər ✓ (əlaqələr artıq
+        ///         <c>*BuludId</c> ilə qurulur ✓) → hash-a DAXİL DEYİL ✗✓✓</item>
+        ///   <item><c>buludId</c> ✗ · <c>updatedAt</c> ✗ · <c>updatedBy</c> ✗ ·
+        ///         <c>isDeleted</c> ✗ · <c>deletedAt</c> ✗ — audit sahələridir ✗</item>
+        /// </list>
+        /// <para>
+        /// ⚠ Səbəb: əvvəl hash <c>id</c>-ni də əhatə edirdi ✗ → bir kompüter qeydi
+        /// fərqli yerli ID ilə saxlayanda hash FƏRQLİ çıxırdı ✗ → iki kompüter
+        /// sonsuz olaraq bir-birinin üzərinə yazırdı ✗✓✓ (sonsuz dövr ✗)
+        /// </para>
+        /// </summary>
+        private static string KokHash(Dictionary<string, object?> node)
+        {
+            var təmiz = new Dictionary<string, object?>(node, StringComparer.Ordinal);
+
+            foreach (var açar in AuditSahələri)
+            {
+                təmiz.Remove(açar);
+            }
+
+            return Hesabla(System.Text.Json.JsonSerializer.Serialize(təmiz, FirebaseOptions.Json));
+        }
+
+        /// <summary>🚫 Audit / identifikator sahələri — hash-a DAXİL DEYİL ✗✓✓</summary>
+        private static readonly string[] AuditSahələri =
+        {
+            "id", "buludId", "updatedAt", "updatedBy", "isDeleted", "deletedAt"
+        };
+
+        // ====================================================================
+        //  🆔 KİMLİK VƏ ƏLAQƏ KÖMƏKÇİLƏRİ ✓✓✓ (v6.2.16)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «iki kompüterdə hər şey EYNİ olmalıdır;
+        //    birində yaranan qeyd digərində də olmalıdır; əvvəlki SİLİNMƏMƏLİDİR» ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 🔍 <b>EYNİ QEYDDİR?</b> ✓✓✓ — «buludId» ilə KİMLİK müqayisəsi ✓
+        /// <list type="bullet">
+        ///   <item>buluddakı qeydin GUID-i YOXDUR ✗ (köhnə ✓) → yerli də köhnədirsə eyni ✓</item>
+        ///   <item>GUID-lər FƏRQLİDİR ✗ → <b>AYRI qeydlərdir</b> ✗✓✓ (bax <see cref="TutaniAzadEtAsync"/>)</item>
+        /// </list>
+        /// </summary>
+        private static bool EyniQeyddir(string? uzaqBuludId, IBuludIdli yerli)
+            => string.IsNullOrWhiteSpace(uzaqBuludId)
+                ? string.IsNullOrWhiteSpace(yerli.BuludId)
+                : string.Equals(uzaqBuludId, yerli.BuludId, StringComparison.Ordinal);
+
+        /// <summary>
+        /// 🔓 <b>TOQQUŞMANI TƏMİRLƏYİR</b> ✓✓✓ (v6.2.16 — ★ MƏLUMAT İTMİR ★)
+        /// <para>
+        /// İki kompüter eyni rəqəm ID-ni («232») ayırmışdı ✗ → yerli qeyd RE-KEY
+        /// olunur ✓ (GUID alır ✓) → artıq AYRI açarla yaşayır ✓ · <b>HEÇ NƏ
+        /// SİLİNMİR</b> ✗✓✓ · yerli ID-si və bütün uşaqları TOXUNULMAZ qalır ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⚠ Buluddakı köhnə rəqəm node-u SİLİNMİR ✗ (digər kompüterin orada öz
+        /// qeydi ola bilər ✗) — yalnız yerli <b>izləmə</b> sətri buraxılır ✓ →
+        /// həmin node-u artıq biz «sahiblənmirik» ✗ → digər kompüter onu təmiz
+        /// şəkildə yazır ✓✓✓
+        /// </para>
+        /// </summary>
+        private async Task TutaniAzadEtAsync(AppDbContext db, SqliteConnection cx, string kol,
+            IBuludIdli yerli, CancellationToken ct)
+        {
+            var köhnəAçar = yerli.SinxronAcar;   // ⚠ ƏVVƏLCƏ yadda saxla ✗✓✓
+
+            try
+            {
+                // ① GUID verilir ✓ → qeyd artıq AYRI açarla yaşayır ✓
+                if (string.IsNullOrWhiteSpace(yerli.BuludId))
+                {
+                    yerli.BuludId = Guid.NewGuid().ToString("N");
+                }
+
+                var yeniAçar = yerli.SinxronAcar;
+
+                // ② Yerli bazada BİRBAŞA SQL ilə yazılır ✓
+                //   (EF izləyicisi detached-dir ✗ · PK dəyişmir ✗ ✓)
+                var cədvəl = db.Model.FindEntityType(yerli.GetType())?.GetTableName();
+
+                if (cədvəl is not null)
+                {
+                    using var əmr = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+                    əmr.CommandText = $"UPDATE \"{cədvəl}\" SET \"BuludId\" = $g WHERE \"Id\" = $id;";
+                    əmr.Parameters.AddWithValue("$g", yerli.BuludId!);
+                    əmr.Parameters.AddWithValue("$id", yerli.Id);
+
+                    await əmr.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+
+                // ③ Yerli «iz» buraxılır ✓ (köhnə açar artıq bizim deyil ✗)
+                _sonHash.Remove(kol + "/" + köhnəAçar);
+                _sonAçarlar[kol]?.Remove(köhnəAçar);
+                IzlemeSil(cx, kol, köhnəAçar);
+
+                var qısa = yeniAçar[..Math.Min(8, yeniAçar.Length)];
+
+                AppLogger.Xeberdarliq(
+                    $"🔓 {kol}: «{köhnəAçar}» açarı tutulmuşdu ✓ → " +
+                    $"«{qısa}…» GUID açarına keçirildi ✓ (qeyd SİLİNMƏDİ ✗✓✓)");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "toqquşma təmiri: " + kol);
+            }
+        }
+
+        /// <summary>🔗 <c>*BuludId</c> sahələrini yerli ID-lərə çevirir ✓✓✓ (v6.2.16)</summary>
+        private void ƏlaqələriBağla<T>(T yeni, JsonObject o) where T : IBuludIdli
+        {
+            int? Tap(Dictionary<string, int> xəritə, string sahə, int? cari)
+            {
+                var mətn = o[sahə]?.ToString();
+
+                // Köhnə qeydlərdə bu sahə YOXDUR ✗ → rəqəm ID olduğu kimi qalır ✓
+                if (string.IsNullOrWhiteSpace(mətn))
+                {
+                    return cari;
+                }
+
+                if (xəritə.TryGetValue(mətn, out var yerliId))
+                {
+                    return yerliId;
+                }
+
+                // ⚠ Valideyn hələ yerli bazada yoxdur ✗ → uydurma ID verilmir ✗
+                AppLogger.Xeberdarliq(
+                    $"🔗 Əlaqə tapılmadı ✗ — {sahə}={mətn[..Math.Min(8, mətn.Length)]}…");
+
+                return null;
+            }
+
+            switch (yeni)
+            {
+                case ExpenseItem e:
+                    e.CarId = Tap(_carKök, "carBuludId", e.CarId);
+                    break;
+
+                case Sale s:
+                    s.CarId = Tap(_carKök, "carBuludId", s.CarId);
+                    break;
+
+                case Credit k:
+                    k.CarId = Tap(_carKök, "carBuludId", k.CarId);
+                    break;
+
+                case CreditTransaction t:
+                    t.CreditId = Tap(_kreditKök, "kreditBuludId", t.CreditId);
+                    break;
+
+                case PartnerShare p:
+                    p.CreditTransactionId =
+                        Tap(_emeliyyatKök, "kreditEmeliyyatBuludId", p.CreditTransactionId);
+                    p.CreditId = Tap(_kreditKök, "kreditBuludId", p.CreditId);
+                    p.SaleId = Tap(_satisKök, "satisBuludId", p.SaleId);
+                    break;
+
+                case OdenisMohlet m:
+                    m.CreditId = Tap(_kreditKök, "kreditBuludId", m.CreditId);
+                    m.SaleId = Tap(_satisKök, "satisBuludId", m.SaleId);
+                    break;
+
+                case KassaHereket k:
+                    k.CreditId = Tap(_kreditKök, "kreditBuludId", k.CreditId);
+                    k.SaleId = Tap(_satisKök, "satisBuludId", k.SaleId);
+                    break;
+            }
+        }
+
+        /// <summary>🔗 Yeni əlavə olunan qeydi KÖK xəritələrinə əlavə edir ✓ (uşaqlar üçün ✓)</summary>
+        private void KökXəritələrəƏlavəEt<T>(T yeni) where T : IBuludIdli
+        {
+            if (string.IsNullOrWhiteSpace(yeni.BuludId))
+            {
+                return;   // köhnə qeyd ✗ → xəritədə yer almır ✓ (rəqəm ID işlədilir ✓)
+            }
+
+            switch (yeni)
+            {
+                case CarItem c: _carKök[c.BuludId!] = c.Id; break;
+                case Credit k: _kreditKök[k.BuludId!] = k.Id; break;
+                case Sale s: _satisKök[s.BuludId!] = s.Id; break;
+                case CreditTransaction t: _emeliyyatKök[t.BuludId!] = t.Id; break;
+            }
+        }
+
+        /// <summary>🔗 KÖK xəritələrini yerli bazadan doldurur ✓✓✓ (v6.2.16)</summary>
+        private async Task XəritələriDoldurAsync(AppDbContext db, CancellationToken ct)
+        {
+            static Dictionary<string, int> Çevir(IEnumerable<(string? Kok, int Id)> sətirlər)
+            {
+                var nəticə = new Dictionary<string, int>(StringComparer.Ordinal);
+
+                foreach (var (kok, id) in sətirlər)
+                {
+                    if (!string.IsNullOrWhiteSpace(kok))
+                    {
+                        nəticə[kok!] = id;
+                    }
+                }
+
+                return nəticə;
+            }
+
+            var cars = await db.Cars.AsNoTracking()
+                .Select(c => new { c.BuludId, c.Id }).ToListAsync(ct).ConfigureAwait(false);
+
+            var kredits = await db.Credits.AsNoTracking()
+                .Select(k => new { k.BuludId, k.Id }).ToListAsync(ct).ConfigureAwait(false);
+
+            var sales = await db.Sales.AsNoTracking()
+                .Select(s => new { s.BuludId, s.Id }).ToListAsync(ct).ConfigureAwait(false);
+
+            var trxs = await db.CreditTransactions.AsNoTracking()
+                .Select(t => new { t.BuludId, t.Id }).ToListAsync(ct).ConfigureAwait(false);
+
+            _carKök = Çevir(cars.Select(x => (x.BuludId, x.Id)));
+            _kreditKök = Çevir(kredits.Select(x => (x.BuludId, x.Id)));
+            _satisKök = Çevir(sales.Select(x => (x.BuludId, x.Id)));
+            _emeliyyatKök = Çevir(trxs.Select(x => (x.BuludId, x.Id)));
+
+            _carKokId = TersÇevir(_carKök);
+            _kreditKokId = TersÇevir(_kreditKök);
+            _satisKokId = TersÇevir(_satisKök);
+            _emeliyyatKokId = TersÇevir(_emeliyyatKök);
+        }
+
+        /// <summary>🔁 BuludId → yerli ID xəritəsini tərsinə çevirir ✓</summary>
+        private static Dictionary<int, string> TersÇevir(Dictionary<string, int> xəritə)
+        {
+            var nəticə = new Dictionary<int, string>();
+
+            foreach (var (kok, id) in xəritə)
+            {
+                nəticə[id] = kok;
+            }
+
+            return nəticə;
+        }
+
+        /// <summary>🔑 Yerli ID → BuludId ✓ (göndərmə zamanı əlaqə sahələri üçün ✓)</summary>
+        private static string? KokAcar(Dictionary<int, string> xəritə, int? id)
+            => id is int i && xəritə.TryGetValue(i, out var kok) ? kok : null;
+
+        // ---- 🔗 Əlaqə xəritələri (hər dövrdə yenilənir ✓) ----
+        private Dictionary<string, int> _carKök = new(StringComparer.Ordinal);
+        private Dictionary<string, int> _kreditKök = new(StringComparer.Ordinal);
+        private Dictionary<string, int> _satisKök = new(StringComparer.Ordinal);
+        private Dictionary<string, int> _emeliyyatKök = new(StringComparer.Ordinal);
+
+        private Dictionary<int, string> _carKokId = new();
+        private Dictionary<int, string> _kreditKokId = new();
+        private Dictionary<int, string> _satisKokId = new();
+        private Dictionary<int, string> _emeliyyatKokId = new();
+
         /// <summary>🚗 <b>Avtomobil</b> → Firebase node ✓ (sənəd faylları DAXİL DEYİL ✗ ✓)</summary>
         private static Dictionary<string, object?> CarNode(CarItem a) => new()
         {
             ["id"] = a.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = a.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["marka"] = a.Marka,
             ["qeydiyyatNisani"] = a.QeydiyyatNisani,
             ["vin"] = a.Vin,
@@ -1747,14 +2284,16 @@ namespace Cas0201.Firebase
         };
 
         /// <summary>💸 <b>Xərc</b> → Firebase node ✓</summary>
-        private static Dictionary<string, object?> XercNode(ExpenseItem e) => new()
+        private Dictionary<string, object?> XercNode(ExpenseItem e) => new()
         {
             ["id"] = e.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = e.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["tarix"] = e.Tarix.ToString("o", CultureInfo.InvariantCulture),
             ["teyinat"] = e.Teyinat,
             ["qrup"] = e.Qrup,
             ["kategoriya"] = e.Kategoriya,
             ["carId"] = e.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["carBuludId"] = KokAcar(_carKokId, e.CarId),
             ["mebleg"] = (double)e.Mebleg,
             ["odenisUsulu"] = e.OdenisUsulu,
             ["qeyd"] = e.Qeyd,
@@ -1762,12 +2301,14 @@ namespace Cas0201.Firebase
         };
 
         /// <summary>🤝 <b>Satış</b> → Firebase node ✓</summary>
-        private static Dictionary<string, object?> SatisNode(Sale s) => new()
+        private Dictionary<string, object?> SatisNode(Sale s) => new()
         {
             ["id"] = s.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = s.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["muqavileNomresi"] = s.MuqavileNomresi,
             ["musteri"] = s.Mustəri,
             ["carId"] = s.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["carBuludId"] = KokAcar(_carKokId, s.CarId),
             ["satisQiymeti"] = (double)s.SatisQiymeti,
             ["mayaDeyeri"] = (double)s.MayaDeyeri,
             ["menfeet"] = (double)s.Menfeet,
@@ -1781,12 +2322,14 @@ namespace Cas0201.Firebase
         };
 
         /// <summary>🏦 <b>Kredit</b> → Firebase node ✓</summary>
-        private static Dictionary<string, object?> KreditNode(Credit k) => new()
+        private Dictionary<string, object?> KreditNode(Credit k) => new()
         {
             ["id"] = k.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = k.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["muqavileNomresi"] = k.MuqavileNomresi,
             ["musteri"] = k.Mustəri,
             ["carId"] = k.CarId?.ToString(CultureInfo.InvariantCulture),
+            ["carBuludId"] = KokAcar(_carKokId, k.CarId),
             ["mebleg"] = (double)k.Mebleg,
             ["ilkinOdenis"] = (double)k.IlkinOdenis,
             ["kreditlesdirilen"] = (double)k.Kreditlesdirilen,
@@ -1802,10 +2345,12 @@ namespace Cas0201.Firebase
         };
 
         /// <summary>💳 <b>Kredit əməliyyatı</b> → Firebase node ✓</summary>
-        private static Dictionary<string, object?> EmeliyyatNode(CreditTransaction t) => new()
+        private Dictionary<string, object?> EmeliyyatNode(CreditTransaction t) => new()
         {
             ["id"] = t.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = t.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["creditId"] = t.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["kreditBuludId"] = KokAcar(_kreditKokId, t.CreditId),
             ["nov"] = t.Nov,
             ["installmentNo"] = t.InstallmentNo,
             ["mebleg"] = (double)t.Mebleg,
@@ -1823,6 +2368,7 @@ namespace Cas0201.Firebase
         private static Dictionary<string, object?> TerefdasNode(Partner p) => new()
         {
             ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = p.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["ad"] = p.Ad,
             ["faiz"] = (double)p.Faiz,
             ["qaligPayi"] = p.QaligPayi,
@@ -1832,12 +2378,16 @@ namespace Cas0201.Firebase
         };
 
         /// <summary>💰 <b>Tərəfdaş payı</b> → Firebase node ✓</summary>
-        private static Dictionary<string, object?> PayNode(PartnerShare p) => new()
+        private Dictionary<string, object?> PayNode(PartnerShare p) => new()
         {
             ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = p.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["creditTransactionId"] = p.CreditTransactionId?.ToString(CultureInfo.InvariantCulture),
+            ["kreditEmeliyyatBuludId"] = KokAcar(_emeliyyatKokId, p.CreditTransactionId),
             ["creditId"] = p.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["kreditBuludId"] = KokAcar(_kreditKokId, p.CreditId),
             ["saleId"] = p.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["satisBuludId"] = KokAcar(_satisKokId, p.SaleId),
             ["terefdas"] = p.Terefdas,
             ["faiz"] = (double)p.Faiz,
             ["mebleg"] = (double)p.Mebleg,
@@ -1850,12 +2400,15 @@ namespace Cas0201.Firebase
         /// ⏳ <b>MÖHLƏT ödənişi</b> → Firebase node ✓✓✓  (v6.2.12)
         /// <para>İlkin ödəniş möhləti (kredit ✓) və nisyə satış möhləti (satış ✓).</para>
         /// </summary>
-        private static Dictionary<string, object?> MohletNode(OdenisMohlet m) => new()
+        private Dictionary<string, object?> MohletNode(OdenisMohlet m) => new()
         {
             ["id"] = m.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = m.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["menbe"] = m.Menbe,
             ["creditId"] = m.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["kreditBuludId"] = KokAcar(_kreditKokId, m.CreditId),
             ["saleId"] = m.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["satisBuludId"] = KokAcar(_satisKokId, m.SaleId),
             ["sira"] = m.Sira,
             ["tarix"] = m.Tarix.ToString("o", CultureInfo.InvariantCulture),
             ["mebleg"] = (double)m.Mebleg,
@@ -1868,16 +2421,19 @@ namespace Cas0201.Firebase
         /// <summary>
         /// 💵 <b>Kassa hərəkəti</b> (əl ilə gəlir/xərc) → Firebase node ✓✓✓  (v6.2.12)
         /// </summary>
-        private static Dictionary<string, object?> KassaNode(KassaHereket k) => new()
+        private Dictionary<string, object?> KassaNode(KassaHereket k) => new()
         {
             ["id"] = k.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = k.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["nov"] = k.Nov,
             ["tarix"] = k.Tarix.ToString("o", CultureInfo.InvariantCulture),
             ["kateqoriya"] = k.Kateqoriya,
             ["mebleg"] = (double)k.Mebleg,
             ["odenisUsulu"] = k.OdenisUsulu,
             ["creditId"] = k.CreditId?.ToString(CultureInfo.InvariantCulture),
+            ["kreditBuludId"] = KokAcar(_kreditKokId, k.CreditId),
             ["saleId"] = k.SaleId?.ToString(CultureInfo.InvariantCulture),
+            ["satisBuludId"] = KokAcar(_satisKokId, k.SaleId),
             ["qeyd"] = k.Qeyd
         };
 
@@ -1885,6 +2441,7 @@ namespace Cas0201.Firebase
         private static Dictionary<string, object?> OdenisNode(PartnerPayment p) => new()
         {
             ["id"] = p.Id.ToString(CultureInfo.InvariantCulture),
+            ["buludId"] = p.BuludId,   // 🔑 v6.2.16 → kimlik ✓ (toqquşma aşkarlaması ✓)
             ["terefdas"] = p.Terefdas,
             ["mebleg"] = (double)p.Mebleg,
             ["tarix"] = p.Tarix.ToString("o", CultureInfo.InvariantCulture),

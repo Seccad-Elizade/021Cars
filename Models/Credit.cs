@@ -6,9 +6,12 @@ namespace EnterpriseAeroStudio.Models
     /// <summary>
     /// Avtomobil satışı üzrə kredit müqaviləsini təmsil edir.
     /// </summary>
-    public class Credit
+    public class Credit : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Cədvəldə göstərilən ardıcıl sıra nömrəsi (yalnız görünüş üçün).</summary>
         [NotMapped]

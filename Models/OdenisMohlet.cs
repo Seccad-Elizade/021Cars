@@ -24,13 +24,19 @@ namespace EnterpriseAeroStudio.Models
     /// ödənilməmiş möhlət «gözlənilən daxilolma»dır ✗✓✓
     /// </para>
     /// </summary>
-    public sealed partial class OdenisMohlet : ObservableObject
+    public sealed partial class OdenisMohlet : ObservableObject, IBuludIdli
     {
         /// <summary>Mənbə: <b>kreditin İLKİN ÖDƏNİŞİ</b> ✓ (Kreditlər tabı).</summary>
         public const string MenbeIlkinOdenis = "İlkin ödəniş";
 
         /// <summary>Mənbə: <b>SATIŞ</b> (nisyə / möhlətli satış) ✓ (Satış tabı).</summary>
         public const string MenbeSatis = "Satış (nisyə)";
+
+        /// <summary>
+        /// 🔑 <b>SİNXRON AÇARI</b> ✓✓✓ (v6.2.16) — bax <see cref="IBuludIdli"/>.
+        /// Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓
+        /// </summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Bazaya yazılan unikal identifikator.</summary>
         public int Id { get; set; }

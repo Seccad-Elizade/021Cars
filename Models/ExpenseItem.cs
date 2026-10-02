@@ -5,9 +5,12 @@ namespace EnterpriseAeroStudio.Models
     /// <summary>
     /// Bir xərc qeydini (avtomobil və ya ofis xərci) təmsil edir.
     /// </summary>
-    public class ExpenseItem
+    public class ExpenseItem : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Xərcin tarixi.</summary>
         public DateTime Tarix { get; set; } = DateTime.Today;

@@ -4,9 +4,12 @@ using EnterpriseAeroStudio.Services;
 namespace EnterpriseAeroStudio.Models
 {
     /// <summary>Avtomobil satışını təmsil edən biznes obyekti.</summary>
-    public class Sale
+    public class Sale : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Satış müqaviləsinin nömrəsi.</summary>
         public string MuqavileNomresi { get; set; } = string.Empty;

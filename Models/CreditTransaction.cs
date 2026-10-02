@@ -5,9 +5,12 @@ namespace EnterpriseAeroStudio.Models
     /// <summary>
     /// Kreditə bağlı əlavə gəlir/xərc qeydi.
     /// </summary>
-    public class CreditTransaction
+    public class CreditTransaction : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         public int? CreditId { get; set; }
 

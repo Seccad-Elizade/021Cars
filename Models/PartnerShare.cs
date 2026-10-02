@@ -18,9 +18,12 @@ namespace EnterpriseAeroStudio.Models
     /// dəyərlər <see cref="Services.Catalog.DefaultPartners"/> siyahısındadır.
     /// </para>
     /// </summary>
-    public class PartnerShare
+    public class PartnerShare : IBuludIdli
     {
         public int Id { get; set; }
+
+        /// <summary>🔑 Qlobal unikal bulud açarı (GUID ✓ v6.2.16). Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓</summary>
+        public string? BuludId { get; set; }
 
         /// <summary>Payın aid olduğu kredit əməliyyatı (əlavə gəlir / xərc).</summary>
         public int? CreditTransactionId { get; set; }

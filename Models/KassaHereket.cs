@@ -17,13 +17,19 @@ namespace EnterpriseAeroStudio.Models
     /// «kassaya pul qoyuldu» ✓ · «kassadan pul götürüldü» ✓ · «bank köçürməsi» ✓.
     /// </para>
     /// </summary>
-    public sealed partial class KassaHereket : ObservableObject
+    public sealed partial class KassaHereket : ObservableObject, IBuludIdli
     {
         /// <summary>Növ: kassaya <b>daxil olan</b> pul.</summary>
         public const string NovDaxilolma = "Daxilolma";
 
         /// <summary>Növ: kassadan <b>çıxan</b> pul.</summary>
         public const string NovXerc = "Xərc";
+
+        /// <summary>
+        /// 🔑 <b>SİNXRON AÇARI</b> ✓✓✓ (v6.2.16) — bax <see cref="IBuludIdli"/>.
+        /// Köhnə qeydlərdə boş ✗ → rəqəm ID işlədilir ✓
+        /// </summary>
+        public string? BuludId { get; set; }
 
         public int Id { get; set; }
 
