@@ -24,14 +24,14 @@ namespace Cas0201.Firebase
     /// </summary>
     public sealed class BuludAyarlari
     {
-        /// <summary>⏱️ Buluda yazma fasiləsi (saniyə ✓ · 2–3600 ✓ · default <b>5</b> ✓)</summary>
-        public int FirebaseSaniye { get; set; } = 10;
+        /// <summary>⏱️ Buluda yazma fasiləsi (saniyə ✓ · 5–3600 ✓ · default <b>5</b> ✓)</summary>
+        public int FirebaseSaniye { get; set; } = 5;
 
-        /// <summary>💾 USB yedəyi fasiləsi — <b>SANİYƏ</b> ✓ (5–86400 ✓ · default <b>30</b> ✓)</summary>
-        public int UsbSaniye { get; set; } = 300;
+        /// <summary>💾 USB yedəyi fasiləsi — <b>SANİYƏ</b> ✓ (5–86400 ✓ · default <b>5</b> ✓)</summary>
+        public int UsbSaniye { get; set; } = 5;
 
-        /// <summary>🖥️ Kompüterə (yerli) yedək fasiləsi — <b>SANİYƏ</b> ✓ (5–86400 ✓ · default <b>60</b> ✓)</summary>
-        public int YerliSaniye { get; set; } = 300;
+        /// <summary>🖥️ Kompüterə (yerli) yedək fasiləsi — <b>SANİYƏ</b> ✓ (5–86400 ✓ · default <b>5</b> ✓)</summary>
+        public int YerliSaniye { get; set; } = 5;
 
         /// <summary>🔄 Avtomatik sinxron işləsin? ✓</summary>
         public bool Avtomatik { get; set; } = true;
@@ -350,9 +350,9 @@ namespace Cas0201.Firebase
 
                 // 🛡️ TƏHLÜKƏLİ SƏRHƏDLƏR ✓✓✓ — buluddan səhv dəyər gəlsə belə
                 //    disk BOĞULMUR ✗ (2169 qeyd hər saniyə yenidən yazılmır ✗✓✓)
-                kopru.FasileSaniye = Math.Clamp(Cari.FirebaseSaniye, 10, 3600);   // ⏱️ ✓
-                kopru.YedekSaniye = Math.Clamp(Cari.UsbSaniye, 120, 86400);       // 💾 ✓
-                kopru.YerliYedekSaniye = Math.Clamp(Cari.YerliSaniye, 120, 86400); // 🖥️ ✓
+                kopru.FasileSaniye = Math.Clamp(Cari.FirebaseSaniye, 5, 3600);   // ⏱️ ✓
+                kopru.YedekSaniye = Math.Clamp(Cari.UsbSaniye, 5, 86400);       // 💾 ✓
+                kopru.YerliYedekSaniye = Math.Clamp(Cari.YerliSaniye, 5, 86400); // 🖥️ ✓
 
                 // ☁️ ③ AKTİV/SÖNÜLÜ ✓✓✓ — ★ KÖRPÜ AÇARI ★
                 //    false → körpü HEÇ İŞLƏMİR ✗ (buluddan heç nə OXUNMUR ✗✓✓)
@@ -370,9 +370,9 @@ namespace Cas0201.Firebase
         {
             // ⚠️ AŞAĞI HƏDDLƏR ARTIRILDI ✓✓✓ — ★ DONMANIN QARŞISI ★
             //   (2169 qeyd hər 5-10 saniyədə yenidən yazılırdı ✗ → disk 100% ✗ → donma ✗✓✓)
-            Cari.FirebaseSaniye = Math.Clamp(Cari.FirebaseSaniye, 10, 3600);
-            Cari.UsbSaniye = Math.Clamp(Cari.UsbSaniye, 120, 86400);
-            Cari.YerliSaniye = Math.Clamp(Cari.YerliSaniye, 120, 86400);
+            Cari.FirebaseSaniye = Math.Clamp(Cari.FirebaseSaniye, 5, 3600);
+            Cari.UsbSaniye = Math.Clamp(Cari.UsbSaniye, 5, 86400);
+            Cari.YerliSaniye = Math.Clamp(Cari.YerliSaniye, 5, 86400);
         }
 
         /// <summary>📋 Status mətni ✓ (panel başlığı üçün ✓)</summary>

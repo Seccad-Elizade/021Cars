@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  🌉 021Cars — BULUD KÖRPÜSÜ (10)  ★ TƏLƏB: «HƏR ŞEY 5 SANİYƏDƏN BİR BULUDA» ★
 // ----------------------------------------------------------------------------
 //  ✅ Tətbiqin SQLite-daki BÜTÜN məlumatını oxuyur ✓
@@ -57,11 +57,22 @@ namespace Cas0201.Firebase
         /// <summary>🧠 Son göndərilən halların hash-i ✓ («cars/12» → hash ✓)</summary>
         private readonly Dictionary<string, string> _sonHash = new();
 
+        /// <summary>
+        /// 🧠 <b>SİNXRON YADDAŞI YÜKLƏNDİ?</b> ✓✓✓  (v6.2.14)
+        /// <para>
+        /// İstifadəçi tələbi: «eyni məlumatlardırsa save-larda HEÇ NƏ
+        /// yazılıb silinməməlidir» ✓ — əvvəl hash yalnız <b>yaddaşda</b> idi ✗
+        /// → proqram hər açılışda <b>bütün 2567 qeydi TƏKRAR buluda yazırdı</b> ✗✓✓
+        /// </para>
+        /// <para>✅ İNDİ: hash-lər «bulud_izleme» cədvəlindən yüklənir ✓ → dəyişməyən qeyd GÖNDƏRİLMİR ✗✓✓</para>
+        /// </summary>
+        private bool _izlemeYuklendi;
+
         /// <summary>🧠 Buludda mövcud olan açarlar ✓ (silmə aşkarlaması üçün ✓)</summary>
         private readonly Dictionary<string, HashSet<string>> _sonAçarlar = new();
 
-        /// <summary>⏱️ Sinxron fasiləsi (saniyə ✓) — <b>5</b> ✓</summary>
-        public int FasileSaniye { get; set; } = 10;
+        /// <summary>⏱️ Sinxron fasiləsi (saniyə ✓) — <b>5</b> ✓ (istifadəçi standartı ✓)</summary>
+        public int FasileSaniye { get; set; } = 5;
 
         /// <summary>
         /// ☁️ <b>BULUD SİNXRONİZASİYASI AKTİVDİRMİ?</b> ✓✓✓
@@ -211,6 +222,68 @@ namespace Cas0201.Firebase
         /// </para>
         /// <para>⚠️ Eyni anda <b>YALNIZ BİR</b> dövr işləyir ✓ (təkrar başlatma qarşısı alınır ✗✓✓)</para>
         /// </summary>
+        /// <summary>
+        /// 🧠 <b>SİNXRON YADDAŞINI YÜKLƏYİR</b> ✓✓✓  (v6.2.14)
+        /// <para>
+        /// «bulud_izleme» cədvəlindən hər qeydin son hash-i oxunur ✓ →
+        /// <c>_sonHash</c> (göndərmə yoxlaması ✓) və <c>_sonAçarlar</c>
+        /// (silinmə aşkarlaması ✓) doldurulur ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⚠ İstifadəçi tələbi: «eyni məlumatlardırsa save-larda HEÇ NƏ yazılıb
+        /// silinməməlidir» ✓. Əvvəl hash yalnız YADDAŞDA idi ✗ → proqram hər
+        /// açılışda <b>bütün 2567 qeydi TƏKRAR buluda yazırdı</b> ✗✓✓
+        /// ✅ İNDİ: dəyişməyən qeydlər TƏKRAR GÖNDƏRİLMİR ✗✓✓
+        /// </para>
+        /// </summary>
+        private void İzlemeYukle(AppDbContext db)
+        {
+            if (_izlemeYuklendi)
+            {
+                return;
+            }
+
+            _izlemeYuklendi = true;
+
+            try
+            {
+                using var cx = new SqliteConnection(db.Database.GetConnectionString());
+                cx.Open();
+
+                CedveliYarat(cx);
+
+                using var əmr = cx.CreateCommand();
+                əmr.CommandText = "SELECT Kol, ElementId, Hash FROM bulud_izleme;";
+
+                using var oxu = əmr.ExecuteReader();
+
+                while (oxu.Read())
+                {
+                    var kol = oxu.GetString(0);
+                    var id = oxu.GetString(1);
+                    var hash = oxu.GetString(2);
+
+                    _sonHash[kol + "/" + id] = hash;
+
+                    if (!_sonAçarlar.TryGetValue(kol, out var set))
+                    {
+                        set = new HashSet<string>(StringComparer.Ordinal);
+                        _sonAçarlar[kol] = set;
+                    }
+
+                    set.Add(id);
+                }
+
+                AppLogger.Melumat(
+                    $"🧠 Sinxron yaddaşı yükləndi ✓ — {_sonHash.Count} qeydin hashi ✓ " +
+                    "(dəyişməyənlər TƏKRAR YAZILMIR ✗✓✓)");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Xeta(ex, "izləmə yükləmə");
+            }
+        }
+
         public void Basla()
         {
             // ☁️ SÖNÜLÜDÜRSƏ → HEÇ BAŞLAMIR ✗✓✓ (təmiz quraşdırma ✓ — buluddan heç nə oxunmur ✗)
@@ -238,7 +311,7 @@ namespace Cas0201.Firebase
             VeziyyetDeyisdi?.Invoke();
 
             AppLogger.Melumat(
-                $"🌉 BULUD KÖRPÜSÜ BAŞLADI ✓ — hər {Math.Max(10, FasileSaniye)} saniyədən bir ✓ " +
+                $"🌉 BULUD KÖRPÜSÜ BAŞLADI ✓ — hər {Math.Max(5, FasileSaniye)} saniyədən bir ✓ " +
                 "(📎 PDF/media XARİCDİR ✗ — onlar fləşkartda qalır ✓)");
 
             var token = _cts.Token;
@@ -448,6 +521,9 @@ namespace Cas0201.Firebase
                 cx.Open();
                 CedveliYarat(cx);
 
+                // 🧠 Sinxron yaddaşını yüklə ✓ → dəyişməyən qeydlər TƏKRAR yazılmır ✓✓✓ (v6.2.14)
+                İzlemeYukle(db);
+
                 // ⚙️ TƏNZİMLƏMƏLƏRİ CANLI TƏTBİQ ET ✓ (Seccad/Asif dəyişəndə dərhal qüvvəyə minir ✓)
                 BuludAyarlari.TətbiqEt(this);
 
@@ -567,30 +643,38 @@ namespace Cas0201.Firebase
                 using var qap = _srv.CreateScope();
                 using var db = qap.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                // 🧠 Sinxron yaddaşını yüklə ✓ (ilk dövrdə ✓) — dəyişməyənlər göndərilmir ✓✓✓ (v6.2.14)
+                İzlemeYukle(db);
+
+                // 🗄️ İzləmə cədvəli üçün BİRBAŞA SQLite bağlantısı ✓ (izləri orada saxlayırıq ✓)
+                using var cx = new SqliteConnection(db.Database.GetConnectionString());
+                await cx.OpenAsync(ct).ConfigureAwait(false);
+                CedveliYarat(cx);
+
                 push += await CədvəlGonderAsync("cars",
-                    await db.Cars.AsNoTracking().ToListAsync(ct), a => a.Id.ToString(), CarNode, ct, Say);
+                    await db.Cars.AsNoTracking().ToListAsync(ct), a => a.Id.ToString(), CarNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("expenses",
-                    await db.Expenses.AsNoTracking().ToListAsync(ct), e => e.Id.ToString(), XercNode, ct, Say);
+                    await db.Expenses.AsNoTracking().ToListAsync(ct), e => e.Id.ToString(), XercNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("sales",
-                    await db.Sales.AsNoTracking().ToListAsync(ct), s => s.Id.ToString(), SatisNode, ct, Say);
+                    await db.Sales.AsNoTracking().ToListAsync(ct), s => s.Id.ToString(), SatisNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("credits",
-                    await db.Credits.AsNoTracking().ToListAsync(ct), k => k.Id.ToString(), KreditNode, ct, Say);
+                    await db.Credits.AsNoTracking().ToListAsync(ct), k => k.Id.ToString(), KreditNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("creditTransactions",
                     await db.CreditTransactions.AsNoTracking().ToListAsync(ct),
-                    t => t.Id.ToString(), EmeliyyatNode, ct, Say);
+                    t => t.Id.ToString(), EmeliyyatNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partners",
-                    await db.Partners.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), TerefdasNode, ct, Say);
+                    await db.Partners.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), TerefdasNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partnerShares",
-                    await db.PartnerShares.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), PayNode, ct, Say);
+                    await db.PartnerShares.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), PayNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("partnerPayments",
-                    await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), OdenisNode, ct, Say);
+                    await db.PartnerPayments.AsNoTracking().ToListAsync(ct), p => p.Id.ToString(), OdenisNode, ct, Say, cx);
 
                 // ================================================================
                 //  ✅ v6.2.12 — ⏳ MÖHLƏTLƏR və 💵 KASSA HƏRƏKƏTLƏRİ də buluda gedir ✓✓✓
@@ -598,11 +682,11 @@ namespace Cas0201.Firebase
                 // ================================================================
                 push += await CədvəlGonderAsync("odenisMohlets",
                     await db.OdenisMohletler.AsNoTracking().ToListAsync(ct),
-                    m => m.Id.ToString(), MohletNode, ct, Say);
+                    m => m.Id.ToString(), MohletNode, ct, Say, cx);
 
                 push += await CədvəlGonderAsync("kassaHereketleri",
                     await db.KassaHereketleri.AsNoTracking().ToListAsync(ct),
-                    k => k.Id.ToString(), KassaNode, ct, Say);
+                    k => k.Id.ToString(), KassaNode, ct, Say, cx);
 
                 // 📎 ❌ MEDIA / PDF / ŞƏKİL GÖNDƏRİLMİR ✗✓✓ — YALNIZ fləşkartda qalır ✓
                 // 🏷️ Xərc kataloqu buluda getmir ✗ (lokal arayış cədvəlidir ✓)
@@ -659,7 +743,8 @@ namespace Cas0201.Firebase
             Func<T, string> açarAl,
             Func<T, Dictionary<string, object?>> nodeAl,
             CancellationToken ct,
-            Action<int> silmeSayğacı)
+            Action<int> silmeSayğacı,
+            SqliteConnection cx)
         {
             var göndərilən = 0;
             var indiki = new HashSet<string>(StringComparer.Ordinal);
@@ -705,6 +790,24 @@ namespace Cas0201.Firebase
 
                 _sonHash[tamYol] = hash;
                 göndərilən++;
+
+                // ================================================================
+                //  🧠 İZƏ SAL ✓✓✓  (v6.2.14 — ★ «TƏKRAR YAZMA»NIN QARŞISI ★)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL izlər yalnız YADDAŞDA idi ✗ → proqram hər açılışda
+                //  bütün qeydləri TƏKRAR buluda yazırdı ✗✓✓ (2567 qeyd!)
+                //  ✅ İNDİ: hər uğurlu yazma «bulud_izleme» cədvəlinə yazılır ✓
+                //  → növbəti açılışda bu hash-lər yüklənir ✓ → DƏYİŞMƏYƏN qeyd
+                //  GÖNDƏRİLMİR ✗✓✓ (istifadəçi tələbi: «heç nə yazılmasın» ✓)
+                // ================================================================
+                try
+                {
+                    IzlemeYaz(cx, kolleksiya, açar, hash, DateTime.UtcNow, false);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Xeta(ex, "izləmə yazma");
+                }
             }
 
             // 🗑️ SQLite-dan SİLİNƏNLƏR → BULUDDAN SİLİNİR ✓✓✓ (yer tutmasın ✓)
@@ -1076,7 +1179,7 @@ namespace Cas0201.Firebase
             {
                 if (SonYerliYedek.HasValue &&
                     (DateTime.Now - SonYerliYedek.Value).TotalSeconds <
-                    Math.Max(120, YerliYedekSaniye))
+                    Math.Max(5, YerliYedekSaniye))
                 {
                     return;
                 }
@@ -1154,7 +1257,7 @@ namespace Cas0201.Firebase
             try
             {
                 if (SonYedek.HasValue &&
-                    (DateTime.Now - SonYedek.Value).TotalSeconds < Math.Max(120, YedekSaniye))
+                    (DateTime.Now - SonYedek.Value).TotalSeconds < Math.Max(5, YedekSaniye))
                 {
                     return;
                 }
