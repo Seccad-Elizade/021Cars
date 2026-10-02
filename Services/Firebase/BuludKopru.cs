@@ -1732,6 +1732,17 @@ namespace Cas0201.Firebase
             ["barterCarId"] = a.BarterCarId?.ToString(CultureInfo.InvariantCulture),
             ["barterSaleId"] = a.BarterSaleId?.ToString(CultureInfo.InvariantCulture),
             ["isBarter"] = a.IsBarter,
+            // ================================================================
+            //  🔢 SIRA NÖMRƏSİ BULUDA YAZILIR ✓✓✓ (v6.2.15)
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL BU SAHƏ YOX İDİ ✗ → PC2 maşını buluddan götürəndə
+            //     `SiraNomresi = 0` qalırdı ✗ → `SiraNomreleriniDuzeltAsync`
+            //     ona «ən kiçik boş nömrə»ni verirdi ✗
+            //     → PC1-də «308», PC2-də «188» görünürdü ✗✓✓ (istifadəçi şikayəti ✓)
+            //  ✅ İNDİ: istifadəçinin ÖZ əl ilə verdiyi nömrə (1 · 17 · 19 · 34 ✓)
+            //     buluda yazılır ✓ → hər iki kompüterdə EYNİ nömrə görünür ✓✓✓
+            // ================================================================
+            ["siraNomresi"] = a.SiraNomresi,
             ["yaradilmaTarixi"] = a.YaradilmaTarixi.ToString("o", CultureInfo.InvariantCulture)
         };
 

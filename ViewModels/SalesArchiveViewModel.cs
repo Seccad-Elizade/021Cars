@@ -496,5 +496,76 @@ namespace EnterpriseAeroStudio.ViewModels
             await LoadAsync();
             DataChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        /// <summary>
+        /// 🗑️ <b>SEÇİLMİŞ AVTOMOBİLİ TAM SİL</b> ✓✓✓ (v6.2.15)
+        /// <para>
+        /// İstifadəçi tələbi: «Satılan və krediti bitmiş maşın tabından
+        /// silinəndə maşın SATIŞ GƏLİRİ də avtomatik silinməlidir» ✓
+        /// </para>
+        /// <para>
+        /// <see cref="ICarService.DeleteCarAsync"/> BÜTÜN zənciri silir ✓:
+        /// satış qeydləri ✓ · satışın kassa gəliri ✓ · kreditlər ✓ ·
+        /// kredit ödənişləri ✓ · kassa gəlirləri ✓ · xərclər ✓ ·
+        /// möhlətlər ✓ · sənəd faylları ✓ · avtomobilin özü ✓✓✓
+        /// (həm də «🗑 Silinənlər» bölməsindən geri qaytarıla bilər ✓)
+        /// </para>
+        /// </summary>
+        [RelayCommand]
+        private async Task DeleteCarAsync()
+        {
+            var car = SelectedSoldCar ?? SelectedCompletedCredit?.Car;
+
+            if (car is null)
+            {
+                _dialogs.ShowWarning("Silmək üçün siyahıdan avtomobil seçin.");
+                return;
+            }
+
+            if (!_dialogs.Confirm(
+                $"⚠️ «{car.DisplayName}» avtomobilini TAM SİLMƏK istəyirsiniz?\n\n" +
+                "Bunlarla BİRLİKDƏ silinəcək:\n" +
+                "• 💰 maşının satış gəliri (kassa daxilolması)\n" +
+                "• ⏳ ödəniş möhlətləri\n" +
+                "• 💳 kredit müqaviləsi və bütün ödənişləri\n" +
+                "• 🧾 avtomobilə aid bütün xərclər\n" +
+                "• 📄 sənəd faylları\n\n" +
+                "ℹ️ Səhv olarsa «🗑 Silinənlər» bölməsindən geri qaytara bilərsiniz."))
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var ad = car.DisplayName;
+                await _carService.DeleteCarAsync(car.Id);
+
+                SelectedSoldCar = null;
+                SelectedCompletedCredit = null;
+
+                _logger.LogInformation("🗑️ Arxivdən avtomobil tam silindi: {Car}", ad);
+
+                _dialogs.ShowInfo(
+                    $"🗑️ «{ad}» TAM SİLİNDİ ✓\n\n" +
+                    "• Satış gəliri · kassa daxilolması: silindi ✓\n" +
+                    "• Kredit və ödənişləri: silindi ✓\n" +
+                    "• Xərclər · möhlətlər · sənədlər: silindi ✓\n\n" +
+                    "ℹ️ «🗑 Silinənlər» bölməsindən geri qaytara bilərsiniz.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Arxivdən avtomobil silinərkən xəta baş verdi.");
+                _dialogs.ShowError("Silmə alınmadı: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+
+            await LoadAsync();
+            DataChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

@@ -4468,6 +4468,17 @@
                             <Button DockPanel.Dock="Right" Content="↩️ Seçilmiş Avtomobili Geri Qaytar" Style="{StaticResource iOSButton}"
                                     Background="#2563EB" Foreground="White" HorizontalAlignment="Right"
                                     Command="{Binding SalesArchive.RestoreCarCommand}"/>
+                            <!-- ============================================================
+                                 🗑️ TAM SİL (v6.2.15) ✓✓✓
+                                 İstifadəçi tələbi: «Satılan və krediti bitmiş maşın tabından
+                                 silinəndə maşın SATIŞ GƏLİRİ də avtomatik silinməlidir» ✓
+                                 → satış qeydi ✓ · kassa gəliri ✓ · kredit + ödənişləri ✓ ·
+                                   xərclər ✓ · möhlətlər ✓ · sənədlər ✓ HAMISI silinir ✓✓✓
+                                 ============================================================ -->
+                            <Button DockPanel.Dock="Right" Content="🗑 Seçilmişi Tam Sil" Style="{StaticResource iOSButton}"
+                                    Background="#DC2626" Foreground="White" HorizontalAlignment="Right" Margin="0,0,8,0"
+                                    ToolTip="Seçilmiş avtomobili BÜTÜN məlumatı ilə silər: satış gəliri · kassa daxilolması · kredit və ödənişləri · xərclər · möhlətlər · sənədlər ✓&#x0a;ℹ️ «🗑 Silinənlər» bölməsindən geri qaytarmaq olar ✓"
+                                    Command="{Binding SalesArchive.DeleteCarCommand}"/>
                             <TextBlock Text="Satılan avtomobillər və müddəti bitmiş kreditlər buraya avtomatik düşür."
                                        Foreground="#6B7280" FontSize="12" VerticalAlignment="Center"/>
                         </DockPanel>

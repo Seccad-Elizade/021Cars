@@ -21,6 +21,13 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         private readonly IOdenisMohletRepository _mohletler;
 
+        /// <summary>
+        /// 💵 Kassa hərəkətləri — satışın/kreditin «gəlir» yazısı ✓✓✓ (v6.2.15).
+        /// Avtomobil silinəndə həmin gəlir də silinməlidir ✗ → əks halda
+        /// kassa hesabatında «satış gəliri» YUXARIDA qalırdı ✗ (istifadəçi şikayəti ✓).
+        /// </summary>
+        private readonly IKassaHereketRepository _kassaHereketler;
+
         private readonly ITrashService _trash;
         private readonly ILogger<CarService> _logger;
 
@@ -32,6 +39,7 @@ namespace EnterpriseAeroStudio.Services
             ISaleRepository sales,
             IRepository<MediaAttachment> attachments,
             IOdenisMohletRepository mohletler,
+            IKassaHereketRepository kassaHereketler,
             ITrashService trash,
             ILogger<CarService> logger)
         {
@@ -42,6 +50,7 @@ namespace EnterpriseAeroStudio.Services
             _sales = sales;
             _attachments = attachments;
             _mohletler = mohletler;
+            _kassaHereketler = kassaHereketler;
             _trash = trash;
             _logger = logger;
         }
@@ -500,6 +509,17 @@ namespace EnterpriseAeroStudio.Services
                 // ⏳ Kreditin İLKİN ÖDƏNİŞ möhlətləri DƏ silinir ✓✓✓ (v6.2.11)
                 _mohletler.ClearTracker();
                 await _mohletler.DeleteWhereAsync(m => m.CreditId == credit.Id, cancellationToken);
+
+                // ================================================================
+                //  💵 KASSADAKİ «KREDİT GƏLİRİ» DƏ SİLİNİR ✓✓✓ (v6.2.15)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL kredit silinirdi ✓, amma kassada ona bağlı
+                //    «Daxilolma» yazısı QALIRDI ✗ → «Kassa» hesabatında
+                //    «gəlir» şişirdi ✗✓✓ (istifadəçi şikayəti ✓)
+                // ================================================================
+                _kassaHereketler.ClearTracker();
+                await _kassaHereketler.DeleteWhereAsync(h => h.CreditId == credit.Id, cancellationToken);
+
             }
 
             // Hər repo öz kontekstində saxlayır (AppDbContext transient-dir).
@@ -519,6 +539,18 @@ namespace EnterpriseAeroStudio.Services
                 // ⏳ Satışın (nisyə) MÖHLƏTLƏRİ DƏ silinir ✓✓✓ (v6.2.11)
                 _mohletler.ClearTracker();
                 await _mohletler.DeleteWhereAsync(m => m.SaleId == sale.Id, cancellationToken);
+
+                // ================================================================
+                //  💵 KASSADAKİ «MAŞIN SATIŞ GƏLİRİ» DƏ SİLİNİR ✓✓✓ (v6.2.15)
+                // ----------------------------------------------------------------
+                //  İstifadəçi tələbi: «Satılan və krediti bitmiş maşın silinəndə
+                //  maşın satış gəliri də AVTOMATİK silinməlidir» ✓✓✓
+                //  → satış qeydi ✓ + onun kassa daxilolması ✓ + möhlətləri ✓
+                //    + xərcləri ✓ HAMISI birlikdə silinir ✗✓✓
+                // ================================================================
+                _kassaHereketler.ClearTracker();
+                await _kassaHereketler.DeleteWhereAsync(h => h.SaleId == sale.Id, cancellationToken);
+
             }
 
             await _sales.SaveChangesAsync(cancellationToken);
