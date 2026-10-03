@@ -3187,46 +3187,27 @@ namespace EnterpriseAeroStudio.ViewModels
             var credit = SelectedCredit;
             try
             {
-                if (row.Odenilib)
+                // ================================================================
+                //  🛑 ★★ v6.2.23 — AVTOMATİK ÖDƏNİŞ YARATMA/SİLMƏ SÖNDÜRÜLDÜ ★★
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ (ciddi bug ✗✓✓):
+                //    «Mən maşının BÜTÜN kredit ödənişlərini silirəm ✗ → avtomatik
+                //     BİRİNCİ AYA (03.10.2026) yenidən kredit ödənişi əlavə olunur ✗
+                //     və hər vaxt keçdikcə əlavə olunurlar ✗. Belə buglara
+                //     QƏTİYYƏN yol vermək olmaz ✗ — SİL bunları ✗.»
+                // ----------------------------------------------------------------
+                //  ⚠ ƏSL SƏBƏB: cədvəldəki «✅ ÖDƏNİLİB?» işarəsi dəyişəndə
+                //    proqram ÖZÜ bazaya «Gəlir» qeydi YARADIRDI ✗ (və ya SİLİRDİ ✗)
+                //    → istifadəçi ödənişləri sildikcə onlar GİZLİCƏ geri gəlirdi ✗✓✓
+                //  ✅ İNDİ: cədvəl YALNIZ GÖSTƏRİR ✗ — heç bir gizli yazma/silmə YOX ✗✓✓
+                //    📌 Ödəniş YALNIZ «Kredit əlavə gəlir/xərc» formasından
+                //       əlavə olunur ✓ (istifadəçi ÖZÜ yazır ✓✓✓)
+                // ================================================================
+                if (e.PropertyName == nameof(PaymentRow.Odenilib))
                 {
-                    // Yalnız heç bir ödəniş yoxdursa yeni qeyd yaradılır.
-                    if (row.TransactionIds.Count == 0)
-                    {
-                        var transaction = new CreditTransaction
-                        {
-                            CreditId = credit.Id,
-                            InstallmentNo = row.No,
-                            Nov = "Gəlir",
-                            Mebleg = row.NetOdenis,
-                            // ⚠ ÖDƏNİŞ TARİXİ:
-                            //   İstifadəçi əl ilə tarix yazmayıbsa → HƏMİN AYIN
-                            //   plan tarixi götürülür (bu gün YOX ✗).
-                            //   Beləliklə keçən / gələn ayın ödənişi düzgün tarixlə
-                            //   görünür və tərəfdaş bölgüsü sinxron olur ✓
-                            Tarix = row.OdenilmeTarixi ?? row.Tarix,
-                            Tesvir = $"Kredit ödənişi №{row.No} — {credit.Mustəri}"
-                        };
-
-                        await _creditService.AddTransactionAsync(transaction);
-                        _creditTransactions.Add(transaction);
-                        _logger.LogInformation("Kredit ödənişi qeyd edildi: {Credit} / {Month:MM.yyyy}",
-                            credit.Mustəri, transaction.Tarix);
-                    }
-                }
-                else if (row.TransactionIds.Count > 0)
-                {
-                    // İşarə götürüldükdə həmin aya aid BÜTÜN ödənişlər silinir.
-                    foreach (var id in row.TransactionIds.ToList())
-                    {
-                        await _creditService.DeleteTransactionAsync(id);
-                        var existing = _creditTransactions.FirstOrDefault(t => t.Id == id);
-                        if (existing is not null)
-                        {
-                            _creditTransactions.Remove(existing);
-                        }
-                    }
-                    _logger.LogInformation("Kredit ödənişi ləğv edildi: {Credit} / {Month:MM.yyyy}",
-                        credit.Mustəri, row.Tarix);
+                    _logger.LogInformation(
+                        "ℹ️ Cədvəldə ödəniş işarəsi dəyişdi — AVTOMATİK yazma/silmə YOXDUR ✗ " +
+                        "(ödəniş «Kredit əlavə gəlir/xərc» formasından edilir ✓)");
                 }
 
                 // Cədvəl yenidən hesablanır: artıq/az ödəniş sonrakı ayların ödənişini dəyişir.

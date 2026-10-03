@@ -2556,9 +2556,19 @@
                                                         Binding="{Binding CreditInfo}"
                                                         Width="*" MinWidth="230"
                                                         ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="📅 TARİX"
+                                    <DataGridTextColumn Header="🎯 PLAN TARİXİ"
                                                         Binding="{Binding GosterilenTarixMetni}"
                                                         Width="105" ElementStyle="{StaticResource GridCellText}"/>
+                                    <!-- ============================================================
+                                         📅 ÖDƏNİLƏN TARİX ✓✓✓ (v6.2.23)
+                                         ★ İstifadəçi tələbi: «03.03.2024 tarixli taksiti
+                                           20.03.2024-də ödəyəndə ÖDƏNİLƏN TARİX ayrıca görünsün» ✓
+                                         📌 PLAN TARİXİ = taksitin cədvəl tarixi ✓
+                                         📌 ÖDƏNİLƏN TARİX = pulun HƏQİQƏTƏN gəldiyi tarix ✓✓✓
+                                         ============================================================ -->
+                                    <DataGridTextColumn Header="📅 ÖDƏNİLƏN TARİX"
+                                                        Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}"
+                                                        Width="120" ElementStyle="{StaticResource GridCellText}"/>
                                     <DataGridTextColumn Header="🏷️ NÖV"
                                                         Binding="{Binding Nov}"
                                                         Width="95" ElementStyle="{StaticResource NovCellText}"/>
