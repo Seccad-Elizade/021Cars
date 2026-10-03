@@ -397,6 +397,60 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Fərq mətninin rəngi (dəqiqdirsə yaşıl, fərq varsa qırmızı).</summary>
         public string BolguFergiRengi => BolguFergi == 0m ? "#34D399" : "#F43F5E";
 
+        // ====================================================================
+        //  🔢 KÖK (ƏSAS BORC) BÖLGÜ İZAHI ✓✓✓ (v6.2.17)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Ödənişdən KÖK QİYMƏTİ ÇIXARILMALIDIR,
+        //    SONRA BÖLÜNMƏLİDİR» ✓ — istifadəçi bunu GÖRMƏLİDİR ✓✓✓
+        // ====================================================================
+
+        /// <summary>🔢 <b>Bu ödənişdən çıxılan KÖK payı</b> (₼) ✓✓✓</summary>
+        public decimal BolguKokPayi
+        {
+            get
+            {
+                var credit = SelectedCredit;
+
+                return credit is null || Mebleg <= 0m
+                    ? 0m
+                    : credit.KokPayi(Mebleg, OdenilmisKokHesabla());
+            }
+        }
+
+        /// <summary>✅ Seçilmiş kredit üzrə artıq ödənilmiş KÖK (₼) ✓</summary>
+        public decimal BolguOdenilmisKok => OdenilmisKokHesabla();
+
+        /// <summary>
+        /// 🔢 <b>İZAH MƏTNİ</b> ✓✓✓:
+        /// «Ödəniş 1 984,97 ₼ − KÖK payı 1 417,83 ₼ = BÖLÜNƏN 567,14 ₼» —
+        /// yanında qalan əsas borc da göstərilir ✓
+        /// </summary>
+        public string BolguKokMetni
+        {
+            get
+            {
+                var credit = SelectedCredit;
+
+                if (credit is null || Mebleg <= 0m)
+                {
+                    return "🔢 Ödəniş yazın → KÖK payı avtomatik çıxılacaq ✓";
+                }
+
+                var ödenilmis = OdenilmisKokHesabla();
+                var qalan = Math.Max(0m, credit.Kok - ödenilmis);
+
+                if (qalan <= 0m && credit.Kok > 0m)
+                {
+                    return $"✅ KÖK (əsas borc) TAM ÖDƏNİLİB ✓ — bu ödənişin HAMISI mənfəətdir ✓ ({Mebleg:N2} ₼ bölünür ✓)";
+                }
+
+                var kokPayi = credit.KokPayi(Mebleg, ödenilmis);
+
+                return $"🔢 {Mebleg:N2} ₼ − KÖK payı {kokPayi:N2} ₼ = " +
+                       $"BÖLÜNƏN {BolguBazasi:N2} ₼  ·  qalıq kök {qalan:N2} ₼";
+            }
+        }
+
         [ObservableProperty] private DateTime? tarix = DateTime.Today;
 
         [ObservableProperty]
@@ -1169,35 +1223,81 @@ namespace EnterpriseAeroStudio.ViewModels
         }
 
         /// <summary>
-        /// BÖLGÜ BAZASI = <b>yazılan məbləğ − ƏSAS BORC payı</b>.
+        /// BÖLGÜ BAZASI = <b>yazılan məbləğ − KÖK (ƏSAS BORC) PAYI</b> ✓✓✓ (v6.2.17)
         /// <para>
         /// «Kredit əlavə gəlir» qeydində məbləğ yazılanda həmin məbləğin içindən
-        /// <b>əsas borcun payı çıxılır</b> — yalnız qalan hissə (yəni <b>faiz
-        /// mənfəəti</b>) tərəfdaşlar arasında bölünür.
+        /// <b>KÖK payı çıxılır</b> ✓ — yalnız qalan hissə (yəni <b>FAİZ
+        /// mənfəəti</b>) tərəfdaşlar arasında bölünür ✓✓✓
+        /// </para>
+        /// <para>
+        /// <b>★ İstifadəçi tələbi:</b> «Nisyəni böləndə, necə ki aylıq kredit
+        /// veririksə, oradan aylıqlardakı KÖK QİYMƏTİ tapırıq. Ödənişdən KÖK
+        /// QİYMƏTİ ÇIXARILMALIDIR, SONRA BÖLÜNMƏLİDİR.» ✓✓✓
         /// </para>
         /// <example>
-        /// Kreditləşdirilən 17 014 ₼ · 12 ay → aylıq əsas borc = 1 417,83 ₼
+        /// KÖK (kreditləşdirilən) 17 014 ₼ · Qiymət 23 819,60 ₼ · 12 ay
         /// <code>
         /// Ödəniş yazıldı        : 1 984,97 ₼
-        /// Əsas borc çıxıldı     : −1 417,83 ₼
-        /// ────────────────────────────────────
-        /// BÖLGÜ BAZASI (faiz)   :    567,14 ₼   ← bu bölünür
+        /// KÖK payı çıxıldı      : −1 417,83 ₼   (aylıq kök ✓)
+        /// ─────────────────────────────────────
+        /// BÖLGÜ BAZASI (faiz)   :    567,14 ₼   ← YALNIZ BU BÖLÜNÜR ✓✓✓
         /// </code>
+        /// <para>
+        /// ⚠ <b>QALAN əsas borc nəzərə alınır</b> ✓✓✓ — KÖK tam ödənilibsə
+        /// (qalıq 0 ₼) → ödənişin <b>HAMISI</b> mənfəət sayılır ✓ → tam bölünür ✓
+        /// (əvvəl bu halda da «aylıq kök» çıxılırdı ✗ → az bölünürdü ✗✓✓)
+        /// </para>
         /// </example>
         /// </summary>
         private decimal BolguBazasiHesabla(decimal mebleg)
         {
             var credit = SelectedCredit;
-            if (credit is null || credit.MuddetAy <= 0)
+
+            if (credit is null || mebleg <= 0m)
             {
                 return mebleg;
             }
 
-            // Aylıq ƏSAS BORC payı = Kreditləşdirilən ÷ Müddət
-            var esasBorc = Math.Round(credit.Kreditlesdirilen / credit.MuddetAy, 2);
-            var baza = Math.Round(mebleg - esasBorc, 2);
+            // 🔢 KÖK payı = ödəniş × (KÖK ÷ kreditin qiyməti) ✓ — QALAN borcla məhdud ✓
+            var kokPayi = credit.KokPayi(mebleg, OdenilmisKokHesabla());
+
+            var baza = Math.Round(mebleg - kokPayi, 2);
 
             return baza > 0m ? baza : 0m;
+        }
+
+        /// <summary>
+        /// ✅ <b>ÖDƏNİLMİŞ KÖK</b> — seçilmiş kredit üzrə artıq qaytarılmış əsas
+        /// borc (₼) ✓✓✓ (v6.2.17)
+        /// <para>
+        /// <c>«Gəlir»</c> tipli bütün ödənişlər TARİX SIRASI ilə götürülür ✓ →
+        /// hər ödənişin KÖK payı cəmlənir ✓ → cəm əsas borcu <b>AŞA BİLMƏZ</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        private decimal OdenilmisKokHesabla()
+        {
+            var credit = SelectedCredit;
+
+            if (credit is null)
+            {
+                return 0m;
+            }
+
+            var cem = 0m;
+
+            var ödənişlər = Transactions
+                .Where(t => t.CreditId == credit.Id
+                            && string.Equals(t.Nov, "Gəlir", StringComparison.Ordinal)
+                            && t.Odenilib)
+                .OrderBy(t => t.Tarix)
+                .ThenBy(t => t.Id);
+
+            foreach (var t in ödənişlər)
+            {
+                cem += credit.KokPayi(t.Mebleg, cem);
+            }
+
+            return Math.Round(cem, 2);
         }
 
         /// <summary>
@@ -1286,6 +1386,11 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(BolguXulase));
             OnPropertyChanged(nameof(BolguFergiMetni));
             OnPropertyChanged(nameof(BolguFergiRengi));
+
+            // 🔢 KÖK izahı da yenilənir ✓✓✓ (v6.2.17)
+            OnPropertyChanged(nameof(BolguKokPayi));
+            OnPropertyChanged(nameof(BolguOdenilmisKok));
+            OnPropertyChanged(nameof(BolguKokMetni));
         }
 
         /// <summary>Checkbox dəyişdikdə vəziyyət mətni də yenilənir.</summary>
@@ -1408,11 +1513,13 @@ namespace EnterpriseAeroStudio.ViewModels
             if (value <= 0m)
             {
                 BolguBazasi = 0m;
+                BolguYenile();      // 🔢 KÖK izahı da yenilənsin ✓ (v6.2.17)
                 return;
             }
 
             BolguBazasi = BolguBazasiHesabla(value);
             BolguHesabla();
+            BolguYenile();          // 🔢 KÖK izahı da yenilənsin ✓✓✓ (v6.2.17)
         }
 
         /// <summary>

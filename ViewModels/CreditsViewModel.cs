@@ -720,6 +720,57 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Edilmiş ödənişlərin sayı.</summary>
         public int SelectedOdenisSayi { get; private set; }
 
+        // ====================================================================
+        //  🔢 KÖK (ƏSAS BORC) GÖSTƏRİCİLƏRİ ✓✓✓ (v6.2.17)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Kreditlər tabında müqaviləni seçəndə orda
+        //    KÖK-də görsənməlidir və ÖDƏNİLMİŞ KÖK-də görsənməlidir» ✓✓✓
+        // ====================================================================
+
+        /// <summary>🔢 <b>KÖK</b> — kreditin əsas borcu (₼) = Kreditləşdirilən ✓</summary>
+        public decimal SelectedKok { get; private set; }
+
+        /// <summary>🔢 <b>AYLIQ KÖK</b> — hər ay əsas borcdan düşən pay = KÖK ÷ Müddət ✓</summary>
+        public decimal SelectedAylıqKok { get; private set; }
+
+        /// <summary>
+        /// ✅ <b>ÖDƏNİLMİŞ KÖK</b> — artıq qaytarılmış əsas borc (₼) ✓✓✓
+        /// <para>Bütün ödənişlərin KÖK paylarının cəmi ✓ (qalan borcla məhdud ✓)</para>
+        /// </summary>
+        public decimal SelectedOdenilmisKok { get; private set; }
+
+        /// <summary>⏳ <b>QALIQ KÖK</b> = KÖK − ödənilmiş kök (₼) ✓</summary>
+        public decimal SelectedQaliqKok { get; private set; }
+
+        /// <summary>📊 KÖK-ün ödənilmə faizi (0–1) — irəliləyiş zolağı üçün ✓</summary>
+        public double SelectedKokFaizi { get; private set; }
+
+        /// <summary>«Kök 17 014,00 ₼ · aylıq kök 1 417,83 ₼» ✓</summary>
+        public string SelectedKokIzahi { get; private set; } = string.Empty;
+
+        /// <summary>«Ödənilmiş 2 835,66 ₼ · qalıq 14 178,34 ₼» ✓</summary>
+        public string SelectedOdenilmisKokIzahi { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// ✅ <b>ÖDƏNİLMİŞ KÖK-Ü HESABLAYIR</b> ✓✓✓ (v6.2.17)
+        /// <para>
+        /// Ödənişlər <b>TARİX SIRASI</b> ilə götürülür ✓ → hər ödənişin
+        /// KÖK payı cəmlənir ✓ → nəticə əsas borcu <b>AŞA BİLMƏZ</b> ✗✓✓
+        /// (borc bitəndən sonrakı ödənişlər tam MALİYYƏT/mənfəət sayılır ✓✓✓)
+        /// </para>
+        /// </summary>
+        private static decimal HesablaOdenilmisKok(Credit credit, IEnumerable<CreditTransaction> payments)
+        {
+            var cem = 0m;
+
+            foreach (var t in payments.OrderBy(t => t.Tarix).ThenBy(t => t.Id))
+            {
+                cem += credit.KokPayi(t.Mebleg, cem);
+            }
+
+            return Math.Round(cem, 2);
+        }
+
         /// <summary>Son ödənişin tarixi (mətn).</summary>
         public string SelectedSonOdenis { get; private set; } = "—";
 
@@ -769,11 +820,44 @@ namespace EnterpriseAeroStudio.ViewModels
                 SelectedQaliq = 0m;
                 SelectedOdenisSayi = 0;
                 SelectedSonOdenis = "—";
+
+                // 🔢 KÖK göstəriciləri sıfırlanır ✓ (v6.2.17)
+                SelectedKok = 0m;
+                SelectedAylıqKok = 0m;
+                SelectedOdenilmisKok = 0m;
+                SelectedQaliqKok = 0m;
+                SelectedKokFaizi = 0d;
+                SelectedKokIzahi = string.Empty;
+                SelectedOdenilmisKokIzahi = string.Empty;
             }
             else
             {
                 var payments = CollectPayments(SelectedCredit).Values.SelectMany(v => v).ToList();
                 SelectedOdenilen = payments.Sum(t => t.Mebleg);
+
+                // ================================================================
+                //  🔢 KÖK / ÖDƏNİLMİŞ KÖK ✓✓✓ (v6.2.17)
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «Kreditlər tabında müqaviləni seçəndə
+                //    KÖK-də görsənməlidir və ÖDƏNİLMİŞ KÖK-də görsənməlidir» ✓✓✓
+                //  📌 Ödənilmiş kök = bütün ödənişlərin KÖK paylarının cəmi ✓
+                //     (hər ödənişdən kök payı çıxılır ✓ → ucu-bucağı qalan
+                //      əsas borcla MƏHDUDLAŞDIRILIR ✓ → borc bitəndən sonra
+                //      ödənişin HAMISI mənfəət sayılır ✓✓✓)
+                // ================================================================
+                SelectedOdenilmisKok = HesablaOdenilmisKok(SelectedCredit, payments);
+                SelectedKok = SelectedCredit.Kok;
+                SelectedAylıqKok = SelectedCredit.AylıqKok;
+                SelectedQaliqKok = Math.Max(0m, SelectedKok - SelectedOdenilmisKok);
+                SelectedKokFaizi = SelectedKok <= 0m
+                    ? 0d
+                    : (double)Math.Clamp(SelectedOdenilmisKok / SelectedKok, 0m, 1m);
+
+                SelectedKokIzahi = SelectedCredit.KokMetni;
+                SelectedOdenilmisKokIzahi = SelectedCredit.OdenilmisKokMetni;
+
+                // 🔗 Kartlarda da görünsün ✓ (modelin öz xassələri ✓)
+                SelectedCredit.OdenilmisKok = SelectedOdenilmisKok;
 
                 // ================================================================
                 //  ✅ ÖDƏNİLMİŞ GECİKMƏLƏR «ÖDƏNİLİB»Ə ƏLAVƏ OLUNUR ✓✓✓
@@ -832,6 +916,19 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(SelectedOdenisFaizi));
             OnPropertyChanged(nameof(SelectedOdenisYekunu));
             OnPropertyChanged(nameof(SelectedFaizVeMuddet));
+
+            // ================================================================
+            //  🔢 KÖK / ÖDƏNİLMİŞ KÖK ✓✓✓ (v6.2.17)
+            //  ★ İstifadəçi tələbi: «Kreditlər tabında müqaviləni seçəndə
+            //    KÖK-də görsənməlidir və ÖDƏNİLMİŞ KÖK-də görsənməlidir» ✓✓✓
+            // ================================================================
+            OnPropertyChanged(nameof(SelectedKok));
+            OnPropertyChanged(nameof(SelectedAylıqKok));
+            OnPropertyChanged(nameof(SelectedOdenilmisKok));
+            OnPropertyChanged(nameof(SelectedQaliqKok));
+            OnPropertyChanged(nameof(SelectedKokIzahi));
+            OnPropertyChanged(nameof(SelectedOdenilmisKokIzahi));
+            OnPropertyChanged(nameof(SelectedKokFaizi));
 
             // Möhlət göstəriciləri qrafikdən oxunur (BuildSchedule-dan sonra çağırılır).
             SelectedMohletSayi = Schedule.Count(r => r.MohletVar);

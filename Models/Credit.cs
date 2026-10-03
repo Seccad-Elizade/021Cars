@@ -133,6 +133,110 @@ namespace EnterpriseAeroStudio.Models
         public string AylıqVeMuddetMetni =>
             MuddetAy <= 0 ? "—" : $"{AylıqOdenis:N2} ₼ × {MuddetAy} ay";
 
+        // ====================================================================
+        //  🔢 KÖK (ƏSAS BORC) MƏNTİQİ ✓✓✓ (v6.2.17)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi:
+        //    «Nisyəni böləndə, necə ki aylıq kredit veririksə, oradan
+        //     aylıqlardakı KÖK QİYMƏTİ tapırıq. Kredit əlavə gəlir/xərc
+        //     tabında GƏLİR-ə basanda və tərəfdaş bölgüsünü seçəndə
+        //     ÖDƏNİŞDƏN KÖK QİYMƏTİ ÇIXARILMALIDIR, SONRA BÖLÜNMƏLİDİR.
+        //     Kreditlər tabında müqaviləni seçəndə KÖK-də görsənməlidir
+        //     və ÖDƏNİLMİŞ KÖK-də görsənməlidir.» ✓✓✓
+        // --------------------------------------------------------------------
+        //  📌 KÖK = KREDİTLƏŞDİRİLƏN (müştərinin faktiki borcu) ✓
+        //  📌 Hər ödənişin içindən KÖK payı çıxılır ✓ → yalnız FAİZ
+        //     (mənfəət) tərəfdaşlar arasında bölünür ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 🔢 <b>KÖK (ƏSAS BORC)</b> ✓✓✓ — müştərinin qaytarmalı olduğu əsas
+        /// məbləğ = <c>Mebleg − İlkin ödəniş</c> ✓
+        /// <para>⚠ Bu pul <b>bölünmür</b> ✗ — yalnız FAİZ bölünür ✓✓✓</para>
+        /// </summary>
+        [NotMapped]
+        public decimal Kok => Kreditlesdirilen;
+
+        /// <summary>
+        /// 🔢 <b>AYLIQ KÖK</b> ✓✓✓ — hər ay əsas borcdan düşən pay =
+        /// <c>KÖK ÷ Müddət</c> ✓
+        /// <example>KÖK 17 014 ₼ · 12 ay → <b>1 417,83 ₼/ay</b> ✓</example>
+        /// </summary>
+        [NotMapped]
+        public decimal AylıqKok =>
+            MuddetAy > 0 ? Math.Round(Kreditlesdirilen / MuddetAy, 2) : 0m;
+
+        /// <summary>
+        /// 📊 KÖK-ün kreditin qiymətindəki payı (0–1) ✓✓✓ —
+        /// ödənişdən çıxılan <b>nisbət</b> ✓
+        /// <para>Bax <see cref="KokPayi"/> — bütün hesablama bunun üzərindədir ✓</para>
+        /// </summary>
+        [NotMapped]
+        public decimal KokNisbeti =>
+            KreditQiymeti > 0m ? Kreditlesdirilen / KreditQiymeti : 0m;
+
+        /// <summary>
+        /// 🔢 <b>ÖDƏNİŞDƏKİ KÖK PAYI</b> ✓✓✓ (★ ƏSAS HESABLAMA ★)
+        /// <para>
+        /// <c>Kök payı = Ödəniş × (KÖK ÷ Kreditin qiyməti)</c> ✓ —
+        /// <b>qalan</b> əsas borcla MƏHDUDLAŞDIRILIR ✓✓✓
+        /// </para>
+        /// <example>
+        /// KÖK 17 014 ₼ · Qiymət 23 819,60 ₼ · Aylıq 1 984,97 ₼
+        /// <code>
+        /// Tam aylıq ödəniş  : 1 984,97 × (17 014 ÷ 23 819,60) = 1 417,83 ₼  ← AYLIQ KÖK ✓
+        /// Yarım ödəniş (992) :   992,49 × 0,7143              =   708,92 ₼  ✓ (ədalətli ✓)
+        /// KÖK tam ödənilibsə :                                 0,00 ₼  ✓ (hamısı mənfəət ✓✓✓)
+        /// </code>
+        /// </example>
+        /// <param name="odenis">Ödəniş məbləği (₼) ✓</param>
+        /// <param name="odenilmisKok">
+        /// Bu kredit üzrə <b>artıq ödənilmiş</b> kök (₼) ✓ — qalan borcun
+        /// hesablanması üçün ✓ (0 = heç nə ödənilməyib ✓)
+        /// </param>
+        /// </summary>
+        public decimal KokPayi(decimal odenis, decimal odenilmisKok = 0m)
+        {
+            if (odenis <= 0m || KreditQiymeti <= 0m)
+            {
+                return 0m;
+            }
+
+            var pay = Math.Round(odenis * KokNisbeti, 2);
+            var qalan = Math.Max(0m, Kreditlesdirilen - Math.Max(0m, odenilmisKok));
+
+            return Math.Min(pay, Math.Round(qalan, 2));
+        }
+
+        /// <summary>
+        /// ✅ <b>ÖDƏNİLMİŞ KÖK</b> ✓✓✓ — artıq qaytarılmış əsas borc (₼)
+        /// <para>
+        /// ⚠ Bazada SAXLANILMIR ✗ — UI (ViewModel) hesablayıb doldurur ✓
+        /// (bütün ödənişlərin kök paylarının cəmi ✓)
+        /// </para>
+        /// </summary>
+        [NotMapped]
+        public decimal OdenilmisKok { get; set; }
+
+        /// <summary>⏳ <b>QALIQ KÖK</b> = KÖK − ödənilmiş kök (₼) ✓</summary>
+        [NotMapped]
+        public decimal QaliqKok => Math.Max(0m, Kok - OdenilmisKok);
+
+        /// <summary>📊 KÖK-ün ödənilmə faizi (0–1) — irəliləyiş zolağı üçün ✓</summary>
+        [NotMapped]
+        public double KokOdenisFaizi =>
+            Kok <= 0m ? 0d : (double)Math.Clamp(OdenilmisKok / Kok, 0m, 1m);
+
+        /// <summary>🔢 «Kök: 17 014,00 ₼ · aylıq kök: 1 417,83 ₼» ✓</summary>
+        [NotMapped]
+        public string KokMetni =>
+            $"Kök {Kok:N2} ₼  ·  aylıq kök {AylıqKok:N2} ₼";
+
+        /// <summary>✅ «Ödənilmiş 2 835,66 ₼ · qalıq kök 14 178,34 ₼» ✓</summary>
+        [NotMapped]
+        public string OdenilmisKokMetni =>
+            $"Ödənilmiş {OdenilmisKok:N2} ₼  ·  qalıq {QaliqKok:N2} ₼";
+
         /// <summary>
         /// KREDİT BİTİBMİ? — bütün məbləğ ödənilibsə <c>true</c>.
         /// <para>

@@ -1,4 +1,4 @@
-﻿<Window x:Class="EnterpriseAeroStudio.Views.MainWindow"
+<Window x:Class="EnterpriseAeroStudio.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:svc="clr-namespace:EnterpriseAeroStudio.Services"
@@ -1992,7 +1992,7 @@
                         </Border>
                         <!-- Seçilmiş kredit üzrə yekun göstəricilər -->
                         <StackPanel Grid.Row="1" Margin="0,0,0,14">
-                            <UniformGrid Columns="6">
+                            <UniformGrid Columns="8">
                                 <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#3B82F6">
                                     <StackPanel>
                                         <TextBlock Text="💵 Satış Qiyməti" Style="{StaticResource StatLabel}"/>
@@ -2039,6 +2039,38 @@
                                         <TextBlock Text="📆 Son Ödəniş" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedSonOdenis}"
                                                    Style="{StaticResource StatValue}" FontSize="18" Foreground="#22D3EE"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ====================================================
+                                     🔢 KÖK (ƏSAS BORC) ✓✓✓ (v6.2.17)
+                                     ★ İstifadəçi tələbi: «Kreditlər tabında müqaviləni
+                                       seçəndə orda KÖK-də görsənməlidir» ✓✓✓
+                                     📌 KÖK = kreditləşdirilən (müştərinin əsas borcu) ✓
+                                     📌 Altında AYLIQ KÖK də göstərilir ✓ (KÖK ÷ Müddət ✓)
+                                     ==================================================== -->
+                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F97316">
+                                    <StackPanel>
+                                        <TextBlock Text="🔢 KÖK (əsas borc)" Style="{StaticResource StatLabel}"/>
+                                        <TextBlock Text="{Binding Credits.SelectedKok, Converter={StaticResource Currency}}"
+                                                   Style="{StaticResource StatValue}" Foreground="#FB923C"/>
+                                        <TextBlock Text="{Binding Credits.SelectedKokIzahi}" FontSize="10"
+                                                   Foreground="#FDBA74" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   ToolTip="KÖK = müştərinin qaytarmalı olduğu ƏSAS BORC ✓&#x0a;Aylıq kök = KÖK ÷ Müddət (ay) ✓&#x0a;⚠ Bu pul BÖLÜNMÜR ✗ — yalnız FAİZ (mənfəət) bölünür ✓✓✓"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ✅ ÖDƏNİLMİŞ KÖK + irəliləyiş zolağı ✓ -->
+                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22C55E">
+                                    <StackPanel>
+                                        <TextBlock Text="✅ Ödənilmiş KÖK" Style="{StaticResource StatLabel}"/>
+                                        <TextBlock Text="{Binding Credits.SelectedOdenilmisKok, Converter={StaticResource Currency}}"
+                                                   Style="{StaticResource StatValue}" Foreground="#4ADE80"/>
+                                        <TextBlock Text="{Binding Credits.SelectedOdenilmisKokIzahi}" FontSize="10"
+                                                   Foreground="#86EFAC" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   ToolTip="Ödənilmiş kök = bütün ödənişlərin KÖK paylarının cəmi ✓&#x0a;Borcu bitəndən sonrakı ödənişlər TAM mənfəət sayılır ✓✓✓"/>
+                                        <ProgressBar Height="6" Margin="0,4,0,0" Foreground="#22C55E" Background="#1E293B"
+                                                     Minimum="0" Maximum="1" Value="{Binding Credits.SelectedKokFaizi}"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
@@ -2319,6 +2351,20 @@
                                                      ToolTip="Bölünən mənfəət («xeyir») — manual dəyişdirilə bilər"
                                                      Text="{Binding CreditTransactions.BolguBazasi, UpdateSourceTrigger=PropertyChanged}"/>
                                         </Grid>
+
+                                        <!-- ====================================================
+                                             🔢 KÖK İZAHI ✓✓✓ (v6.2.17)
+                                             ★ İstifadəçi tələbi: «Ödənişdən KÖK QİYMƏTİ
+                                               ÇIXARILMALIDIR, SONRA BÖLÜNMƏLİDİR» ✓✓✓
+                                             Nümunə: «1 984,97 ₼ − KÖK payı 1 417,83 ₼ =
+                                                      BÖLÜNƏN 567,14 ₼ · qalıq kök 14 178,34 ₼»
+                                             ==================================================== -->
+                                        <Border Margin="11,0,11,7" CornerRadius="7" Padding="8,6"
+                                                Background="#132033" BorderBrush="#1E40AF" BorderThickness="1"
+                                                ToolTip="ÖDƏNİŞDƏN KÖK (ƏSAS BORC) PAYI ÇIXILIR ✓ → yalnız FAİZ tərəfdaşlar arasında bölünür ✓✓✓&#x0a;Kök payı = Ödəniş × (KÖK ÷ Kreditin qiyməti) ✓ — qalan borcla məhdud ✓">
+                                            <TextBlock Text="{Binding CreditTransactions.BolguKokMetni}"
+                                                       FontSize="10.5" Foreground="#93C5FD" TextWrapping="Wrap"/>
+                                        </Border>
 
                                         <!-- ===== DÜYMƏLƏR ===== -->
                                         <UniformGrid Columns="3" Margin="11,0,11,9">
