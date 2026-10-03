@@ -612,8 +612,13 @@ namespace Cas0201.Setup
         }
 
         /// <summary>
-        /// 🔗 Qısayol yaradır ✓ — <b>UĞUR</b> qaytarır ✓✓✓ (v6.2.20)
-        /// <para>⚠ Əvvəl <c>void</c> idi ✗ → xəta SƏSSİZCƏ udulurdu ✗ (istifadəçi bildirmirdi ✓)</para>
+        /// 🔗 Qısayol yaradır ✓ — <b>UĞUR</b> qaytarır ✓✓✓ (v6.2.20 · v6.2.21-də COM-a keçirildi ✓)
+        /// <para>
+        /// ⚠ v6.2.20-yə qədər <c>dynamic</c> + <c>WScript.Shell</c> işlədilirdi ✗ →
+        /// <b>self-contained/trimmed</b> publish-də <c>RuntimeBinderException</c> ✗ →
+        /// <c>catch</c> UDURDU ✗ → <b>qısayol HEÇ VAXT YARANMIRDI</b> ✗✓✓
+        /// </para>
+        /// <para>✅ İNDİ: <see cref="QisayolYaradan"/> — COM interop ✓ trim-safe ✓✓✓</para>
         /// </summary>
         private static bool Qisayol(string qovluq, string ad, string hedef, string işQovluğu)
         {
@@ -621,17 +626,8 @@ namespace Cas0201.Setup
             {
                 if (!Directory.Exists(qovluq)) return false;
 
-                var tip = Type.GetTypeFromProgID("WScript.Shell");
-                if (tip is null) return false;
-
-                dynamic ws = Activator.CreateInstance(tip)!;
-                dynamic lnk = ws.CreateShortcut(Path.Combine(qovluq, ad + ".lnk"));
-                lnk.TargetPath = hedef;
-                lnk.WorkingDirectory = işQovluğu;
-                lnk.Description = AppAdi;
-                lnk.Save();
-
-                return File.Exists(Path.Combine(qovluq, ad + ".lnk"));
+                return QisayolYaradan.Yarat(
+                    Path.Combine(qovluq, ad + ".lnk"), hedef, işQovluğu, AppAdi);
             }
             catch { return false; }
         }

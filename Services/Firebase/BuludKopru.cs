@@ -886,6 +886,21 @@ namespace Cas0201.Firebase
                 {
                     foreach (var itmiş in itkinlər)
                     {
+                        // ================================================================
+                        //  🗑️ v6.2.21 — ★ TOMBSTONE MÜTLƏQ YAZILIR ★ (★ ƏSAS DÜZƏLİŞ ★)
+                        // ----------------------------------------------------------------
+                        //  ⚠ ƏVVƏL `TombstoneYazAsync` metodu VARDIR ✗ AMMA **HEÇ
+                        //    YERDƏN ÇAĞIRILMIRDI** ✗✓✓ → silinmə «_zibil»-ə yazılmırdı ✗
+                        //    → digər kompüter silinməni HEÇ VAXT ÖYRƏNMİRDİ ✗
+                        //  ✅ İNDİ: hər yerli silinmə üçün «_zibil» qeydi yazılır ✓ →
+                        //    digər kompüter bunu görüb yerli bazadan da SİLİR ✓✓✓
+                        //  ✅ Həm də yerli «iz» cədvəlində `Silinib = true` işarələnir ✓ →
+                        //    buluddakı köhnə nüsxə geri GƏTİRİLMİR ✗✓✓ (sonsuz dövür ✗)
+                        // ================================================================
+                        await TombstoneYazAsync(kolleksiya, itmiş, ct).ConfigureAwait(false);
+
+                        IzlemeYaz(cx, kolleksiya, itmiş, string.Empty, DateTime.UtcNow, true);
+
                         var uğur = FizikiSil
                             ? await _klient.FizikiSilAsync(kolleksiya + "/" + itmiş, ct)
                                 .ConfigureAwait(false)
@@ -1438,8 +1453,36 @@ namespace Cas0201.Firebase
                     var uzaqVaxt = OxuVaxt(o["updatedAt"]?.ToString());
                     izleme.TryGetValue(id, out var iz);
 
-                    // ⚖️ LWW: yerli daha təzədirsə → toxunmuruq ✗✓✓
-                    if (uzaqVaxt <= (iz?.SonDeyisiklik ?? DateTime.MinValue)) continue;
+                    // ================================================================
+                    //  ⚖️ LWW — ★ v6.2.21: YALNIZ YERLİ QEYD MÖVCUDDURSA ★
+                    // ----------------------------------------------------------------
+                    //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ (2 kompüter, ikisi də onlayn ✓):
+                    //    «test 1 maşını birində, test 2 maşını digərində yaradıram,
+                    //     heç birinə bir-birinə gəlmir» ✗✓✓
+                    //  ⚠ ƏSL SƏBƏB: bu şərt YERLİ QEYD OLMASA DA işləyirdi ✗ →
+                    //    iz cədvəlində köhnə/təmizlənməmiş qeyd varsa ✗ (məs.
+                    //    əvvəlki uğursuz yazmadan sonra ✓) → `uzaqVaxt` köhnə
+                    //    olduğu üçün qeyd HEÇ VAXT TƏTBİQ OLUNMURDU ✗✓✓
+                    //  ✅ İNDİ:
+                    //    • YERLİ QEYD VARSA → LWW (ən təzə üstün gəlir ✓)
+                    //    • YERLİ QEYD YOXDURSA → **MÜTLƏQ ƏLAVƏ OLUNUR** ✓✓✓
+                    //    • ⚠ İSTİSNA: «Silinib = true» izi varsa və bulud
+                    //      DAHA KÖHNƏDİRSƏ → geri qaytarılmır ✗✓✓
+                    //      (biz onu SİLMİŞİK ✗ → ölümdən sonra dirilmir ✗✓✓)
+                    // ================================================================
+                    var yerliMövcud = yerli.Any(x => açarAl(x) == id);
+
+                    if (yerliMövcud)
+                    {
+                        // ⚖️ Yerli daha təzədirsə → toxunmuruq ✗✓✓
+                        if (uzaqVaxt <= (iz?.SonDeyisiklik ?? DateTime.MinValue)) continue;
+                    }
+                    else if (iz?.Silinib == true && uzaqVaxt <= iz.SonDeyisiklik)
+                    {
+                        // 🗑️ Biz bu qeydi SİLMİŞİK ✗ → buluddaki KÖHNƏ nüsxə
+                        // geri qaytarılmır ✗✓✓ (yalnız DAHA TƏZƏ varsa qaytarılır ✓)
+                        continue;
+                    }
 
                     var uzaqBuludId = o["buludId"]?.ToString();
 

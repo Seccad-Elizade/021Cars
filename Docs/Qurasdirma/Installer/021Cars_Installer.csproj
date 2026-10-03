@@ -18,7 +18,9 @@
     <AssemblyName>021Cars_Installer</AssemblyName>
     <RootNamespace>Cas0201.Setup</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>6.2.20</Version>
+    <!-- 🔗 COM INTEROP DƏSTƏYİ ✓✓✓ (v6.2.21) — trimmed publish-də qısayol SİNMƏSİN ✗✓✓ -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <Version>6.2.21</Version>
     <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
     <Product>021Cars — Avtomobil Parkı</Product>
     <Company>021Cars</Company>
@@ -36,6 +38,15 @@
     <EmbeddedResource Include="payload.zip">
       <LogicalName>payload.zip</LogicalName>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- ======================================================================
+       🔗 PAYLAŞILAN QISAYOL KÖMƏKÇİSİ ✓✓✓ (v6.2.21)
+       ⚠ Eyni kod həm proqramda, həm quraşdırıcıda işlədilir ✗ →
+         TƏK MƏNBƏDƏN götürülür ✓ (təkrarlama YOX ✗✓✓)
+       ====================================================================== -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Services\QisayolYaradan.cs" Link="QisayolYaradan.cs" />
   </ItemGroup>
 
 </Project>

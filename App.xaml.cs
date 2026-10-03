@@ -108,8 +108,8 @@ namespace EnterpriseAeroStudio
                 var ortaqMasa = Environment.GetFolderPath(
                     Environment.SpecialFolder.CommonDesktopDirectory);
 
-                var istifadeciLnk = Path.Combine(istifadeciMasa, "021Cars — Avtomobil Parkı.lnk");
-                var ortaqLnk = Path.Combine(ortaqMasa, "021Cars — Avtomobil Parkı.lnk");
+                var istifadeciLnk = Path.Combine(istifadeciMasa, "021Cars.lnk");
+                var ortaqLnk = Path.Combine(ortaqMasa, "021Cars.lnk");
 
                 if (File.Exists(istifadeciLnk) || File.Exists(ortaqLnk))
                 {
@@ -139,39 +139,14 @@ namespace EnterpriseAeroStudio
             }
 
             // ---- yerli köməkçi: verilən masaüstü qovluğuna qısayol yazır ✓ ----
+            //  ⚠ v6.2.21: artıq `QisayolYaradan` (COM interop ✓ trim-safe ✓) işlədilir ✗
+            //    → `dynamic` / `WScript.Shell` YOX ✗ (trimmed publish-də SİNİRDI ✗✓✓)
             bool QisayolYaz(string qovluq, string hedefExe, string işQovluğu)
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(qovluq) || !Directory.Exists(qovluq))
-                    {
-                        return false;
-                    }
-
-                    var tip = Type.GetTypeFromProgID("WScript.Shell");
-                    if (tip is null)
-                    {
-                        return false;
-                    }
-
-                    dynamic ws = Activator.CreateInstance(tip)!;
-                    dynamic lnk = ws.CreateShortcut(
-                        Path.Combine(qovluq, "021Cars — Avtomobil Parkı.lnk"));
-
-                    lnk.TargetPath = hedefExe;
-                    lnk.WorkingDirectory = işQovluğu;
-                    lnk.Description = "021Cars — Avtomobil Parkı";
-                    lnk.IconLocation = hedefExe + ",0";
-                    lnk.Save();
-
-                    return File.Exists(
-                        Path.Combine(qovluq, "021Cars — Avtomobil Parkı.lnk"));
-                }
-                catch
-                {
-                    return false;
-                }
-            }
+                => Cas0201.Setup.QisayolYaradan.Yarat(
+                    Path.Combine(qovluq, "021Cars.lnk"),
+                    hedefExe,
+                    işQovluğu,
+                    "021Cars — Avtomobil Parkı");
         }
 
         protected override void OnStartup(StartupEventArgs e)
