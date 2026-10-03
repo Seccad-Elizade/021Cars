@@ -2070,7 +2070,8 @@
                                                    Foreground="#86EFAC" TextWrapping="Wrap" Margin="0,2,0,0"
                                                    ToolTip="Ödənilmiş kök = bütün ödənişlərin KÖK paylarının cəmi ✓&#x0a;Borcu bitəndən sonrakı ödənişlər TAM mənfəət sayılır ✓✓✓"/>
                                         <ProgressBar Height="6" Margin="0,4,0,0" Foreground="#22C55E" Background="#1E293B"
-                                                     Minimum="0" Maximum="1" Value="{Binding Credits.SelectedKokFaizi}"/>
+                                                     Minimum="0" Maximum="1"
+                                                     Value="{Binding Credits.SelectedKokFaizi, Mode=OneWay}"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
