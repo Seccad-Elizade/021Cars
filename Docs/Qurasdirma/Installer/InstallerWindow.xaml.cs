@@ -154,7 +154,15 @@ namespace Cas0201.Setup
                     }
                 }
 
-                // 🔗 Qısayollar ✓
+                // 🔗 Qısayollar ✓ (v6.2.20 — HƏM istifadəçinin, HƏM ortaq ✓✓✓)
+                try
+                {
+                    File.Delete(Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                        AppAdi + ".lnk"));
+                }
+                catch { }
+
                 try
                 {
                     File.Delete(Path.Combine(
@@ -167,6 +175,15 @@ namespace Cas0201.Setup
                 {
                     var p = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
+
+                    File.Delete(Path.Combine(p, AppAdi + ".lnk"));
+                    File.Delete(Path.Combine(p, AppAdi + " — SİL.lnk"));
+                }
+                catch { }
+
+                try
+                {
+                    var p = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
 
                     File.Delete(Path.Combine(p, AppAdi + ".lnk"));
                     File.Delete(Path.Combine(p, AppAdi + " — SİL.lnk"));
@@ -481,10 +498,25 @@ namespace Cas0201.Setup
                 var proqramlar = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
 
+                var istifadeciProqramlar =
+                    Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+
+                // ================================================================
+                //  🖥️ MASAÜSTÜ + 📌 BAŞLAT MENYUSU — HƏR İKİ YERƏ ✓✓✓ (v6.2.20)
+                //  ⚠ ƏVVƏL YALNIZ «ORTAQ» yerlərə yazılırdı ✗ → admin olmayanda
+                //    qısayol HEÇ YARANMIRDI ✗✓✓ (istifadəçi şikayəti ✓)
+                // ================================================================
+                Qisayol(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                    AppAdi, exe, _hedef);
+
                 Qisayol(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
                     AppAdi, exe, _hedef);
 
+                Qisayol(istifadeciProqramlar, AppAdi, exe, _hedef);
                 Qisayol(proqramlar, AppAdi, exe, _hedef);
+
+                Qisayol(istifadeciProqramlar, AppAdi + " — SİL",
+                    Path.Combine(_hedef, "Uninstaller.exe"), _hedef);
 
                 Qisayol(proqramlar, AppAdi + " — SİL",
                     Path.Combine(_hedef, "Uninstaller.exe"), _hedef);
@@ -579,23 +611,29 @@ namespace Cas0201.Setup
             catch { return false; }
         }
 
-        /// <summary>🔗 Qısayol yaradır ✓</summary>
-        private static void Qisayol(string qovluq, string ad, string hedef, string işQovluğu)
+        /// <summary>
+        /// 🔗 Qısayol yaradır ✓ — <b>UĞUR</b> qaytarır ✓✓✓ (v6.2.20)
+        /// <para>⚠ Əvvəl <c>void</c> idi ✗ → xəta SƏSSİZCƏ udulurdu ✗ (istifadəçi bildirmirdi ✓)</para>
+        /// </summary>
+        private static bool Qisayol(string qovluq, string ad, string hedef, string işQovluğu)
         {
             try
             {
-                if (!Directory.Exists(qovluq)) return;
+                if (!Directory.Exists(qovluq)) return false;
 
                 var tip = Type.GetTypeFromProgID("WScript.Shell");
-                if (tip is null) return;
+                if (tip is null) return false;
 
                 dynamic ws = Activator.CreateInstance(tip)!;
                 dynamic lnk = ws.CreateShortcut(Path.Combine(qovluq, ad + ".lnk"));
                 lnk.TargetPath = hedef;
                 lnk.WorkingDirectory = işQovluğu;
+                lnk.Description = AppAdi;
                 lnk.Save();
+
+                return File.Exists(Path.Combine(qovluq, ad + ".lnk"));
             }
-            catch { }
+            catch { return false; }
         }
 
         /// <summary>📋 Qovluğu (alt qovluqlarla) kopyalayır ✓</summary>
@@ -629,7 +667,7 @@ namespace Cas0201.Setup
         // ====================================================================
 
         /// <summary>📦 .exe-İN İÇİNDƏKİ <c>payload.zip</c> ✓✓✓ (yoxdursa <c>null</c> ✓)</summary>
-        private byte[]? AçılaBilənZip()
+        private byte[] AçılaBilənZip()
         {
             try
             {
@@ -775,18 +813,55 @@ namespace Cas0201.Setup
             Yaz("🔗 Qısayollar yaradılır…");
 
             var exe = Path.Combine(_hedef, ExeAdi);
-            var proqramlar = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
 
+            // ================================================================
+            //  🖥️ MASAÜSTÜ QISAYOLU ✓✓✓ (v6.2.20 — ★ DÜZƏLİŞ ★)
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL YALNIZ «ORTAQ» (Public) masaüstünə yazılırdı ✗ →
+            //    quraşdırma ADMIN olmadan işləyəndə orada YAZMAQ MÜMKÜN DEYİL ✗
+            //    → qısayol HEÇ VAXT YARANMIRDI ✗✓✓
+            //    (istifadəçi şikayəti: «masaüstünə qısayol qoymur» ✗)
+            //  ✅ İNDİ: HƏR İKİSİNƏ yazılır ✓ → hansı işləsə UĞUR ✓✓✓
+            //    ① istifadəçinin ÖZ masaüstü ✓ (admin LAZIM DEYİL ✗✓✓)
+            //    ② ortaq (Public) masaüstü ✓ (admin olduqda ✓ — bütün istifadəçilər ✓)
+            // ================================================================
             if (MasaustuQutusu.IsChecked == true)
             {
-                Qisayol(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-                    AppAdi, exe, _hedef);
+                var istifadeciMasa = Environment.GetFolderPath(
+                    Environment.SpecialFolder.DesktopDirectory);
+
+                var ortaqMasa = Environment.GetFolderPath(
+                    Environment.SpecialFolder.CommonDesktopDirectory);
+
+                var istifadeciOk = Qisayol(istifadeciMasa, AppAdi, exe, _hedef);
+                var ortaqOk = Qisayol(ortaqMasa, AppAdi, exe, _hedef);
+
+                Yaz(istifadeciOk || ortaqOk
+                    ? "🖥️ Masaüstü qısayolu yaradıldı ✓  (" +
+                      (istifadeciOk ? "istifadəçi masaüstü ✓" : "") +
+                      (istifadeciOk && ortaqOk ? " · " : "") +
+                      (ortaqOk ? "ortaq masaüstü ✓" : "") + ")"
+                    : "⚠️ Masaüstü qısayolu yaradıla bilmədi ✗ — narahat olmayın: " +
+                      "proqram ilk açılışda ÖZÜ yaradacaq ✓✓✓");
             }
 
-            Qisayol(proqramlar, AppAdi, exe, _hedef);
-            Qisayol(proqramlar, AppAdi + " — SİL",
-                Path.Combine(_hedef, "Uninstaller.exe"), _hedef);
+            // ================================================================
+            //  📌 BAŞLAT MENYUSU — HƏM İSTİFADƏÇİNİN, HƏM ORTAQ ✓ (v6.2.20)
+            // ================================================================
+            var istifadeciProqramlar = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+
+            var ortaqProqramlar = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
+
+            Qisayol(istifadeciProqramlar, AppAdi, exe, _hedef);
+            Qisayol(ortaqProqramlar, AppAdi, exe, _hedef);
+
+            // 🗑️ SİL qısayolları ✓ (hər iki yerdə ✓)
+            var silExe = Path.Combine(_hedef, "Uninstaller.exe");
+
+            Qisayol(istifadeciProqramlar, AppAdi + " — SİL", silExe, _hedef);
+            Qisayol(ortaqProqramlar, AppAdi + " — SİL", silExe, _hedef);
 
             Zolaq.Value = 85;
             Yaz("🗑️ Uninstaller yaradılır…");

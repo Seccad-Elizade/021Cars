@@ -50,6 +50,130 @@ namespace EnterpriseAeroStudio
         /// </summary>
         public static Cas0201.Firebase.BuludKopru? Kopru { get; private set; }
 
+        /// <summary>
+        /// 🖥️ <b>MASAÜSTÜ QISAYOLUNU ZƏMANƏTLƏŞDİRİR</b> ✓✓✓ (v6.2.20)
+        /// <para>
+        /// ★ İstifadəçi şikayəti: «Installer ilə proqramı birinci dəfə
+        /// yükləyəndə masaüstünə qısayol qoymur» ✗✓✓
+        /// </para>
+        /// <para>
+        /// <b>⚠ ƏSL SƏBƏB:</b> quraşdırıcı qısayolu yalnız <b>ORTAQ</b>
+        /// (<c>C:\Users\Public\Desktop</c>) masaüstünə yazırdı ✗ → quraşdırma
+        /// <b>admin olmadan</b> işləyəndə orada yazmaq MÜMKÜN DEYİL ✗ →
+        /// qısayol heç vaxt yaranmırdı ✗✓✓
+        /// </para>
+        /// <para>
+        /// <b>✅ HƏLL (2 qat ✓✓✓):</b>
+        /// </para>
+        /// <list type="number">
+        ///   <item>Quraşdırıcı artıq <b>hər iki</b> masaüstünə yazır ✓
+        ///         (istifadəçinin özü ✓ + ortaq ✓)</item>
+        ///   <item>Proqram <b>hər açılışda</b> yoxlayır ✓ → qısayol YOXDURSA
+        ///         <b>ÖZÜ yaradır</b> ✓✓✓ (bu metod ✓ — admin LAZIM DEYİL ✗)</item>
+        /// </list>
+        /// <para>
+        /// 🛡️ Heç bir halda proqram çökmür ✗ — bütün xətalar UDULUR ✓ ·
+        /// qısayol varsa <b>toxunulmur</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        private static void MasaustuQisayoluYoxla()
+        {
+            try
+            {
+                // ① İcra olunan fayl (exe) tapılır ✓
+                var exe = Environment.ProcessPath;
+
+                if (string.IsNullOrWhiteSpace(exe)
+                    || !exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;   // ⚠ `dotnet run` / veb host ✗ → qısayol yaradılmır ✓
+                }
+
+                // ⚠ Yaradılma (development) qovluğunda qısayol YARADILMIR ✗
+                //   (məs. ...\bin\Debug\net8.0-windows\... ✗)
+                if (exe.Contains(@"\bin\", StringComparison.OrdinalIgnoreCase)
+                    || exe.Contains(@"\obj\", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                var işQovluğu = Path.GetDirectoryName(exe) ?? string.Empty;
+
+                // ② Artıq qısayol VARMI? ✓
+                //    • istifadəçinin öz masaüstü ✓
+                //    • ortaq (Public) masaüstü ✓
+                var istifadeciMasa = Environment.GetFolderPath(
+                    Environment.SpecialFolder.DesktopDirectory);
+
+                var ortaqMasa = Environment.GetFolderPath(
+                    Environment.SpecialFolder.CommonDesktopDirectory);
+
+                var istifadeciLnk = Path.Combine(istifadeciMasa, "021Cars — Avtomobil Parkı.lnk");
+                var ortaqLnk = Path.Combine(ortaqMasa, "021Cars — Avtomobil Parkı.lnk");
+
+                if (File.Exists(istifadeciLnk) || File.Exists(ortaqLnk))
+                {
+                    return;   // ✔ artıq var ✓ → toxunulmur ✗✓✓
+                }
+
+                // ③ ƏVVƏLCƏ istifadəçinin ÖZ masaüstünə ✓ (admin lazım DEYİL ✓)
+                if (QisayolYaz(istifadeciMasa, exe, işQovluğu))
+                {
+                    Cas0201.Firebase.AppLogger.Melumat(
+                        "🖥️ Masaüstü qısayolu YARADILDI ✓ (istifadəçi masaüstü ✓)");
+
+                    return;
+                }
+
+                // ④ Alınmadısa → ORTAQ masaüstünə ✓ (admin olduqda işləyir ✓)
+                if (QisayolYaz(ortaqMasa, exe, işQovluğu))
+                {
+                    Cas0201.Firebase.AppLogger.Melumat(
+                        "🖥️ Masaüstü qısayolu YARADILDI ✓ (ortaq masaüstü ✓)");
+                }
+            }
+            catch (Exception ex)
+            {
+                // 🛡️ Qısayol yarada bilməmək proqramın açılışını DAYANDIRMIR ✗✓✓
+                Cas0201.Firebase.AppLogger.Xeta(ex, "masaüstü qısayolu");
+            }
+
+            // ---- yerli köməkçi: verilən masaüstü qovluğuna qısayol yazır ✓ ----
+            bool QisayolYaz(string qovluq, string hedefExe, string işQovluğu)
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(qovluq) || !Directory.Exists(qovluq))
+                    {
+                        return false;
+                    }
+
+                    var tip = Type.GetTypeFromProgID("WScript.Shell");
+                    if (tip is null)
+                    {
+                        return false;
+                    }
+
+                    dynamic ws = Activator.CreateInstance(tip)!;
+                    dynamic lnk = ws.CreateShortcut(
+                        Path.Combine(qovluq, "021Cars — Avtomobil Parkı.lnk"));
+
+                    lnk.TargetPath = hedefExe;
+                    lnk.WorkingDirectory = işQovluğu;
+                    lnk.Description = "021Cars — Avtomobil Parkı";
+                    lnk.IconLocation = hedefExe + ",0";
+                    lnk.Save();
+
+                    return File.Exists(
+                        Path.Combine(qovluq, "021Cars — Avtomobil Parkı.lnk"));
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -294,6 +418,17 @@ namespace EnterpriseAeroStudio
                 //     «Bəli» → bütün məlumat buluddan DƏRHAL götürülür ✓✓✓
                 // ================================================================
                 IlkQurasdirmaYoxla(window);
+
+                // ================================================================
+                //  🖥️ MASAÜSTÜ QISAYOLU ZƏMANƏTİ ✓✓✓ (v6.2.20)
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «Installer ilə ilk yükləyəndə masaüstünə
+                //    qısayol qoymur» ✗
+                //  ✅ Proqram hər açılışda YOXLAYIR ✓ → qısayol YOXDURSA
+                //    ÖZÜ yaradır ✓✓✓ (admin lazım DEYİL ✗ — istifadəçinin öz
+                //    masaüstünə yazır ✓)
+                // ================================================================
+                MasaustuQisayoluYoxla();
 
                 // ================================================================
                 //  🔎 FON REJİMİNDƏ: KÖHNƏ XƏRC QEYDLƏRİNİN AXTARIŞ MƏTNİ ✓✓✓
