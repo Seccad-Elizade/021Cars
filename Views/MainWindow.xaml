@@ -2255,6 +2255,29 @@
                                     <TextBlock Text="{Binding CreditTransactions.TaksitInfo}" FontSize="11" Foreground="#38BDF8"
                                                Margin="2,4,0,0" MaxWidth="200" TextWrapping="Wrap"/>
                                 </StackPanel>
+
+                                <!-- ============================================================
+                                     📅 ƏVVƏLCƏDƏN ÖDƏNİŞ — «BAŞQA TAKSİTİN ÖDƏNİŞİDİR» ✓✓✓ (v6.2.19)
+                                     ★ İstifadəçi tələbi: «30.03.2024-də ödəyib, amma 03.04.2024-ün
+                                       kreditini ƏVVƏLCƏDƏN ödəyib — bir CHECK BOX qoy: başqa tarix,
+                                       yəni hansı taksitin ödənişidir. Kredit CƏDVƏLİNDƏ də AVTOMATİK
+                                       hansı ayın ödənişidirsə O AYIN sırasına yazılsın.» ✓✓✓
+                                     ============================================================ -->
+                                <StackPanel Margin="4" MaxWidth="230"
+                                            Visibility="{Binding CreditTransactions.IsBasqaTaksitGorunur, Converter={StaticResource BoolToVis}}">
+                                    <CheckBox Content="📅 Başqa taksitin ödənişidir" FontSize="11" Foreground="#38BDF8"
+                                              IsChecked="{Binding CreditTransactions.BasqaTaksit}"
+                                              ToolTip="ƏVVƏLCƏDƏN ÖDƏNİŞ ✓&#x0a;Məsələn: 30.03.2024-də ödəyib, amma 03.04.2024-ün taksitini ödəyir ✓&#x0a;işarələyin → aşağıdan HANSI AYIN taksiti olduğunu seçin ✓✓✓&#x0a;Kredit cədvəlində DÜZGÜN ayın sırasına yazılacaq ✓"/>
+                                    <ComboBox Width="215" Margin="0,4,0,0"
+                                              ItemsSource="{Binding CreditTransactions.TaksitSecimleri}"
+                                              SelectedValue="{Binding CreditTransactions.SecilmisTaksitNo}"
+                                              SelectedValuePath="No"
+                                              DisplayMemberPath="Metn"
+                                              Visibility="{Binding CreditTransactions.TaksitSecimiGorunur, Converter={StaticResource BoolToVis}}"
+                                              ToolTip="Hansı ayın (taksitin) ödənişidir? ✓&#x0a;✅ = artıq ödənilib · ⬜ = ödənilməyib ✓"/>
+                                    <TextBlock Text="{Binding CreditTransactions.BasqaTaksitIzahi}" FontSize="10"
+                                               Foreground="#38BDF8" TextWrapping="Wrap" Margin="2,4,0,0"/>
+                                </StackPanel>
                                 <!-- 📤 TRANSFER OLUNMAQ (yalnız bu növ üçün) ✓ -->
                             <StackPanel Margin="4"
                                         Visibility="{Binding CreditTransactions.IsTransferOlunmaq, Converter={StaticResource BoolToVis}}">

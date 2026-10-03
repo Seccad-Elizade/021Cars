@@ -258,6 +258,82 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>📄 Barter SƏNƏDİNİN adı (məs. «M188»).</summary>
         [ObservableProperty] private string barterSenedAdi = string.Empty;
 
+        // ====================================================================
+        //  📅 «BAŞQA TAKSİTİN ÖDƏNİŞİDİR» (ƏVVƏLCƏDƏN ÖDƏNİŞ) ✓✓✓ (v6.2.19)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi:
+        //    «Kredit ödənişi gəlir/xərc-də GƏLİR əlavə edəndə — məsələn
+        //     30.03.2024-də ödəyib, amma 03.04.2024-ün kreditini ƏVVƏLCƏDƏN
+        //     ödəyib. Orada bir CHECK BOX qoy: “başqa tarix” — yəni hansı
+        //     taksitin ödənişidir. Kredit CƏDVƏLİNDƏ də AVTOMATİK hansı ayın
+        //     ödənişidirsə O AYIN sırasına yazılsın.» ✓✓✓
+        // --------------------------------------------------------------------
+        //  ⚠ ƏVVƏL: taksit nömrəsi YALNIZ ödəniş TARİXİNDƏN hesablanırdı ✗ →
+        //    əvvəlcədən ödəniş KEÇMİŞ ayın sırasına yazılırdı ✗ →
+        //    həmin ay «artıq ödəniş» ✗, gələn ay isə «ödənilməyib» görünürdü ✗✓✓
+        //  ✅ İNDİ: istifadəçi istəsə TAKSİTİ ÖZÜ SEÇİR ✓ → cədvəldə DÜZGÜN
+        //    ayın sırasına düşür ✓✓✓
+        // ====================================================================
+
+        /// <summary>📅 «Başqa taksitin ödənişidir» — əvvəlcədən ödəniş rejimi ✓✓✓</summary>
+        [ObservableProperty] private bool basqaTaksit;
+
+        /// <summary>📅 Seçilmiş taksitin nömrəsi (1 … Müddət) ✓✓✓</summary>
+        [ObservableProperty] private int secilmisTaksitNo;
+
+        /// <summary>📅 Taksit seçim siyahısı ✓ (hansı ay / ödənilibmi ✓)</summary>
+        public ObservableCollection<TaksitSecimi> TaksitSecimleri { get; } = new();
+
+        /// <summary>📅 Checkbox yalnız «Gəlir» növündə və kredit seçilibsə görünür ✓</summary>
+        public bool IsBasqaTaksitGorunur => IsGelir && SelectedCredit is not null;
+
+        /// <summary>📅 Seçim siyahısı yalnız checkbox işarələnəndə açılır ✓</summary>
+        public bool TaksitSecimiGorunur => BasqaTaksit && IsBasqaTaksitGorunur;
+
+        /// <summary>
+        /// 📅 <b>ƏVVƏLCƏDƏN ÖDƏNİŞ İZAHI</b> ✓✓✓:
+        /// «📅 11-ci taksitin (03.04.2024) ödənişidir — ödəniş tarixi 30.03.2024 ✓»
+        /// </summary>
+        public string BasqaTaksitIzahi
+        {
+            get
+            {
+                var credit = SelectedCredit;
+
+                if (credit is null || !BasqaTaksit || SecilmisTaksitNo <= 0)
+                {
+                    return string.Empty;
+                }
+
+                var planTarixi = credit.BaslamaTarixi.AddMonths(SecilmisTaksitNo - 1);
+                var odenisTarixi = Tarix ?? DateTime.Today;
+
+                return $"📅 {SecilmisTaksitNo}-ci taksitin ödənişidir " +
+                       $"(plan: {planTarixi:dd.MM.yyyy}) · ödəniş tarixi: {odenisTarixi:dd.MM.yyyy} ✓";
+            }
+        }
+
+        /// <summary>
+        /// 📅 Taksit seçim sətri ✓✓✓ — cədvəldə görünən № · plan tarixi · vəziyyət ✓
+        /// </summary>
+        public sealed class TaksitSecimi
+        {
+            /// <summary>Taksit nömrəsi (1 … Müddət) ✓</summary>
+            public int No { get; init; }
+
+            /// <summary>Plan (cədvəl) tarixi ✓</summary>
+            public DateTime PlanTarixi { get; init; }
+
+            /// <summary>Artıq ödənilibmi? ✓</summary>
+            public bool Odenilib { get; init; }
+
+            /// <summary>ComboBox-da göstərilən mətn ✓</summary>
+            public string Metn { get; init; } = string.Empty;
+
+            /// <inheritdoc />
+            public override string ToString() => Metn;
+        }
+
         /// <summary>Barter/Transfer məbləği = MEBLEG sahəsi (₼) — nisyədən çıxılır ✓.</summary>
         public string BarterTransferIzahi =>
             "Məbləğ sahəsi: Barter MAYA DƏYƏRİ / Transfer BEH məbləğidir — kreditin nisyə qiymətindən ÇIXILIR ✓";
@@ -598,8 +674,19 @@ namespace EnterpriseAeroStudio.ViewModels
                 IsBusy = true;
                 if (isPayment && SelectedCredit is not null)
                 {
-                    // Taksit nömrəsi tarixə görə təyin edilir (ödəniş sayına görə yox).
-                    installmentNo = ComputeInstallmentNo(SelectedCredit, Tarix ?? DateTime.Today);
+                    // ================================================================
+                    //  📅 v6.2.19 — ƏVVƏLCƏDƏN ÖDƏNİŞ ✓✓✓
+                    // ----------------------------------------------------------------
+                    //  ⚠ ƏVVƏL taksit YALNIZ tarixdən hesablanırdı ✗ → 30.03.2024-də
+                    //    edilən ödəniş 03.2024-ün sırasına yazılırdı ✗ (halbuki
+                    //    müştəri 03.04.2024-ün ödənişini ƏVVƏLCƏDƏN ödəyirdi ✗✓✓)
+                    //  ✅ İNDİ: «📅 Başqa taksitin ödənişidir» işarələnibsə
+                    //    istifadəçinin SEÇDİYİ taksit yazılır ✓ → kredit
+                    //    cədvəlində DÜZGÜN ayın sırasına düşür ✓✓✓
+                    // ================================================================
+                    installmentNo = BasqaTaksit && SecilmisTaksitNo > 0
+                        ? SecilmisTaksitNo
+                        : ComputeInstallmentNo(SelectedCredit, Tarix ?? DateTime.Today);
                 }
 
                 if (isException && installmentNo is null)
@@ -699,6 +786,13 @@ namespace EnterpriseAeroStudio.ViewModels
                 Mebleg = 0m;
                 Tesvir = string.Empty;
                 BolguSifirla();
+
+                // 📅 v6.2.19 — «Əvvəlcədən ödəniş» rejimi SÖNDÜRÜLÜR ✓✓✓
+                //    (hər yeni qeyd üçün təkrar seçim tələb olunsun ✗ → təhlükəsizdir ✓)
+                SecilmisTaksitNo = 0;
+                BasqaTaksit = false;
+                TaksitSecimleri.Clear();
+
                 ClearErrors();
                 _logger.LogInformation("Kredit əməliyyatı əlavə edildi ({Type}).", Nov);
 
@@ -881,6 +975,132 @@ namespace EnterpriseAeroStudio.ViewModels
             return months >= 1 && months <= credit.MuddetAy ? months : null;
         }
 
+        // ====================================================================
+        //  📅 ƏVVƏLCƏDƏN ÖDƏNİŞ — TAKSİT SEÇİMİ ✓✓✓ (v6.2.19)
+        // ====================================================================
+
+        /// <summary>
+        /// 📅 Taksit seçim siyahısını doldurur ✓✓✓ — hər taksit üçün
+        /// <b>№ · plan tarixi · ödənilibmi</b> göstərilir ✓
+        /// <para>
+        /// ⚠ Ödənilmişlər <c>✅</c>, qalanlar <c>⬜</c> ilə işarələnir ✓ →
+        /// istifadəçi <b>hansı ayın</b> ödənişi olduğunu dərhal görür ✓✓✓
+        /// </para>
+        /// </summary>
+        private void TaksitSecimleriniYukle()
+        {
+            TaksitSecimleri.Clear();
+
+            var credit = SelectedCredit;
+
+            if (credit is null || credit.MuddetAy <= 0)
+            {
+                return;
+            }
+
+            // ---- Hansı taksitlər artıq ÖDƏNİLİB? ✓ ----
+            var ödənilmiş = new HashSet<int>();
+
+            foreach (var t in Transactions)
+            {
+                if (t.CreditId != credit.Id)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(t.Nov, "Gəlir", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var no = t.InstallmentNo ?? ComputeInstallmentNo(credit, t.Tarix) ?? 0;
+
+                if (no > 0)
+                {
+                    ödənilmiş.Add(no);
+                }
+            }
+
+            // ---- Bütün taksitlər siyahıya salınır ✓ ----
+            for (var no = 1; no <= credit.MuddetAy; no++)
+            {
+                var planTarixi = credit.BaslamaTarixi.AddMonths(no - 1);
+                var ödənilib = ödənilmiş.Contains(no);
+
+                TaksitSecimleri.Add(new TaksitSecimi
+                {
+                    No = no,
+                    PlanTarixi = planTarixi,
+                    Odenilib = ödənilib,
+                    Metn = $"{(ödənilib ? "✅" : "⬜")} {no}-ci taksit · {planTarixi:dd.MM.yyyy}" +
+                           (ödənilib ? "  (ödənilib)" : "")
+                });
+            }
+
+            // ---- AĞILLI DEFAULT ✓✓✓ ----
+            //  ① Ödəniş tarixinə uyğun taksit götürülür ✓
+            //  ② o ÖDƏNİLİBSƏ (əvvəlcədən ödəniş halı ✓) → ilk ÖDƏNİLMƏMİŞ
+            //     taksit seçilir ✓✓✓ (istifadəçi tələbi: «gələn ayınkini ödədi» ✓)
+            SecilmisTaksitNo = UygunTaksitNoTap();
+        }
+
+        /// <summary>
+        /// 📅 Ödəniş üçün ən UYĞUN taksiti tapır ✓✓✓:
+        /// tarixə uyğun taksit ödənilməyibsə o ✓, ödənilibsə → <b>ilk
+        /// ödənilməmiş</b> taksit ✓ (əvvəlcədən ödəniş ✓)
+        /// </summary>
+        private int UygunTaksitNoTap()
+        {
+            var credit = SelectedCredit;
+
+            if (credit is null || TaksitSecimleri.Count == 0)
+            {
+                return 0;
+            }
+
+            var tarixəGörə = ComputeInstallmentNo(credit, Tarix ?? DateTime.Today) ?? 0;
+
+            var uygun = TaksitSecimleri.FirstOrDefault(x => x.No == tarixəGörə);
+
+            if (uygun is not null && !uygun.Odenilib)
+            {
+                return uygun.No;
+            }
+
+            // ⚠ Tarixə uyğun taksit ÖDƏNİLİB ✗ (və ya tarix aralıqdan kənardır ✗)
+            //   → ilk ÖDƏNİLMƏMİŞ taksit ✓✓✓ (əvvəlcədən ödəniş ✓)
+            var ilkBos = TaksitSecimleri.FirstOrDefault(x => !x.Odenilib);
+
+            return ilkBos?.No ?? uygun?.No ?? 0;
+        }
+
+        /// <summary>📅 Checkbox dəyişdikdə: siyahı hazırlanır + default taksit seçilir ✓✓✓</summary>
+        partial void OnBasqaTaksitChanged(bool value)
+        {
+            if (value)
+            {
+                TaksitSecimleriniYukle();
+
+                // ⚠ Siyahı boşdursa (kredit seçilməyib ✗) → checkbox geri söndürülür ✓
+                if (TaksitSecimleri.Count == 0)
+                {
+                    BasqaTaksit = false;
+                    return;
+                }
+            }
+
+            OnPropertyChanged(nameof(TaksitSecimiGorunur));
+            OnPropertyChanged(nameof(BasqaTaksitIzahi));
+            OnPropertyChanged(nameof(TaksitInfo));
+        }
+
+        /// <summary>📅 Seçilmiş taksit dəyişdikdə izah yenilənir ✓</summary>
+        partial void OnSecilmisTaksitNoChanged(int value)
+        {
+            OnPropertyChanged(nameof(BasqaTaksitIzahi));
+            OnPropertyChanged(nameof(TaksitInfo));
+        }
+
         /// <summary>Seçilmiş kredit və tarixə görə hansı taksitə düşdüyünü göstərir.</summary>
         public string TaksitInfo
         {
@@ -889,6 +1109,19 @@ namespace EnterpriseAeroStudio.ViewModels
                 if (SelectedCredit is null)
                 {
                     return string.Empty;
+                }
+
+                // ================================================================
+                //  📅 v6.2.19 — ƏVVƏLCƏDƏN ÖDƏNİŞ ✓✓✓
+                //  İstifadəçi taksiti ÖZÜ seçibsə → o göstərilir ✓✓✓
+                //  (məs. «📅 11-ci taksitin ödənişi (plan: 03.04.2024) — ƏVVƏLCƏDƏN ✓»)
+                // ================================================================
+                if (Nov == "Gəlir" && BasqaTaksit && SecilmisTaksitNo > 0)
+                {
+                    var plan = SelectedCredit.BaslamaTarixi.AddMonths(SecilmisTaksitNo - 1);
+
+                    return $"📅 {SecilmisTaksitNo}-ci taksitin ödənişi " +
+                           $"(plan: {plan:dd.MM.yyyy}) — ƏVVƏLCƏDƏN ✓";
                 }
 
                 if (Nov == "Möhlət")
@@ -925,6 +1158,25 @@ namespace EnterpriseAeroStudio.ViewModels
         {
             OnPropertyChanged(nameof(TaksitInfo));
             ApplyTransactionFilter();
+
+            // ================================================================
+            //  📅 v6.2.19 — Kredit dəyişdikdə «əvvəlcədən ödəniş» SIFIRLANIR ✓✓✓
+            //  (köhnə kreditin taksit siyahısı qalmasın ✗)
+            // ================================================================
+            OnPropertyChanged(nameof(IsBasqaTaksitGorunur));
+            OnPropertyChanged(nameof(TaksitSecimiGorunur));
+
+            if (value is null)
+            {
+                SecilmisTaksitNo = 0;
+                BasqaTaksit = false;
+                TaksitSecimleri.Clear();
+            }
+            else if (BasqaTaksit)
+            {
+                // ☑ rejim açıqdırsa → yeni kreditin taksitləri yüklənir ✓
+                TaksitSecimleriniYukle();
+            }
 
             if (value is not null)
             {
@@ -1538,6 +1790,18 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(IsTransferOlunmaq));
             OnPropertyChanged(nameof(IsBarter));
             OnPropertyChanged(nameof(BarterTransferIzahi));
+
+            // ================================================================
+            //  📅 v6.2.19 — «ƏVVƏLCƏDƏN ÖDƏNİŞ» YALNIZ «GƏLİR» ÜÇÜNDÜR ✓✓✓
+            //  Növ dəyişəndə checkbox gizlədilir ✓ və söndürülür ✓
+            // ================================================================
+            OnPropertyChanged(nameof(IsBasqaTaksitGorunur));
+            OnPropertyChanged(nameof(TaksitSecimiGorunur));
+
+            if (value != "Gəlir" && BasqaTaksit)
+            {
+                BasqaTaksit = false;      // → OnBasqaTaksitChanged də siyahını təmizləyir ✓
+            }
 
             // ================================================================
             //  📤 «TRANSFER OLUNMAQ» → MƏBLƏĞ AVTOMATİK = MAŞININ NİSYƏ QİYMƏTİ ✓
