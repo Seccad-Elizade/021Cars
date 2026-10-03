@@ -1160,6 +1160,29 @@ namespace EnterpriseAeroStudio.ViewModels
             ApplyTransactionFilter();
 
             // ================================================================
+            //  🔢 ★ v6.2.22 — KÖK PAYI YENİDƏN HESABLANIR ★✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ:
+            //    «Birinci GƏLİR məbləğini yazanda (məs. 654 ₼) tərəfdaş
+            //     bölgüsündə BUTÖV bölünür ✗ (kök çıxılmır ✗).
+            //     Sonra maşını seçəndə də köhnə qalır ✗. Amma ƏVVƏL maşını
+            //     seçib SONRA məbləği yazanda DÜZGÜN işləyir ✓.»
+            // ----------------------------------------------------------------
+            //  ⚠ ƏSL SƏBƏB: məbləğ YAZILANDA `SelectedCredit` hələ NULL idi ✗
+            //    → `BolguBazasiHesabla` məbləği OLDUĞU KİMİ qaytarırdı ✗
+            //    (kök çıxılmırdı ✗) → bütün 654 ₼ bölünürdü ✗✓✓
+            //    Sonra kredit seçiləndə isə YENİDƏN HESABLANMIRDI ✗✓✓
+            //  ✅ İNDİ: kredit seçiləndə/kəmi dəyişəndə baza AVTOMATİK
+            //    yenidən hesablanır ✓ → kök çıxılır ✓ → qalan hissə bölünür ✓✓✓
+            // ================================================================
+            if (value is not null && BolguTetbiqOlunub && Mebleg > 0m && Nov == "Gəlir")
+            {
+                BolguBazasi = BolguBazasiHesabla(Mebleg);
+                BolguHesabla();
+                BolguYenile();
+            }
+
+            // ================================================================
             //  📅 v6.2.19 — Kredit dəyişdikdə «əvvəlcədən ödəniş» SIFIRLANIR ✓✓✓
             //  (köhnə kreditin taksit siyahısı qalmasın ✗)
             // ================================================================
@@ -1801,6 +1824,22 @@ namespace EnterpriseAeroStudio.ViewModels
             if (value != "Gəlir" && BasqaTaksit)
             {
                 BasqaTaksit = false;      // → OnBasqaTaksitChanged də siyahını təmizləyir ✓
+            }
+
+            // ================================================================
+            //  🔢 ★ v6.2.22 — «GƏLİR» SEÇİLƏNDƏ KÖK PAYI YENİDƏN HESABLANIR ★✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ Əgər istifadəçi ƏVVƏL məbləği ✗ (və ya krediti ✗) yazıb,
+            //    SONRA «Gəlir» növünü seçibsə → baza köhnə (kök çıxılmamış ✗)
+            //    qalırdı ✗✓✓ → BÜTÜN məbləğ bölünürdü ✗ (istifadəçi şikayəti ✓)
+            //  ✅ İNDİ: növ də seçiləndə baza avtomatik düzəldilir ✓ →
+            //    ödənişdən KÖK çıxılır ✓ → yalnız FAİZ bölünür ✓✓✓
+            // ================================================================
+            if (value == "Gəlir" && BolguTetbiqOlunub && Mebleg > 0m && SelectedCredit is not null)
+            {
+                BolguBazasi = BolguBazasiHesabla(Mebleg);
+                BolguHesabla();
+                BolguYenile();
             }
 
             // ================================================================

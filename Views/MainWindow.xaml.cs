@@ -287,6 +287,22 @@ namespace EnterpriseAeroStudio.Views
                         _secimler.Add((lv, Açar(lv.SelectedItem)));
                     }
                 }
+
+                // ================================================================
+                //  🔽 ★ v6.2.22 — COMBOBOX (BAR) SEÇİMLƏRİ DƏ SAXLANILIR ★✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «Sinxron olanda seçdiyimiz xanadan
+                //    (bar) seçilmiş maşın/kredit SİLİNİR» ✗✓✓
+                //  ⚠ ƏVVƏL yalnız DataGrid + ListView saxlanılırdı ✗ →
+                //    ComboBox-lar (kredit seçimi ✗ maşın seçimi ✗) unudulmuşdu ✗✓✓
+                // ================================================================
+                foreach (var cb in VizualUşaqlar<System.Windows.Controls.ComboBox>(this))
+                {
+                    if (cb.SelectedItem is not null)
+                    {
+                        _secimler.Add((cb, Açar(cb.SelectedItem)));
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -312,6 +328,12 @@ namespace EnterpriseAeroStudio.Views
                     {
                         var yeni = Tap(lv.ItemsSource, açar);
                         if (yeni is not null) lv.SelectedItem = yeni;
+                    }
+                    // 🔽 v6.2.22 — ComboBox (bar) seçimi də bərpa olunur ✓✓✓
+                    else if (sahə is System.Windows.Controls.ComboBox cb)
+                    {
+                        var yeni = Tap(cb.ItemsSource, açar);
+                        if (yeni is not null) cb.SelectedItem = yeni;
                     }
                 }
             }
