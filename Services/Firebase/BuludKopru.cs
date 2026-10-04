@@ -1463,12 +1463,11 @@ namespace Cas0201.Firebase
                     //    iz cədvəlində köhnə/təmizlənməmiş qeyd varsa ✗ (məs.
                     //    əvvəlki uğursuz yazmadan sonra ✓) → `uzaqVaxt` köhnə
                     //    olduğu üçün qeyd HEÇ VAXT TƏTBİQ OLUNMURDU ✗✓✓
-                    //  ✅ İNDİ:
+                    //  ✅ İNDİ (★ v6.2.24 ★):
                     //    • YERLİ QEYD VARSA → LWW (ən təzə üstün gəlir ✓)
-                    //    • YERLİ QEYD YOXDURSA → **MÜTLƏQ ƏLAVƏ OLUNUR** ✓✓✓
-                    //    • ⚠ İSTİSNA: «Silinib = true» izi varsa və bulud
-                    //      DAHA KÖHNƏDİRSƏ → geri qaytarılmır ✗✓✓
-                    //      (biz onu SİLMİŞİK ✗ → ölümdən sonra dirilmir ✗✓✓)
+                    //    • YERLİ QEYD YOX + İZ VAR + BULUD TƏZƏ DEYİL → SİLİNİB ✗
+                    //      → geri QAYTARILMIR ✗✓✓
+                    //    • İZ YOXDURSA (başqa kompüterdə yaranıb ✓) → ƏLAVƏ OLUNUR ✓
                     // ================================================================
                     var yerliMövcud = yerli.Any(x => açarAl(x) == id);
 
@@ -1477,10 +1476,28 @@ namespace Cas0201.Firebase
                         // ⚖️ Yerli daha təzədirsə → toxunmuruq ✗✓✓
                         if (uzaqVaxt <= (iz?.SonDeyisiklik ?? DateTime.MinValue)) continue;
                     }
-                    else if (iz?.Silinib == true && uzaqVaxt <= iz.SonDeyisiklik)
+                    else if (iz is not null && uzaqVaxt <= iz.SonDeyisiklik)
                     {
-                        // 🗑️ Biz bu qeydi SİLMİŞİK ✗ → buluddaki KÖHNƏ nüsxə
-                        // geri qaytarılmır ✗✓✓ (yalnız DAHA TƏZƏ varsa qaytarılır ✓)
+                        // ============================================================
+                        //  🗑️ ★★ v6.2.24 — SİLİNMƏNİN GERİ QAYITMASININ QARŞISI ★★
+                        // ------------------------------------------------------------
+                        //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ (v6.2.23-də də DAVAM EDİRDİ ✗):
+                        //    «ödənişləri silirəm ✗ → proqramdan çıxıb girəndən sonra /
+                        //     sinxron olandan sonra onlar YENİDƏN GƏLİR ✗ — hələ də
+                        //     gəlir-gəlir ✗.»  (☁️ bulud nüsxəsi geri DIRİLİRDİ ✗✓✓)
+                        // ------------------------------------------------------------
+                        //  ⚠ ƏSL SƏBƏB: yerli qeyd silindikdə «bulud_izleme»
+                        //    cədvəlində hələ «Silinib = false» qalırdı ✗ (tombstone
+                        //    YALNIZ növbəti GÖNDƏRMƏ dövründə yazılır ✗) → isə ÇƏKİLİŞ
+                        //    (pull) həmin göndərmədən ƏVVƏL işləyirdi ✗ → köhnə bulud
+                        //    nüsxəsi yerli bazaya YENİDƏN əlavə olunurdu ✗✓✓
+                        //  ✅ HALBUKİ: «bulud_izleme»-də iz VARSA → qeyd əvvəl
+                        //    BİZDƏ OLUB ✓ → yerli yoxdursa deməli SİLİNMİŞDİR ✗ →
+                        //    bulud TƏZƏ DEYİLSƏ (uzaqVaxt ≤ son dəyişiklik ✗)
+                        //    geri QAYTARILMIR ✗✓✓
+                        //  ✅ BULUD DAHA TƏZƏDIRSƏ (uzaqVaxt > iz) → bərpa olunur ✓
+                        //  ✅ İZ YOXDURSA (başqa kompüterdə yaranıb ✓) → əlavə olunur ✓✓✓
+                        // ============================================================
                         continue;
                     }
 
