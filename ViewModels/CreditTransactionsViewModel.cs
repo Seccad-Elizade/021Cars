@@ -489,7 +489,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 return credit is null || Mebleg <= 0m
                     ? 0m
-                    : credit.KokPayi(Mebleg, OdenilmisKokHesabla());
+                    : credit.OdenisKokPayi(Mebleg, OdenilmisKokHesabla());
             }
         }
 
@@ -520,7 +520,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     return $"✅ KÖK (əsas borc) TAM ÖDƏNİLİB ✓ — bu ödənişin HAMISI mənfəətdir ✓ ({Mebleg:N2} ₼ bölünür ✓)";
                 }
 
-                var kokPayi = credit.KokPayi(Mebleg, ödenilmis);
+                var kokPayi = credit.OdenisKokPayi(Mebleg, ödenilmis);
 
                 return $"🔢 {Mebleg:N2} ₼ − KÖK payı {kokPayi:N2} ₼ = " +
                        $"BÖLÜNƏN {BolguBazasi:N2} ₼  ·  qalıq kök {qalan:N2} ₼";
@@ -1533,12 +1533,17 @@ namespace EnterpriseAeroStudio.ViewModels
                 return mebleg;
             }
 
-            // 🔢 KÖK payı = ödəniş × (KÖK ÷ kreditin qiyməti) ✓ — QALAN borcla məhdud ✓
-            var kokPayi = credit.KokPayi(mebleg, OdenilmisKokHesabla());
-
-            var baza = Math.Round(mebleg - kokPayi, 2);
-
-            return baza > 0m ? baza : 0m;
+            // ================================================================
+            //  ✅ ★ v6.2.24 — MƏNFƏƏT PLAN (AYLIQ) İLƏ MƏHDUDLAŞDIRILIR ★
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏLKİ SƏHV ✗✓✓: baza = mebleg − (mebleg × KÖK/qiymət) ✗ →
+            //    müştəri aylıqdan ARTIQ ödəyəndə (654 yerinə 815 ₼ ✗) mənfəət
+            //    AVTOMATİK ARTIRDI ✗ → tərəfdaşlar daha çox pay alırdılar ✗
+            //  ✅ İNDİ: mənfəət YALNIZ plan (aylıq taksit) hissəsindən hesablanır ✓
+            //    → plandan artıq ödəniş TAMAMİLƏ kökə (mayaya) gedir ✓✓✓
+            //    (654 ₼ → mənfəət 327 ₼ · 815 ₼ → mənfəət YENƏ 327 ₼ ✓✓✓)
+            // ================================================================
+            return credit.OdenisMenfeetBazasi(mebleg, OdenilmisKokHesabla());
         }
 
         /// <summary>
@@ -1569,7 +1574,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
             foreach (var t in ödənişlər)
             {
-                cem += credit.KokPayi(t.Mebleg, cem);
+                cem += credit.OdenisKokPayi(t.Mebleg, cem);
             }
 
             return Math.Round(cem, 2);

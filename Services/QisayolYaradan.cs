@@ -32,6 +32,79 @@ namespace Cas0201.Setup
     /// </summary>
     internal static class QisayolYaradan
     {
+        // ====================================================================
+        //  📛 ★ v6.2.24 — VAHİD QISAYOL ADI + KÖHNƏ ADLARIN TƏMİZLƏNMƏSİ ★
+        // --------------------------------------------------------------------
+        //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «hər güncəlləmədə masaüstünə YENİ proqram
+        //    gəlir ✗ — 2-3 ədəd olurlar ✗.»
+        //  ⚠ ƏSL SƏBƏB: quraşdırıcı «021Cars — Avtomobil Parkı.lnk» adı ilə
+        //    HƏM istifadəçi, HƏM ortaq masaüstünə yazırdı ✗ (2 ikon ✗), proqram
+        //    isə «021Cars.lnk» adı ilə 3-cü ikonu yaradırdı ✗✓✓
+        //  ✅ İNDİ: HAMI yerdə EYNİ ad ✓ («021Cars.lnk» ✓) · masaüstünə YALNIZ
+        //    BİR yerdə yazılır ✓ · köhnə adlar AVTOMATİK TƏMİZLƏNİR ✓✓✓
+        // ====================================================================
+
+        /// <summary>📛 Qısayolun BAZA adı (uzantısız ✓) — HAMI yerdə EYNİ ✓✓✓</summary>
+        public const string Ad = "021Cars";
+
+        /// <summary>📛 Cari qısayol faylının tam adı ✓</summary>
+        public const string FaylAdi = "021Cars.lnk";
+
+        /// <summary>🗑️ Köhnə/legacy qısayol fayl adları — TƏMİZLƏNİR ✓✓✓</summary>
+        private static readonly string[] KöhnəFayllar =
+        {
+            "021Cars.lnk",
+            "021Cars — Avtomobil Parkı.lnk",
+            "021Cars — Avtomobil Parkı — SİL.lnk",
+            "021Cars — SİL.lnk",
+            "Autocode.lnk"
+        };
+
+        /// <summary>
+        /// 🧹 <b>Verilmiş qovluqdakı KÖHNƏ/DUPLİKAT qısayolları SİLİR</b> ✓✓✓
+        /// <para>Masaüstündə/başlat menyusunda «2-3 proqram» yığılmasının qarşısı ✓✓✓</para>
+        /// <para>🛡️ Heç bir halda istisna atılmır ✗</para>
+        /// </summary>
+        /// <param name="qovluq">Təmizlənəcək qovluq ✓</param>
+        /// <param name="cariAdiDaSil">
+        /// <c>true</c> → cari ad («021Cars.lnk») DA silinir ✓ (sonra bir dənə
+        /// yenidən yaradılacaq ✓) · <c>false</c> → yalnız KÖHNƏ adlar ✓
+        /// </param>
+        public static void KöhnələriTemizle(string qovluq, bool cariAdiDaSil = false)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(qovluq) || !System.IO.Directory.Exists(qovluq))
+                {
+                    return;
+                }
+
+                foreach (var ad in KöhnəFayllar)
+                {
+                    if (!cariAdiDaSil
+                        && string.Equals(ad, FaylAdi, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;   // ✔ cari ad qorunur ✓ → dublikat yaranmır ✗✓✓
+                    }
+
+                    try
+                    {
+                        var yol = System.IO.Path.Combine(qovluq, ad);
+
+                        if (System.IO.File.Exists(yol))
+                        {
+                            System.IO.File.Delete(yol);
+                        }
+                    }
+                    catch
+                    {
+                        // 🔒 kilidli ola bilər ✗ → növbəti dövrdə yenidən cəhd ✓
+                    }
+                }
+            }
+            catch { }
+        }
+
         // ---- 🧩 COM interfeysləri (erkən bağlama ✓ trim-safe ✓✓✓) ----
 
         [ComImport, Guid("00021401-0000-0000-C000-000000000046")]

@@ -154,41 +154,10 @@ namespace Cas0201.Setup
                     }
                 }
 
-                // 🔗 Qısayollar ✓ (v6.2.20 — HƏM istifadəçinin, HƏM ortaq ✓✓✓)
-                try
-                {
-                    File.Delete(Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                        AppAdi + ".lnk"));
-                }
-                catch { }
-
-                try
-                {
-                    File.Delete(Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-                        AppAdi + ".lnk"));
-                }
-                catch { }
-
-                try
-                {
-                    var p = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
-
-                    File.Delete(Path.Combine(p, AppAdi + ".lnk"));
-                    File.Delete(Path.Combine(p, AppAdi + " — SİL.lnk"));
-                }
-                catch { }
-
-                try
-                {
-                    var p = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-
-                    File.Delete(Path.Combine(p, AppAdi + ".lnk"));
-                    File.Delete(Path.Combine(p, AppAdi + " — SİL.lnk"));
-                }
-                catch { }
+                // 🔗 ★ v6.2.24 — BÜTÜN qısayollar TƏMİZLƏNİR ✓✓✓
+                //    (hər iki masaüstü + hər iki başlat menyusu ✓ — köhnə
+                //     «021Cars — Avtomobil Parkı» adları DA daxil ✓✓✓)
+                QisayollariTemizle();
 
                 // 📋 Reyestr ✓
                 try { Registry.LocalMachine.DeleteSubKeyTree(RegYol, throwOnMissingSubKey: false); } catch { }
@@ -495,31 +464,18 @@ namespace Cas0201.Setup
                 Zolaq.Value = 95;
                 Yaz("🔗 Qısayollar yenilənir…");
 
-                var proqramlar = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
-
-                var istifadeciProqramlar =
-                    Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-
                 // ================================================================
-                //  🖥️ MASAÜSTÜ + 📌 BAŞLAT MENYUSU — HƏR İKİ YERƏ ✓✓✓ (v6.2.20)
-                //  ⚠ ƏVVƏL YALNIZ «ORTAQ» yerlərə yazılırdı ✗ → admin olmayanda
-                //    qısayol HEÇ YARANMIRDI ✗✓✓ (istifadəçi şikayəti ✓)
+                //  🧹 ★ v6.2.24 — QISAYOLLAR: KÖHNƏLƏR SİLİNİR + YALNIZ BİR dənə ★
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «hər güncəlləmədə masaüstünə YENİ proqram
+                //    gəlir ✗ — 2-3 ədəd olurlar ✗.»
+                //  ✅ İNDİ: hər güncəlləmədə köhnə/duplikat qısayollar SİLİNİR ✓ →
+                //    masaüstündə YALNIZ BİR «021Cars» qısayolu qalır ✓✓✓
                 // ================================================================
-                Qisayol(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                    AppAdi, exe, _hedef);
+                QisayollariTemizle();
 
-                Qisayol(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-                    AppAdi, exe, _hedef);
-
-                Qisayol(istifadeciProqramlar, AppAdi, exe, _hedef);
-                Qisayol(proqramlar, AppAdi, exe, _hedef);
-
-                Qisayol(istifadeciProqramlar, AppAdi + " — SİL",
-                    Path.Combine(_hedef, "Uninstaller.exe"), _hedef);
-
-                Qisayol(proqramlar, AppAdi + " — SİL",
-                    Path.Combine(_hedef, "Uninstaller.exe"), _hedef);
+                MasaustuQisayoluYarat(exe, _hedef);
+                BaslatMenyusuQisayollariniYarat(_hedef, exe);
 
                 // ────────────────────────────────────────────────────────────
                 //  ④ PROQRAMI YENİDƏN AÇ ✓✓✓
@@ -630,6 +586,78 @@ namespace Cas0201.Setup
                     Path.Combine(qovluq, ad + ".lnk"), hedef, işQovluğu, AppAdi);
             }
             catch { return false; }
+        }
+
+        // ====================================================================
+        //  🧹 ★ v6.2.24 — QISAYOL DUBLİKATLARININ QARŞISI ★✓✓✓
+        // --------------------------------------------------------------------
+        //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «hər güncəlləmədə masaüstünə YENİ proqram
+        //    gəlir ✗ — 2-3 ədəd olurlar ✗.»
+        //  ⚠ ƏSL SƏBƏB: quraşdırıcı «021Cars — Avtomobil Parkı.lnk» adı ilə HƏM
+        //    istifadəçi, HƏM ortaq masaüstünə yazırdı ✗ (2 ikon ✗), proqram isə
+        //    «021Cars.lnk» adı ilə 3-cü ikonu yaradırdı ✗✓✓
+        //  ✅ İNDİ: hamı yerdə EYNİ ad ✓ · masaüstünə YALNIZ BİR yerdə yazılır ✓ ·
+        //    köhnə adlar AVTOMATİK TƏMİZLƏNİR ✓✓✓
+        // ====================================================================
+
+        /// <summary>📂 Qısayol yazıla bilən 4 qovluq ✓ (2 masaüstü + 2 başlat menyusu ✓)</summary>
+        private static IEnumerable<string> QisayolQovluqlari()
+        {
+            yield return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            yield return Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+            yield return Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+            yield return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
+        }
+
+        /// <summary>🧹 <b>BÜTÜN köhnə/duplikat qısayolları SİLİR</b> ✓✓✓ (4 qovluq ✓)</summary>
+        private static void QisayollariTemizle()
+        {
+            foreach (var qovluq in QisayolQovluqlari())
+            {
+                QisayolYaradan.KöhnələriTemizle(qovluq, cariAdiDaSil: true);
+            }
+        }
+
+        /// <summary>
+        /// 🖥️ <b>Masaüstü qısayolu — YALNIZ BİR yerdə</b> ✓✓✓
+        /// <para>
+        /// ✅ ƏVVƏLCƏ ORTAQ (Public) masaüstü ✓ — installer admin olduğu üçün
+        /// həmişə işləyir ✓ və <b>bütün istifadəçilərə</b> görünür ✓<br/>
+        /// ✅ Alınmasa → istifadəçinin öz masaüstü ✓✓✓
+        /// </para>
+        /// <para>⚠ HƏR İKİSİNƏ YAZILMIR ✗ — əks halda masaüstündə 2 ikon olur ✗✓✓</para>
+        /// </summary>
+        private static bool MasaustuQisayoluYarat(string exe, string hedef)
+        {
+            var ortaqMasa = Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+            var istifadeciMasa = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
+            var ortaqOk = Qisayol(ortaqMasa, QisayolYaradan.Ad, exe, hedef);
+
+            return ortaqOk
+                || Qisayol(istifadeciMasa, QisayolYaradan.Ad, exe, hedef);
+        }
+
+        /// <summary>
+        /// 📌 <b>Başlat menyusu qısayolları — YALNIZ BİR yerdə</b> ✓✓✓
+        /// (proqram ✓ + «SİL» ✓ — hər biri tək ✓, duplikat yaranmır ✗✓✓)
+        /// </summary>
+        private static void BaslatMenyusuQisayollariniYarat(string hedef, string exe)
+        {
+            var ortaqProqramlar = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
+
+            var istifadeciProqramlar =
+                Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+
+            var silExe = Path.Combine(hedef, "Uninstaller.exe");
+
+            _ = Qisayol(ortaqProqramlar, QisayolYaradan.Ad, exe, hedef)
+                || Qisayol(istifadeciProqramlar, QisayolYaradan.Ad, exe, hedef);
+
+            _ = Qisayol(ortaqProqramlar, QisayolYaradan.Ad + " — SİL", silExe, hedef)
+                || Qisayol(istifadeciProqramlar, QisayolYaradan.Ad + " — SİL", silExe, hedef);
         }
 
         /// <summary>📋 Qovluğu (alt qovluqlarla) kopyalayır ✓</summary>
@@ -811,53 +839,29 @@ namespace Cas0201.Setup
             var exe = Path.Combine(_hedef, ExeAdi);
 
             // ================================================================
-            //  🖥️ MASAÜSTÜ QISAYOLU ✓✓✓ (v6.2.20 — ★ DÜZƏLİŞ ★)
+            //  🧹 ★ v6.2.24 — KÖHNƏ/DUPLİKAT QISAYOLLAR ƏVVƏLCƏ TƏMİZLƏNİR ★✓✓✓
             // ----------------------------------------------------------------
-            //  ⚠ ƏVVƏL YALNIZ «ORTAQ» (Public) masaüstünə yazılırdı ✗ →
-            //    quraşdırma ADMIN olmadan işləyəndə orada YAZMAQ MÜMKÜN DEYİL ✗
-            //    → qısayol HEÇ VAXT YARANMIRDI ✗✓✓
-            //    (istifadəçi şikayəti: «masaüstünə qısayol qoymur» ✗)
-            //  ✅ İNDİ: HƏR İKİSİNƏ yazılır ✓ → hansı işləsə UĞUR ✓✓✓
-            //    ① istifadəçinin ÖZ masaüstü ✓ (admin LAZIM DEYİL ✗✓✓)
-            //    ② ortaq (Public) masaüstü ✓ (admin olduqda ✓ — bütün istifadəçilər ✓)
+            //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «hər güncəlləmədə masaüstünə YENİ proqram
+            //    gəlir ✗ — 2-3 ədəd olurlar ✗.»
+            //  ✅ İNDİ: köhnə adlı qısayollar (hər iki masaüstündən + başlat
+            //    menyusundan) SİLİNİR ✓ → sonra YALNIZ BİR dənə yaradılır ✓✓✓
             // ================================================================
+            QisayollariTemizle();
+
             if (MasaustuQutusu.IsChecked == true)
             {
-                var istifadeciMasa = Environment.GetFolderPath(
-                    Environment.SpecialFolder.DesktopDirectory);
+                var ok = MasaustuQisayoluYarat(exe, _hedef);
 
-                var ortaqMasa = Environment.GetFolderPath(
-                    Environment.SpecialFolder.CommonDesktopDirectory);
-
-                var istifadeciOk = Qisayol(istifadeciMasa, AppAdi, exe, _hedef);
-                var ortaqOk = Qisayol(ortaqMasa, AppAdi, exe, _hedef);
-
-                Yaz(istifadeciOk || ortaqOk
-                    ? "🖥️ Masaüstü qısayolu yaradıldı ✓  (" +
-                      (istifadeciOk ? "istifadəçi masaüstü ✓" : "") +
-                      (istifadeciOk && ortaqOk ? " · " : "") +
-                      (ortaqOk ? "ortaq masaüstü ✓" : "") + ")"
+                Yaz(ok
+                    ? "🖥️ Masaüstü qısayolu yaradıldı ✓ (TƏK «" + QisayolYaradan.Ad + "» ✓)"
                     : "⚠️ Masaüstü qısayolu yaradıla bilmədi ✗ — narahat olmayın: " +
                       "proqram ilk açılışda ÖZÜ yaradacaq ✓✓✓");
             }
 
             // ================================================================
-            //  📌 BAŞLAT MENYUSU — HƏM İSTİFADƏÇİNİN, HƏM ORTAQ ✓ (v6.2.20)
+            //  📌 BAŞLAT MENYUSU — YALNIZ BİR yerdə ✓ (duplikat yaranmır ✗✓✓)
             // ================================================================
-            var istifadeciProqramlar = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.Programs));
-
-            var ortaqProqramlar = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs");
-
-            Qisayol(istifadeciProqramlar, AppAdi, exe, _hedef);
-            Qisayol(ortaqProqramlar, AppAdi, exe, _hedef);
-
-            // 🗑️ SİL qısayolları ✓ (hər iki yerdə ✓)
-            var silExe = Path.Combine(_hedef, "Uninstaller.exe");
-
-            Qisayol(istifadeciProqramlar, AppAdi + " — SİL", silExe, _hedef);
-            Qisayol(ortaqProqramlar, AppAdi + " — SİL", silExe, _hedef);
+            BaslatMenyusuQisayollariniYarat(_hedef, exe);
 
             Zolaq.Value = 85;
             Yaz("🗑️ Uninstaller yaradılır…");

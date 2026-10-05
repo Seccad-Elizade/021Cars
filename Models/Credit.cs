@@ -209,6 +209,94 @@ namespace EnterpriseAeroStudio.Models
         }
 
         /// <summary>
+        /// 🔢 <b>NƏZƏRDƏ TUTULAN (PLAN) AYLIQ ÖDƏNİŞ</b> ✓✓✓ (v6.2.24)
+        /// <para>
+        /// <see cref="AylıqOdenis"/> varsa o ✓ · yoxsa <c>KreditQiymeti ÷ Müddət</c> ✓
+        /// · o da yoxdursa <paramref name="ehtiyat"/> qaytarılır ✓
+        /// </para>
+        /// </summary>
+        public decimal PlanAylıqOdenis(decimal ehtiyat = 0m)
+        {
+            if (AylıqOdenis > 0m) return AylıqOdenis;
+
+            return MuddetAy > 0 && KreditQiymeti > 0m
+                ? Math.Round(KreditQiymeti / MuddetAy, 2)
+                : ehtiyat;
+        }
+
+        /// <summary>
+        /// 💰 <b>ÖDƏNİŞƏ DÜŞƏN KÖK PAYI</b> ✓✓✓ (★ v6.2.24 ★)
+        /// <para>
+        /// ⚠ ƏVVƏLKİ DAVRANIŞ (səhv ✗✓✓): kök payı = <c>ödəniş × (KÖK ÷ qiymət)</c> ✗ →
+        /// müştəri aylıqdan <b>ARTIQ</b> ödəyəndə (məs. 654 yerinə 815 ₼ ✗) kök payı
+        /// və deməli <b>mənfəət də AVTOMATİK ARTIRDI</b> ✗ → tərəfdaşlar daha çox
+        /// pay alırdılar ✗✓✓ (istifadəçi şikayəti ✓)
+        /// </para>
+        /// <para>
+        /// ✅ YENİ MƏNTİQ:
+        /// <list type="bullet">
+        ///   <item>Yalnız <b>PLAN (aylıq taksit)</b> hissəsindən kök payı çıxılır ✓</item>
+        ///   <item><b>PLANDAN ARTIQ</b> ödəniş TAMAMİLƏ kökə (mayaya) gedir ✓✓✓</item>
+        /// </list>
+        /// </para>
+        /// <example>
+        /// Aylıq 654 ₼ · KÖK/qiymət nisbəti 0,5 (kök 9 810 ₼ · qiymət 19 620 ₼)
+        /// <code>
+        /// Ödəniş 654 ₼ → kök 327 ₼ · mənfəət 327 ₼  ✓ (bölünən 327 ₼ ✓)
+        /// Ödəniş 815 ₼ → kök 327+161=488 ₼ · mənfəət 327 ₼ ✓✓✓
+        ///                (161 ₼ ARTIQ — TAMAMILƏ mayaya ✓ — mənfəət ARTMIN kəsilir ✗)
+        /// </code>
+        /// </example>
+        /// <param name="odenis">Faktiki ödəniş (₼) ✓</param>
+        /// <param name="odenilmisKok">Artıq ödənilmiş kök (₼) ✓ — qalan borcla məhdudiyyət üçün ✓</param>
+        /// </summary>
+        public decimal OdenisKokPayi(decimal odenis, decimal odenilmisKok = 0m)
+        {
+            if (odenis <= 0m || KreditQiymeti <= 0m)
+            {
+                return 0m;
+            }
+
+            var plan = PlanAylıqOdenis(ehtiyat: odenis);
+
+            // 🔢 Plan hissəsinin kök payı (qalan borcla MƏHDUD ✓)
+            var planKök = KokPayi(Math.Min(odenis, plan), odenilmisKok);
+
+            // 💰 Plandan ARTIQ hissə — TAMAMİLƏ kökə (mayaya) ✓✓✓
+            var artıq = Math.Max(0m, odenis - plan);
+
+            var cəm = Math.Round(planKök + artıq, 2);
+
+            // Qalan əsas borcdan ARTQ kök yazıla bilməz ✗
+            var qalan = Math.Max(0m, Kreditlesdirilen - Math.Max(0m, odenilmisKok));
+
+            return Math.Min(cəm, Math.Round(qalan, 2));
+        }
+
+        /// <summary>
+        /// 💰 <b>BÖLGÜ BAZASI (MƏNFƏƏT)</b> ✓✓✓ (★ v6.2.24 ★) =
+        /// <c>ödəniş − kök payı</c> ✓
+        /// <para>
+        /// ⚠ Plandan artıq ödəniş mənfəətə ƏLAVƏ olunmur ✗ — çünki tamamilə
+        /// kökə getdiyi üçün <see cref="OdenisKokPayi"/> onu çıxır ✓✓✓.
+        /// Nəticədə 654 ₼-lik taksitin mənfəəti 815 ₼ ödənildikdə də
+        /// <b>EYNİ</b> qalır ✓ (327 ₼ → 163,5 ₼ və 163,5 ₼ ✓✓✓)
+        /// </para>
+        /// </summary>
+        public decimal OdenisMenfeetBazasi(decimal odenis, decimal odenilmisKok = 0m)
+        {
+            if (odenis <= 0m)
+            {
+                return 0m;
+            }
+
+            var kök = OdenisKokPayi(odenis, odenilmisKok);
+            var baza = Math.Round(odenis - kök, 2);
+
+            return baza > 0m ? baza : 0m;
+        }
+
+        /// <summary>
         /// ✅ <b>ÖDƏNİLMİŞ KÖK</b> ✓✓✓ — artıq qaytarılmış əsas borc (₼)
         /// <para>
         /// ⚠ Bazada SAXLANILMIR ✗ — UI (ViewModel) hesablayıb doldurur ✓

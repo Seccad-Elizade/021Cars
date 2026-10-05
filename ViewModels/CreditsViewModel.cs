@@ -765,7 +765,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
             foreach (var t in payments.OrderBy(t => t.Tarix).ThenBy(t => t.Id))
             {
-                cem += credit.KokPayi(t.Mebleg, cem);
+                cem += credit.OdenisKokPayi(t.Mebleg, cem);
             }
 
             return Math.Round(cem, 2);

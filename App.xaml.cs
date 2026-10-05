@@ -108,12 +108,27 @@ namespace EnterpriseAeroStudio
                 var ortaqMasa = Environment.GetFolderPath(
                     Environment.SpecialFolder.CommonDesktopDirectory);
 
-                var istifadeciLnk = Path.Combine(istifadeciMasa, "021Cars.lnk");
-                var ortaqLnk = Path.Combine(ortaqMasa, "021Cars.lnk");
+                // ================================================================
+                //  🧹 ★ v6.2.24 — KÖHNƏ/DUPLİKAT QISAYOLLAR TƏMİZLƏNİR ★✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «hər güncəlləmədə masaüstünə YENİ proqram
+                //    gəlir ✗ — 2-3 ədəd olurlar ✗.»
+                //  ✅ ƏVVƏLCƏ köhnə adlı («021Cars — Avtomobil Parkı.lnk» ✗) qısayollar
+                //    HƏR İKİ masaüstündən SİLİNİR ✓ → sonra YALNIZ BİR dənə qalır ✓✓✓
+                //  (⚠ cari «021Cars.lnk» SİLİNMİR ✗ — varsa toxunulmur ✓)
+                // ================================================================
+                Cas0201.Setup.QisayolYaradan.KöhnələriTemizle(istifadeciMasa);
+                Cas0201.Setup.QisayolYaradan.KöhnələriTemizle(ortaqMasa);
+
+                var istifadeciLnk = Path.Combine(
+                    istifadeciMasa, Cas0201.Setup.QisayolYaradan.FaylAdi);
+
+                var ortaqLnk = Path.Combine(
+                    ortaqMasa, Cas0201.Setup.QisayolYaradan.FaylAdi);
 
                 if (File.Exists(istifadeciLnk) || File.Exists(ortaqLnk))
                 {
-                    return;   // ✔ artıq var ✓ → toxunulmur ✗✓✓
+                    return;   // ✔ artıq var ✓ → toxunulmur ✗✓✓ (İKİNCİ yaradılmır ✗)
                 }
 
                 // ③ ƏVVƏLCƏ istifadəçinin ÖZ masaüstünə ✓ (admin lazım DEYİL ✓)
@@ -143,7 +158,7 @@ namespace EnterpriseAeroStudio
             //    → `dynamic` / `WScript.Shell` YOX ✗ (trimmed publish-də SİNİRDI ✗✓✓)
             bool QisayolYaz(string qovluq, string hedefExe, string işQovluğu)
                 => Cas0201.Setup.QisayolYaradan.Yarat(
-                    Path.Combine(qovluq, "021Cars.lnk"),
+                    Path.Combine(qovluq, Cas0201.Setup.QisayolYaradan.FaylAdi),
                     hedefExe,
                     işQovluğu,
                     "021Cars — Avtomobil Parkı");
