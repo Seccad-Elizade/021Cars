@@ -262,11 +262,20 @@ namespace EnterpriseAeroStudio.Services
                 .OrderBy(p => p.Sira)
                 .ToList();
 
-            // ⚠️ GECİKMƏ İSTİSNADIR ✓✓✓ — «ödənilib» işarəsi qoyulanda cərimə
-            //  YARI-YARI (50/50) qalıq tərəfdaşları (Asif & Musa) arasında bölünür ✓
-            //  və bölgü jurnalına yazılır ✓. Pay siyahısı boşdursa (köhnə qeydlər,
-            //  birbaşa «ödənilib» etmə) AVTOMATİK yaradılır ✓.
-            var gecikmeBolunur = transaction.Nov == "Gecikmə" && transaction.Mebleg > 0m;
+            // ================================================================
+            //  ⚠️ GECİKMƏ CƏRİMƏSİ TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓  (v6.2.28)
+            // ----------------------------------------------------------------
+            //  Cərimə pulu YALNIZ «💵 Kassa»ya (GƏLİRƏ) yazılır ✓✓✓
+            //  (bax: <see cref="KassaHesabi"/> — «Gecikmə + Ödənilib» ✓ gəlir sayılır ✓)
+            //
+            //  • Tərəfdaş PAYI YARADILMIR ✗
+            //  • Əvvəl (köhnə versiyalarda) yazılmış 50/50 paylar isə yuxarıda
+            //    BİRBAŞA BAZADAN SİLİNİR ✓ → self-healing ✓✓✓
+            // ================================================================
+            if (string.Equals(transaction.Nov, "Gecikmə", StringComparison.Ordinal))
+            {
+                return;
+            }
 
             // ================================================================
             //  🩺 SELF-HEALING ✓✓✓ — «bölgü TƏTBİQ OLUNUB ✓ amma məbləğlər 0» ✗
@@ -280,7 +289,6 @@ namespace EnterpriseAeroStudio.Services
             //  yenidən hesablanır ✓ (düstur: <see cref="PartnerMath.Distribute"/> ✓)
             // ================================================================
             if (paylar.Count == 0
-                && !gecikmeBolunur
                 && transaction.TerefdasBolguTetbiqOlunub
                 && transaction.BolguBazasi is decimal baza && baza > 0m)
             {
@@ -294,13 +302,7 @@ namespace EnterpriseAeroStudio.Services
                     .ToList();
             }
 
-            if (gecikmeBolunur && paylar.Count == 0)
-            {
-                paylar = BuildDelayShares(transaction.Mebleg);
-            }
-
-            if (!gecikmeBolunur &&
-                (!transaction.TerefdasBolguTetbiqOlunub || paylar.Count == 0))
+            if (!transaction.TerefdasBolguTetbiqOlunub || paylar.Count == 0)
             {
                 return;
             }
@@ -322,50 +324,6 @@ namespace EnterpriseAeroStudio.Services
             }
 
             await _shares.SaveChangesAsync(cancellationToken);
-        }
-
-        /// <summary>
-        /// <b>GECİKMƏ CƏRİMƏSİNİN 50/50 BÖLGÜSÜ</b> ✓ — cərimə qalıq tərəfdaşları
-        /// (Asif &amp; Musa) arasında yarı-yarı bölünür.
-        /// <para>
-        /// Yuvarlaqlaşdırma fərqi <b>sonuncu</b> payçıya verilir ki, cəm dəqiq
-        /// cərimə məbləğinə bərabər olsun ✓.
-        /// </para>
-        /// </summary>
-        private static List<PartnerShare> BuildDelayShares(decimal mebleg)
-        {
-            var netice = new List<PartnerShare>();
-
-            // Yalnız QALIQ PAYÇILARI (Asif & Musa) ✓
-            var qaliglar = PartnerMath
-                .CreateDefaultRows(yalnizQaligPaycilari: true)
-                .Where(r => r.Aktiv)
-                .ToList();
-
-            if (qaliglar.Count == 0 || mebleg <= 0m)
-            {
-                return netice;
-            }
-
-            var pay = Math.Round(mebleg / qaliglar.Count, 2);
-            var sira = 0;
-
-            for (var i = 0; i < qaliglar.Count; i++)
-            {
-                netice.Add(new PartnerShare
-                {
-                    Terefdas = qaliglar[i].Terefdas,
-                    Faiz = 0m,
-                    QaligPayi = true,
-                    Aktiv = true,
-                    Mebleg = i == qaliglar.Count - 1
-                        ? Math.Round(mebleg - (pay * i), 2)
-                        : pay,
-                    Sira = sira++
-                });
-            }
-
-            return netice;
         }
 
         /// <summary>Mövcud əməliyyatı yeniləyir (izlənilən nüsxəyə skalyar sahələr köçürülür).</summary>

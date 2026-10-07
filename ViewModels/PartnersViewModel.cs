@@ -197,9 +197,9 @@ namespace EnterpriseAeroStudio.ViewModels
             MenbeSecimleri.Add("💰 Satış");
             MenbeSecimleri.Add("💳 Kredit");
             MenbeSecimleri.Add("🏷️ Kredit Gəliri");
-            // ⚠️ GECİKMƏ CƏRİMƏSİ — ayrı mənbə ✓✓✓
-            //  (cərimə YARI-YARI Asif & Musa arasında bölünür ✓)
-            MenbeSecimleri.Add("⚠️ Gecikmə cəriməsi");
+            // ⚠️ GECİKMƏ CƏRİMƏSİ SİYAHIDAN ÇIXARILDI ✗✓✓ (v6.2.28)
+            //  Cərimə YALNIZ «💵 Kassa»ya (gəlirə) yazılır ✓ — tərəfdaşlara
+            //  BÖLÜNMÜR ✗ → bölgü jurnalında heç vaxt görünmür ✓✓✓
         }
 
         // ====================================================================

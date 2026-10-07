@@ -92,7 +92,8 @@ namespace EnterpriseAeroStudio.Services
                 {
                     netice.Setirler.Add(
                         $"        ⚖️ cərimələr {kart.CerimeMetni} " +
-                        $"({kart.Setirler.Count(s => s.Nov == "⚖️ Cərimə")} qeyd)");
+                        $"({kart.Setirler.Count(s => s.Nov == "⚖️ Cərimə")} qeyd) " +
+                        "→ 💵 KASSA-ya yazılır ✓ (tərəfdaşlara BÖLÜNMÜR ✗)");
                 }
 
                 if (kart.MohletCemi > 0m)
@@ -1520,51 +1521,6 @@ namespace EnterpriseAeroStudio.Services
         }
 
         /// <summary>
-        /// ⚖️ Cərimənin tərəfdaşlar arasında paylanması (qalıq payçıları arasında
-        /// yarı-yarıya ✓ — tətbiqin <c>CreditService</c> davranışı ilə EYNİ ✓✓✓).
-        /// </summary>
-        private static List<PartnerShare> CerimePaylari(KreditIdxalBloku blok, decimal mebleg)
-        {
-            var hamisi = PayRows(blok);
-
-            foreach (var x in hamisi)
-            {
-                x.Mebleg = 0m;
-            }
-
-            // ⚖️ Cərimə YALNIZ qalıq payçıları arasında bərabər bölünür ✓✓✓
-            var bolunecek = hamisi.Where(p => p.Aktiv && p.QaligPayi).ToList();
-
-            if (bolunecek.Count == 0)
-            {
-                bolunecek = hamisi.Where(p => p.Aktiv).ToList();
-            }
-
-            if (bolunecek.Count == 0)
-            {
-                bolunecek = hamisi;
-            }
-
-            if (bolunecek.Count == 0 || mebleg <= 0m)
-            {
-                return hamisi;
-            }
-
-            var pay = PartnerMath.Money(mebleg / bolunecek.Count);
-            var verilen = 0m;
-
-            for (var i = 0; i < bolunecek.Count; i++)
-            {
-                var son = i == bolunecek.Count - 1;
-
-                bolunecek[i].Mebleg = son ? mebleg - verilen : pay;
-                verilen += bolunecek[i].Mebleg;
-            }
-
-            return hamisi;
-        }
-
-        /// <summary>
         /// ⏳ <b>İLKİN ÖDƏNİŞ MÖHLƏTİNİ «ÖDƏNİLDİ» EDİR</b> ✓✓✓
         /// <para>
         /// Qrafikdəki «İlkin ödəniş möhlətinin ödənilən pulu» sətri → kredit
@@ -1618,9 +1574,6 @@ namespace EnterpriseAeroStudio.Services
 
             foreach (var g in blok.Gecikmeler.OrderBy(x => x.Tarix))
             {
-                var cPaylar = CerimePaylari(blok, g.Mebleg);
-                var ikili = cPaylar.OrderByDescending(p => p.Mebleg).ThenBy(p => p.Sira).Take(2).ToList();
-
                 cerimeCemi += g.Mebleg;
 
                 if (g.Odenilib)
@@ -1628,6 +1581,8 @@ namespace EnterpriseAeroStudio.Services
                     cerimeOdenilmis += g.Mebleg;
                 }
 
+                // ⚠️ CƏRİMƏ TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓ (v6.2.28) —
+                //    pul YALNIZ «💵 Kassa»ya (GƏLİRƏ) yazılır ✓
                 setirler.Add(new KreditIdxalSetir
                 {
                     Kredit = blok.Basliq,
@@ -1635,13 +1590,7 @@ namespace EnterpriseAeroStudio.Services
                     Nov = "⚖️ Cərimə",
                     Tarix = g.Tarix,
                     Odenis = g.Mebleg,
-                    Kar1 = ikili.Count > 0 ? ikili[0].Mebleg : 0m,
-                    Kar2 = ikili.Count > 1 ? ikili[1].Mebleg : 0m,
-                    Kar1Ad = ikili.Count > 0 ? ikili[0].Terefdas : string.Empty,
-                    Kar2Ad = ikili.Count > 1 ? ikili[1].Terefdas : string.Empty,
-                    Bolgu = string.Join(
-                        " · ",
-                        cPaylar.Where(p => p.Mebleg > 0m).Select(p => $"{p.Terefdas} {p.Mebleg:N2} ₼")),
+                    Bolgu = "💵 KASSA (gəlir) — tərəfdaşlara BÖLÜNMÜR ✗",
                     Odenilib = g.Odenilib
                 });
             }

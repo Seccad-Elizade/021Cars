@@ -27,7 +27,9 @@ namespace EnterpriseAeroStudio.Models
             "Satış" => "💰 Satış",
             "Kredit" => "💳 Kredit",
             "Kredit Əlavə Gəlir" => "🏷️ Kredit Gəliri",
-            // ⚠️ GECİKMƏ CƏRİMƏSİ — ayrı mənbə ✓✓✓ (50/50 Asif & Musa)
+            // ⚠️ GECİKMƏ — v6.2.28-dən tərəfdaş jurnalına DAXİL EDİLMİR ✗✓✓
+            //  (cərimə YALNIZ «💵 Kassa»ya yazılır ✓) — bu sətir yalnız köhnə
+            //  qeydlər üçün təhlükəsizlik ehtiyatıdır ✓
             "Gecikmə" => "⚠️ Gecikmə cəriməsi",
             _ => Menbe
         };

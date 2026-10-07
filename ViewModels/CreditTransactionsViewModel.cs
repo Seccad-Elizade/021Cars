@@ -1695,12 +1695,14 @@ namespace EnterpriseAeroStudio.ViewModels
         {
             if (!BolguTetbiqOlunub || Nov != "Gəlir")
             {
-                // ⚠️ GECİKMƏ (cərimə) → HƏMİŞƏ avtomatik bölünür ✓
-                //    Cərimə YARI-YARI (50/50) Asif və Musa (qalıq payçıları)
-                //    arasında bölünür ✓ və bölgü jurnalına yazılır ✓
-                return Nov == "Gecikmə" && Mebleg > 0m
-                    ? GecikmePaylariOlustur()
-                    : new List<PartnerShare>();
+                // ================================================================
+                //  ⚠️ GECİKMƏ (cərimə) → TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓ (v6.2.28)
+                // ----------------------------------------------------------------
+                //  Cərimə pulu YALNIZ «💵 Kassa»ya (gəlirə) yazılır ✓
+                //  (bax: <see cref="KassaHesabi"/> — «Gecikmə + Ödənilib» ✓)
+                //  → Tərəfdaş payı YARADILMIR ✗ · köhnə paylar da TƏMİZLƏNİR ✓
+                // ================================================================
+                return new List<PartnerShare>();
             }
 
             var nəticə = new List<PartnerShare>();
@@ -1712,60 +1714,6 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
             return nəticə;
-        }
-
-        /// <summary>
-        /// <b>⚠️ GECİKMƏ CƏRİMƏSİNİN BÖLGÜSÜ</b> — cərimə <b>YARI-YARI (50/50)</b>
-        /// Asif və Musa (qalıq payçıları) arasında bölünür ✓.
-        /// <para>
-        /// Nümunə: cərimə <b>600,00 ₼</b> → Asif <b>300,00 ₼</b> · Musa <b>300,00 ₼</b> ✓
-        /// </para>
-        /// <para>
-        /// Yuvarlaqlaşdırma fərqi <b>sonuncu</b> payçıya (Musa) verilir ki, cəm
-        /// dəqiq cərimə məbləğinə bərabər olsun ✓.
-        /// </para>
-        /// <para>
-        /// ⚠️ Bu paylar <c>CreditService.SavePartnerSharesAsync</c> vasitəsilə
-        /// <b>bölgü jurnalına</b> yazılır ✓ — «bu pullar burdan gəlib» görünür ✓.
-        /// </para>
-        /// </summary>
-        private List<PartnerShare> GecikmePaylariOlustur()
-        {
-            // Yalnız QALIQ PAYÇILARI (Asif & Musa) aktiv ✓
-            var qaliglar = PartnerMath
-                .CreateDefaultRows(yalnizQaligPaycilari: true)
-                .Where(r => r.Aktiv)
-                .ToList();
-
-            var netice = new List<PartnerShare>();
-
-            if (qaliglar.Count == 0)
-            {
-                return netice;
-            }
-
-            var pay = Math.Round(Mebleg / qaliglar.Count, 2);
-            var sira = 0;
-
-            for (var i = 0; i < qaliglar.Count; i++)
-            {
-                // Sonuncu payçıya yuvarlaqlaşdırma fərqi əlavə olunur ✓
-                var mebleg = i == qaliglar.Count - 1
-                    ? Math.Round(Mebleg - (pay * i), 2)
-                    : pay;
-
-                netice.Add(new PartnerShare
-                {
-                    Terefdas = qaliglar[i].Terefdas,
-                    Faiz = 0m,
-                    QaligPayi = true,
-                    Aktiv = true,
-                    Mebleg = mebleg,
-                    Sira = sira++
-                });
-            }
-
-            return netice;
         }
 
         /// <summary>

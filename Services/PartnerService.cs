@@ -348,19 +348,17 @@ namespace EnterpriseAeroStudio.Services
                 .Where(s => s.SaleId is not null || s.CreditId is not null || s.CreditTransactionId is not null)
                 .Select(s => (Share: s, Info: InfoFor(s)))
                 // ================================================================
-                //  ✅ ÖDƏNİLMƏMİŞ GECİKMƏNİN PAYLARI JURNALA DAXİL EDİLMİR ✓✓✓
-                // ----------------------------------------------------------------
-                //  ☐ «ödənilməyib» → pul GƏLMƏYİB ✗ → tərəfdaşlara bölünəcək
-                //     heç nə yoxdur ✓ → kartda **523** qalır ✓
-                //  ☑ «ödənilib»   → pul GƏLDİ ✓ → paylar sayılır ✓ →
-                //     kartda **573** olur ✓✓✓
+                //  ⚠️ GECİKMƏ CƏRİMƏSİ TƏRƏFDAŞ JURNALINA HEÇ VAXT DAXİL EDİLMİR ✗✓✓
+                // ----------------------------------------------------------------  (v6.2.28)
+                //  Cərimə pulu YALNIZ «💵 Kassa»ya (gəlirə) yazılır ✓✓✓
+                //  (bax: <see cref="KassaHesabi"/> — «Gecikmə + Ödənilib» ✓)
                 //
-                //  (köhnə qeydlərin payları bazada qalmış olsa da ✓ bu filtr
-                //   onları DƏRHAL sıradan çıxarır ✓ — self-healing ✓)
+                //  • Tərəfdaşlara BÖLÜNMÜR ✗ → kartlarda, bölgü jurnalında,
+                //    «Qazanılmış» hesabında GÖRÜNMÜR ✗
+                //  • Köhnə versiyalarda yazılmış 50/50 paylar bazada qalmış olsa da
+                //    bu filtr onları DƏRHAL sıradan çıxarır ✓ → self-healing ✓✓✓
                 // ================================================================
-                .Where(x => !string.Equals(x.Info.Menbe, "Gecikmə", StringComparison.Ordinal)
-                            || x.Share.CreditTransaction is null
-                            || x.Share.CreditTransaction.Odenilib)
+                .Where(x => !string.Equals(x.Info.Menbe, "Gecikmə", StringComparison.Ordinal))
                 .Where(x => x.Info.Tarix.Date >= from.Date && x.Info.Tarix.Date <= to.Date)
                 .ToList();
 

@@ -287,8 +287,8 @@ namespace EnterpriseAeroStudio.Services
         public string OdenisMetni => Pul(Odenis);
         public string MayaMetni => Nov == "Taksit" ? Pul(Maya) : "—";
         public string MenfeetMetni => Nov == "Taksit" ? Pul(Menfeet) : "—";
-        public string Kar1Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) ? "—" : Pul(Kar1);
-        public string Kar2Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) ? "—" : Pul(Kar2);
+        public string Kar1Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar1Ad.Length == 0 ? "—" : Pul(Kar1);
+        public string Kar2Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar2Ad.Length == 0 ? "—" : Pul(Kar2);
         public string Kar3Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar3Ad.Length == 0 ? "—" : Pul(Kar3);
         public string Kar4Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar4Ad.Length == 0 ? "—" : Pul(Kar4);
         public string QaliqKokMetni => Nov == "Taksit" ? Pul(QaliqKok) : "—";
