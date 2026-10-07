@@ -13,32 +13,85 @@ namespace EnterpriseAeroStudio.Services
     /// </summary>
     public static class IdxalMetni
     {
-        /// <summary>📋 Nümunə mətn — «Example» düyməsi bunu input sahəsinə yazır ✓.</summary>
+        /// <summary>📋 Nümunə mətn — «📋 Nümunə» düyməsi bunu input sahəsinə yazır ✓.</summary>
         public const string Numune = """
         [Müqavilə Məlumatları]
-        Maşın: Toyota Camry 2.4
-        Nömrə: 90-VM-252
+        Maşın: Kia Ceed 1.6
+        Nömrə: 90-GA-455
+        İl: 2018
         Müştəri: Rebbil Əliyev
-        Müqavilə No: M-0022
-        Satış Qiyməti: 17500.00
-        İlkin Ödəniş (Beh): 6500.00
-        İlkin Ödəniş Möhləti: 25.04.2024 tarixədək əlavə 2000 AZN ödəniləcək
-        Müddət (Ay): 36
-        Aylıq Ödəniş: 550.00
+        Müqavilə No: M-0021
+        Alış Qiyməti: 13800.00
+        Əlavə Xərclər: 1200.00
+        Ümumi Maya: 15000.00
+        Satış Qiyməti: 16200.00
+        İlkin Ödəniş (Beh): 9000.00
+        İlkin Ödəniş Möhləti: 25.04.2024 tarixədək əlavə 4000 AZN ödəniləcək
+        Müddət (Ay): 12
+        Standart Aylıq Ödəniş: 1000.00
         Ödəniş Gün Aralığı: Hər ayın 5-i ilə 10-u arası
-        Başlama Tarixi: 04.03.2024
+        Başlama Tarixi: 05.03.2024
+        Faiz: 66.67
+        Kök: 7200.00
+        Maya: 15000.00
+        Qeyd: Nümunə kredit — bütün bölmələr və açarlar göstərilmişdir
 
         [Tərəfdaşlar və Pay Bölgüsü]
-        Musa | 50% | KarM
-        Anar | 50% | KarA
+        Zaur | 6% | KarZ
+        Eşqin | 5% | KarA
+        Asiman | 5% | KarA2
+        Asif | qalıq | KarAsif
+        Musa | qalıq | KarMusa
 
         [Gecikmələr və Cərimələr Tarixçəsi]
         # Tarix | Məbləğ (AZN) | Qeyd
-        07.05.2025 | 20.00 | Gecikmə cəriməsi
-        09.06.2025 | 20.00 | Gecikmə cəriməsi
-        11.07.2025 | 40.00 | 12 AZN çatmayan + 28 AZN obyekt
-        08.08.2025 | 40.00 | Gecikmə cəriməsi
-        07.09.2025 | 60.00 | Gecikmə cəriməsi
+        07.05.2025 | 100.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
+        09.06.2025 | 50.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
+        11.07.2025 | 150.00 | 100 AZN obyekt + 50 AZN günə görə
+
+        [Aylıq Ödənişlər və Paylar Qrafiki]
+        # Tarix | Ödəniş | Maya | KarZ | KarA | KarA2 | KarAsif | KarMusa | Qeyd
+        05.03.2024 | 0.00 | 0.00 | 30.00 | 25.00 | 25.00 | 210.00 | 210.00 | İlkin mənfəət bölgüsü
+        25.04.2024 | 4000.00 | 4000.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | İlkin ödəniş möhlətinin ödənilən pulu
+        05.04.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.05.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.06.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.07.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.08.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.09.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.10.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.11.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.12.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.01.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.02.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
+        05.03.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Sonuncu ay
+
+        ---
+        [Müqavilə Məlumatları]
+        Maşın: Hyundai i30
+        Nömrə: 77-KL-936
+        Müştəri: Kamran Həsənov
+        Müqavilə No: M-0936
+        Alış Qiyməti: 12900.00
+        Əlavə Xərclər: 735.00
+        Ümumi Maya: 13635.00
+        Satış Qiyməti: 13818.00
+        İlkin Ödəniş (Beh): 4000.00
+        Müddət (Ay): 36
+        Standart Aylıq Ödəniş: 600.00
+        Başlama Tarixi: 31.05.2024
+
+        [Gecikmələr və Cərimələr Tarixçəsi (Kassa)]
+        31.03.2025 | 500.00 | Gecikmə cəriməsi (Obyektdən)
+        31.08.2025 | 100.00 | Gecikmə cəriməsi (obyekt)
+        31.08.2026 | 250.00 | Gecikmə cəriməsi (obyekt)
+
+        [Aylıq Ödənişlər və Paylar Qrafiki]
+        # Tarix | Ödəniş | Maya | Kar(M) | Kar(A) | Kar(Z) | Kar(A2) | Qeyd
+        31.05.2024 | 0.00 | 0.00 | 82.00 | 82.00 | 12.00 | 7.00 | İlkin mənfəət bölgüsü
+        30.06.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
+        29.07.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
+        30.08.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
         """;
     }
 

@@ -1724,17 +1724,74 @@ namespace EnterpriseAeroStudio.Services
                 return null;
             }
 
-            var t = metn.Trim()
-                .Replace("₼", string.Empty)
-                .Replace("\u00A0", string.Empty);
+            var t = metn.Replace("₼", string.Empty).Replace("\u00A0", " ").Trim();
 
+            // ================================================================
+            //  🔢 YALNIZ BİRİNCİ ƏDƏD OXUNUR ✓✓✓ (v6.2.29)
+            // ----------------------------------------------------------------
+            //  🐞 ƏVVƏLKİ XƏTA (KÖK SƏBƏB): bütün rəqəmlər BİRİNƏ YIĞILIRDI ✗✗✗
+            //     «Müddət (Ay): 36[cite: 11]»  →  **3611**  ✗
+            //     → hədəf = aylıq × 3611 = 600 × 3611 = 2 166 600 ₼ ✗
+            //     → «QALİQ NİSYƏ 2 150 603,97 ₼» ✗ (istifadəçi şikayəti ✓)
+            //
+            //  ✅ İNDİ: mətndən YALNIZ BİRİNCİ ədəd götürülür ✓
+            //     • «36[cite: 11]»        → 36 ✓
+            //     • «600.00 ₼ (aylıq)»    → 600,00 ✓
+            //     • «11 000 AZN»          → 11 000 ✓ (boşluq = minlik ayırıcı ✓)
+            //     • «1 417,83 ₼»          → 1 417,83 ✓
+            // ================================================================
             var sb = new StringBuilder();
+            var basladi = false;
 
-            foreach (var ch in t)
+            for (var i = 0; i < t.Length; i++)
             {
-                if (char.IsDigit(ch) || ch is ',' or '.' or '-' or '+')
+                var ch = t[i];
+
+                if (char.IsDigit(ch) || ch is ',' or '.')
                 {
                     sb.Append(ch);
+                    basladi = true;
+                    continue;
+                }
+
+                if (ch is '-' or '+')
+                {
+                    if (!basladi)
+                    {
+                        sb.Append(ch);
+                    }
+
+                    continue;
+                }
+
+                if (char.IsWhiteSpace(ch))
+                {
+                    if (!basladi)
+                    {
+                        continue;
+                    }
+
+                    // Boşluq YALNIZ MİNLİK ayırıcı kimi qəbul olunur ✓
+                    //  («11 000» → 11 000 ✓ · «36 ay» → 36 ✓)
+                    var j = i + 1;
+
+                    while (j < t.Length && char.IsWhiteSpace(t[j]))
+                    {
+                        j++;
+                    }
+
+                    if (j < t.Length && char.IsDigit(t[j]))
+                    {
+                        i = j - 1;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                if (basladi)
+                {
+                    break;   // ədəd bitdi ✓ — qalan mətn oxunmur ✗
                 }
             }
 

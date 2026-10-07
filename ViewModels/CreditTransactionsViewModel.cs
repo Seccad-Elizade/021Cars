@@ -33,6 +33,16 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         public BulkObservableCollection<CreditTransaction> FilteredTransactions { get; } = new();
 
+        /// <summary>
+        /// 🖱️ <b>ÇOXLU SEÇİM</b> ✓✓✓ (v6.2.29) — cədvəldə
+        /// <b>Ctrl / Shift + sol klik</b> ilə seçilmiş bütün əməliyyatlar ✓.
+        /// <para>
+        /// <see cref="Behaviors.MultiSelectBehavior"/> cədvəlin <c>SelectedItems</c>-i
+        /// bu siyahıya sinxronlaşdırır ✓ → bir dəfəyə bir neçəsini silmək mümkündür ✓
+        /// </para>
+        /// </summary>
+        public ObservableCollection<CreditTransaction> SelectedTransactions { get; } = new();
+
         /// <summary>Cədvəlin başlığında göstərilən izah mətni.</summary>
         [ObservableProperty] private string transactionsInfo = string.Empty;
 
@@ -588,7 +598,33 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Select(t => t.CreditId!.Value)
                     .ToHashSet();
 
-                Credits.ReplaceAll(credits.Where(c => !transferliKreditIdler.Contains(c.Id)));
+                // ================================================================
+                //  ✅ BAĞLI (ARXİVƏ DÜŞMÜŞ) KREDİTLƏR GÖSTƏRİLMİR ✗✓✓ (v6.2.29)
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «Krediti tam ödənilib arxivə düşən maşın
+                //    bu tabın axtarışında GÖRÜNMƏMƏLİDİR ✗» ✓✓✓
+                //  Maşın «🗄️ Satılan & Krediti Bitmiş»-ə keçib ✓ → kredit
+                //  `Status = "Bağlı"` olub ✗ → nə seçim siyahısında, nə cədvəldə
+                //  görünür ✓ (transfer edilmiş kreditlərlə EYNİ davranış ✓)
+                // ================================================================
+                var bağliKreditIdler = credits
+                    .Where(c => string.Equals(c.Status, "Bağlı", StringComparison.Ordinal))
+                    .Select(c => c.Id)
+                    .ToHashSet();
+
+                // ✅ SEÇİLMİŞ MÜQAVİLƏ YADDA SAXLANILIR ✓✓✓ (v6.2.29)
+                //  Yenidən yükləmə YENİ `Credit` nüsxələri yaradır ✗ → əvvəl
+                //  seçim «itirdi» ✗ (istifadəçi hər dəfə yenidən seçirdi ✗✓✓)
+                var seçilmişId = SelectedCredit?.Id;
+
+                Credits.ReplaceAll(credits.Where(c => !transferliKreditIdler.Contains(c.Id)
+                                                      && !bağliKreditIdler.Contains(c.Id)));
+
+                // → seçim EYNİ İD ilə yeni nüsxəyə bağlanır ✓ (tapılmazsa null ✓)
+                if (seçilmişId is int id)
+                {
+                    SelectedCredit = Credits.FirstOrDefault(c => c.Id == id);
+                }
 
                 var creditById = Credits.ToDictionary(c => c.Id);
 
@@ -598,7 +634,8 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 foreach (var transaction in transactions.Where(t =>
                              !t.CreditId.HasValue
-                             || !transferliKreditIdler.Contains(t.CreditId.Value)))
+                             || (!transferliKreditIdler.Contains(t.CreditId.Value)
+                                 && !bağliKreditIdler.Contains(t.CreditId.Value))))
                 {
                     if (transaction.CreditId is int creditId && creditById.TryGetValue(creditId, out var credit))
                     {
@@ -783,12 +820,16 @@ namespace EnterpriseAeroStudio.ViewModels
                         SelectedCredit.MuqavileNomresi, Guzest, Mebleg);
                 }
 
-                Mebleg = 0m;
-                Tesvir = string.Empty;
-                BolguSifirla();
-
-                // 📅 v6.2.19 — «Əvvəlcədən ödəniş» rejimi SÖNDÜRÜLÜR ✓✓✓
-                //    (hər yeni qeyd üçün təkrar seçim tələb olunsun ✗ → təhlükəsizdir ✓)
+                // ================================================================
+                //  ✅ FORM SAXLANILIR ✗✓✓ (v6.2.29)
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «əməliyyat əlavə edəndə / siləndə
+                //    avtomobil (müqavilə) seçimi TƏMİZLƏNMƏSİN ✗ — olduğu kimi
+                //    qalsın ✓ (tarixlər və digər sahələr də daxil ✓)»
+                //
+                //  Yalnız «📅 başqa taksitin ödənişidir» REJİMİ sıfırlanır ✓
+                //  (təhlükəsizdir ✓ — hər yeni ödəniş üçün təkrar seçim tələb olunur ✓)
+                // ================================================================
                 SecilmisTaksitNo = 0;
                 BasqaTaksit = false;
                 TaksitSecimleri.Clear();
@@ -817,14 +858,26 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         private async Task DeleteTransactionAsync()
         {
-            if (SelectedTransaction is null)
+            // 🖱️ ÇOXLU SEÇİM ✓✓✓ (v6.2.29) — Ctrl / Shift + sol klik ilə
+            //  seçilmiş BÜTÜN əməliyyatlar birlikdə silinir ✓
+            var hedefler = SelectedTransactions.Count > 0
+                ? SelectedTransactions.ToList()
+                : SelectedTransaction is null
+                    ? new List<CreditTransaction>()
+                    : new List<CreditTransaction> { SelectedTransaction };
+
+            if (hedefler.Count == 0)
             {
                 _dialogs.ShowWarning("Silmək üçün siyahıdan əməliyyat seçin.");
                 return;
             }
 
-            var transaction = SelectedTransaction;
-            if (!_dialogs.Confirm($"\"{transaction.Nov} - {transaction.Mebleg:N2} AZN\" əməliyyatını silmək istəyirsiniz?"))
+            var sual = hedefler.Count == 1
+                ? $"\"{hedefler[0].Nov} - {hedefler[0].Mebleg:N2} AZN\" əməliyyatını silmək istəyirsiniz?"
+                : $"{hedefler.Count} əməliyyatı birdən silmək istəyirsiniz? " +
+                  $"(cəmi {hedefler.Sum(t => t.Mebleg):N2} AZN)";
+
+            if (!_dialogs.Confirm(sual))
             {
                 return;
             }
@@ -832,16 +885,21 @@ namespace EnterpriseAeroStudio.ViewModels
             try
             {
                 IsBusy = true;
-                await _creditService.DeleteTransactionAsync(transaction.Id);
 
-                // Əməliyyata bağlı çek / sənəd faylları da silinir.
-                var files = await _media.GetAsync(MediaRefTypes.CreditTransaction, transaction.Id);
-                foreach (var file in files)
+                foreach (var transaction in hedefler)
                 {
-                    await _media.DeleteAsync(file.Id);
+                    await _creditService.DeleteTransactionAsync(transaction.Id);
+
+                    // Əməliyyata bağlı çek / sənəd faylları da silinir.
+                    var files = await _media.GetAsync(MediaRefTypes.CreditTransaction, transaction.Id);
+                    foreach (var file in files)
+                    {
+                        await _media.DeleteAsync(file.Id);
+                    }
                 }
 
                 SelectedTransaction = null;
+                SelectedTransactions.Clear();
             }
             catch (Exception ex)
             {
@@ -1395,9 +1453,10 @@ namespace EnterpriseAeroStudio.ViewModels
 
             FilteredTransactions.ReplaceAll(seçilmişlər);
 
-            TransactionsInfo = carId.HasValue
+            TransactionsInfo = (carId.HasValue
                 ? $"🚗 {SelectedCredit?.Car?.DisplayName ?? "Avtomobil"} — bu avtomobilin kredit tarixçəsi ({FilteredTransactions.Count} qeyd)"
-                : $"📋 Bütün avtomobillərin kredit əməliyyatları — {FilteredTransactions.Count} qeyd (müqaviləyə avtomobil bağlanmayıb)";
+                : $"📋 Bütün avtomobillərin kredit əməliyyatları — {FilteredTransactions.Count} qeyd (müqaviləyə avtomobil bağlanmayıb)")
+                + "   ·   🖱️ Ctrl / Shift + sol klik = ÇOXLU SEÇİM ✓ (birlikdə silmək üçün ✓)";
         }
 
         partial void OnCreditSearchTextChanged(string value) => ApplyCreditFilter();

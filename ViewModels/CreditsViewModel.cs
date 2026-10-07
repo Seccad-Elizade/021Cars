@@ -786,15 +786,49 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Gecikmə cərimələrinin cəmi (AZN).</summary>
         public decimal SelectedGecikmeCerimesi { get; private set; }
 
+        /// <summary>⚠️ ÖDƏNİLMİŞ gecikmə cərimələrinin cəmi (AZN) ✓ (v6.2.29).</summary>
+        public decimal SelectedGecikmeOdenilmis { get; private set; }
+
+        /// <summary>⚠️ Hələ ÖDƏNİLMƏMİŞ (gözləyən) gecikmə cərimələrinin cəmi (AZN) ✓ (v6.2.29).</summary>
+        public decimal SelectedGecikmeQaliq { get; private set; }
+
         /// <summary>Möhlət xülasəsi: "2 möhlət · 800,00 ₼" / "Möhlət yoxdur".</summary>
         public string SelectedMohletYekunu => SelectedMohletSayi == 0
             ? "Möhlət yoxdur"
             : $"{SelectedMohletSayi} möhlət · {SelectedMohlet:N2} ₼";
 
-        /// <summary>Gecikmə xülasəsi: "1 gecikmə · 150,00 ₼ cərimə" / "Gecikmə yoxdur".</summary>
-        public string SelectedGecikmeYekunu => SelectedGecikmeSayi == 0
-            ? "Gecikmə yoxdur"
-            : $"{SelectedGecikmeSayi} gecikmə · {SelectedGecikmeCerimesi:N2} ₼ cərimə";
+        /// <summary>
+        /// ⚠️ Gecikmə xülasəsi ✓✓✓ (v6.2.29)
+        /// <para>★ İstifadəçi tələbi: «gecikmə 100 AZN cərimə var — 50 manatı
+        /// ödənilib» kimi <b>ödənilmiş / qalıq bölgüsü</b> görünməlidir ✓✓✓</para>
+        /// <list type="bullet">
+        ///   <item><c>Gecikmə yoxdur</c></item>
+        ///   <item><c>⚠️ 1 gecikmə · 100,00 ₼ cərimə</c> — heç biri ödənilməyib ✓</item>
+        ///   <item><c>⚠️ 1 gecikmə · 100,00 ₼ cərimə (ödənilib ✓)</c> — hamısı ödənilib ✓</item>
+        ///   <item><c>⚠️ 2 gecikmə · 100,00 ₼ cərimə (ödənilib 50,00 ₼ · qalıq 50,00 ₼)</c></item>
+        /// </list>
+        /// </summary>
+        public string SelectedGecikmeYekunu
+        {
+            get
+            {
+                if (SelectedGecikmeSayi == 0)
+                {
+                    return "Gecikmə yoxdur";
+                }
+
+                var esas = $"⚠️ {SelectedGecikmeSayi} gecikmə · {SelectedGecikmeCerimesi:N2} ₼ cərimə";
+
+                if (SelectedGecikmeOdenilmis <= 0m)
+                {
+                    return esas;
+                }
+
+                return SelectedGecikmeQaliq <= 0m
+                    ? $"{esas} (ödənilib ✓)"
+                    : $"{esas} (ödənilib {SelectedGecikmeOdenilmis:N2} ₼ · qalıq {SelectedGecikmeQaliq:N2} ₼)";
+            }
+        }
 
         /// <summary>Ödənişin tamamlanma faizi (0-1) — irəliləyiş zolağı üçün.</summary>
         public double SelectedOdenisFaizi =>
@@ -940,8 +974,31 @@ namespace EnterpriseAeroStudio.ViewModels
             // Gecikmə göstəriciləri.
             SelectedGecikmeSayi = Schedule.Count(r => r.GecikmeVar);
             SelectedGecikmeCerimesi = Schedule.Where(r => r.GecikmeVar).Sum(r => r.GecikmeMeblegi);
+
+            // ================================================================
+            //  ⚠️ CƏRİMƏNİN «ÖDƏNİLMİŞ / QALIQ» BÖLGÜSÜ ✓✓✓ (v6.2.29)
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi tələbi: «gecikmə 100 AZN cərimə var — 50 manatı
+            //    ödənilib» kimi məlumat kartda GÖRÜNMƏLİDİR ✓✓✓
+            // ================================================================
+            var cerimeHereketleri = SelectedCredit is null
+                ? new List<CreditTransaction>()
+                : _creditTransactions
+                    .Where(t => t.CreditId == SelectedCredit.Id && t.Nov == "Gecikmə")
+                    .ToList();
+
+            SelectedGecikmeOdenilmis = cerimeHereketleri
+                .Where(t => t.Odenilib)
+                .Sum(t => t.Mebleg);
+
+            SelectedGecikmeQaliq = cerimeHereketleri
+                .Where(t => !t.Odenilib)
+                .Sum(t => t.Mebleg);
+
             OnPropertyChanged(nameof(SelectedGecikmeSayi));
             OnPropertyChanged(nameof(SelectedGecikmeCerimesi));
+            OnPropertyChanged(nameof(SelectedGecikmeOdenilmis));
+            OnPropertyChanged(nameof(SelectedGecikmeQaliq));
             OnPropertyChanged(nameof(SelectedGecikmeYekunu));
         }
 
