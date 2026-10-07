@@ -263,8 +263,9 @@ namespace EnterpriseAeroStudio.Services
             netice.Setirler.Add(string.Empty);
             netice.Setirler.Add(
                 $"📥 İDXAL TAMAMLANDI ✓ — {netice.KreditSayi} kredit · {netice.MasinSayi} yeni avtomobil · " +
-                $"{netice.OdenisSayi} ödəniş · {netice.CerimeSayi} cərimə · {netice.MohletSayi} möhlət · " +
-                $"{netice.PaySayi} tərəfdaş payı" +
+                $"{netice.OdenisSayi} ödəniş · {netice.CerimeSayi} cərimə · {netice.MohletSayi} möhlət" +
+                (netice.MohletOdenisSayi > 0 ? $" (⏳ {netice.MohletOdenisSayi} möhlət ödənildi ✓)" : string.Empty) +
+                $" · {netice.PaySayi} tərəfdaş payı" +
                 (netice.KecirilenKredit > 0 ? $" · {netice.KecirilenKredit} kredit KEÇİLDİ ⏭️" : string.Empty));
 
             return netice;
@@ -294,6 +295,42 @@ namespace EnterpriseAeroStudio.Services
                 netice.PaySayi += xeyirPaylari.Count(p => p.Mebleg > 0m);   // Mebleg ✓
             }
 
+            // ================================================================
+            //  ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏTLƏR — ƏVVƏLCƏ yazılır ✓✓✓
+            // -----------------------------------------------------------------
+            //  «25.04.2024 tarixədək əlavə 2000 AZN» → OdenisMohlet (ödənilməmiş ✓)
+            //  Sonra qrafikdəki «möhlətin ödənilən pulu» sətri onu
+            //  «ÖDƏNİLDİ» işarələyəcək ✓ (pul kassaya düşür ✓ — kredit taksiti
+            //  kimi SAYILMIR ✗✓✓ → kredit vaxtından tez bağlanmır ✓)
+            // ================================================================
+            var mohletler = new List<OdenisMohlet>();
+
+            if (blok.Mohletler.Count > 0)
+            {
+                foreach (var m in blok.Mohletler.OrderBy(x => x.Tarix))
+                {
+                    mohletler.Add(new OdenisMohlet
+                    {
+                        Menbe = OdenisMohlet.MenbeIlkinOdenis,
+                        CreditId = creditId,
+                        Tarix = m.Tarix == default ? (blok.Baslama ?? DateTime.Today) : m.Tarix,
+                        Mebleg = m.Mebleg,
+                        OdenisUsulu = Catalog.PaymentMethods[0],
+                        Odenilib = false,
+                        Qeyd = m.Qeyd
+                    });
+                }
+
+                await _mohletler.SaveForCreditAsync(creditId, mohletler, cancellationToken);
+
+                netice.MohletSayi += mohletler.Count;
+
+                // ⚠ ID-lər üçün yenidən oxunur ✓ (SetOdenildiAsync üçün lazımdır)
+                mohletler = (await _mohletler.GetForCreditAsync(creditId, cancellationToken))
+                    .OrderBy(m => m.Tarix)
+                    .ToList();
+            }
+
             // 💰 ÖDƏNİŞLƏR — dəqiq qrafik varsa paylar OLDUĞU KİMİ yazılır ✓✓✓
             if (blok.Qrafik.Count > 0)
             {
@@ -302,12 +339,20 @@ namespace EnterpriseAeroStudio.Services
 
                 foreach (var q in blok.Qrafik.OrderBy(x => x.Tarix))
                 {
-                    taksitNo++;
-
                     if (q.Tarix.Date > bugun)
                     {
                         continue;   // 🕓 gələcək ödəniş — hələ YAZILMIR ✗
                     }
+
+                    // ⏳ İLKİN MÖHLƏTİN ÖDƏNİŞİ — kredit taksiti DEYİL ✗✓✓
+                    //    (kredit balansına əlavə olunmur ✗, möhlət «ödənilib» olur ✓)
+                    if (q.MohletOdenisi)
+                    {
+                        await MohletiOdenildiAsync(mohletler, q, netice, cancellationToken);
+                        continue;
+                    }
+
+                    taksitNo++;
 
                     var verilenPaylar = q.Paylar
                         .Where(p => p.Mebleg > 0m)
@@ -364,28 +409,6 @@ namespace EnterpriseAeroStudio.Services
                 netice.OdenisSayi++;
                 netice.PaySayi += hereket.TerefdasPaylari.Count;
                 }
-            }
-
-            // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏTLƏR ✓✓✓ («25.04.2024-ə 2000 ₼»)
-            if (blok.Mohletler.Count > 0)
-            {
-                var modeller = blok.Mohletler
-                    .OrderBy(m => m.Tarix)
-                    .Select(m => new OdenisMohlet
-                    {
-                        Menbe = OdenisMohlet.MenbeIlkinOdenis,
-                        CreditId = creditId,
-                        Tarix = m.Tarix == default ? (blok.Baslama ?? DateTime.Today) : m.Tarix,
-                        Mebleg = m.Mebleg,
-                        OdenisUsulu = Catalog.PaymentMethods[0],
-                        Odenilib = false,
-                        Qeyd = m.Qeyd
-                    })
-                    .ToList();
-
-                await _mohletler.SaveForCreditAsync(creditId, modeller, cancellationToken);
-
-                netice.MohletSayi += modeller.Count;
             }
 
             // ⚖️ GECİKMƏ CƏRİMƏLƏRİ ✓✓✓ (paylar «CreditService» tərəfindən
@@ -733,6 +756,14 @@ namespace EnterpriseAeroStudio.Services
                     : 0m,
                 Qeyd = qeydIdx >= 0 && qeydIdx < hucreler.Length ? hucreler[qeydIdx] : string.Empty
             };
+
+            // ⏳ «İlkin ödəniş möhlətinin ödənilən pulu» sətri → kredit taksiti DEYİL ✗✓✓
+            var nQeyd = AcarNorm(setr.Qeyd);
+
+            setr.MohletOdenisi =
+                nQeyd.Contains("mohlet", StringComparison.Ordinal)
+                || (nQeyd.Contains("ilkin", StringComparison.Ordinal)
+                    && nQeyd.Contains("oden", StringComparison.Ordinal));
 
             for (var i = 0; i < basliqlar.Count && i < hucreler.Length; i++)
             {
@@ -1170,30 +1201,46 @@ namespace EnterpriseAeroStudio.Services
                 }
             }
 
-            var mayaCemi = qrafik.Sum(q => q.Maya);
-            var odemeCemi = qrafik.Sum(q => q.Odenis);
+            // ⏳ MÖHLƏT ÖDƏNİŞLƏRİ — kredit taksiti DEYİL ✗✓✓ (ayrı hesablanır)
+            var taksitler = qrafik.Where(q => !q.MohletOdenisi).ToList();
 
-            // ---- KÖK (Ümumi Maya → maya cəmi → satış−ilkin) ----
+            var mayaCemi = taksitler.Sum(q => q.Maya);
+            var taksitCemi = taksitler.Sum(q => q.Odenis);
+
+            // ---- KÖK: «Kök» → (Satış Qiyməti − İlkin) → qrafik maya cəmi → ümumi maya ----
             var kok = blok.Kok;
 
-            if (kok <= 0m && blok.UmumiMaya > 0m) kok = blok.UmumiMaya;
+            if (kok <= 0m && blok.SatisQiymeti > 0m && blok.SatisQiymeti > blok.Ilkin)
+            {
+                kok = blok.SatisQiymeti - blok.Ilkin;
+            }
+
             if (kok <= 0m && mayaCemi > 0m) kok = mayaCemi;
-            if (kok <= 0m && blok.SatisQiymeti > 0m) kok = Math.Max(0m, blok.SatisQiymeti - blok.Ilkin);
+            if (kok <= 0m && blok.UmumiMaya > 0m) kok = blok.UmumiMaya;
 
             if (kok <= 0m)
             {
-                xeta = "Kök müəyyən edilmədi — «Ümumi Maya» və ya «Kök» yazın.";
+                xeta = "Kök müəyyən edilmədi — «Satış Qiyməti» + «İlkin Ödəniş» və ya «Kök» yazın.";
                 return null;
             }
 
-            var muddet = blok.Muddet > 0 ? blok.Muddet : qrafik.Count;
+            var muddet = blok.Muddet > 0 ? blok.Muddet : Math.Max(1, taksitler.Count);
 
-            // ---- FAİZ: verilməyibsə qrafikin ÖDƏNİŞ CƏMİNDƏN tapılır ✓✓✓ ----
+            // ================================================================
+            //  💰 KREDİTİN ÜMUMİ DƏYƏRİ (HƏDƏF)
+            // -----------------------------------------------------------------
+            //  ★ «Aylıq × Müddət» VƏ ödənilmiş taksitlərin cəmi — BÖYÜYÜ ★ ✓✓✓
+            //  • qrafik TAMDIRSA      → cəmi hədəf olur ✓ (artıq ödənişlər də SAYILIR ✓)
+            //  • qrafik QİSMƏN (cari) → «aylıq × müddət» hədəf olur ✓✓✓
+            //    → kredit YALNIZ tam ödəniləndə «Bağlı» olur ✗ (vaxtından tez YOX ✗)
+            // ================================================================
+            var hedef = Math.Max(blok.Aylik * muddet, taksitCemi);
+
             var faiz = blok.Faiz;
 
-            if (faiz <= 0m && odemeCemi > kok)
+            if (faiz <= 0m && hedef > kok)
             {
-                faiz = Math.Round((odemeCemi / kok - 1m) * 100m, 4);
+                faiz = Math.Round((hedef / kok - 1m) * 100m, 4);
             }
 
             var gecici = new Credit
@@ -1217,12 +1264,34 @@ namespace EnterpriseAeroStudio.Services
             var odenilmisKok = 0m;
             var odenilmisCemi = 0m;
             var bugun = DateTime.Today;
+            var taksitNo = 0;
 
             for (var i = 0; i < qrafik.Count; i++)
             {
                 var q = qrafik[i];
                 var odenilib = q.Tarix.Date <= bugun;
 
+                // ⏳ İLKİN MÖHLƏTİN ÖDƏNİŞİ — kredit taksiti DEYİL ✗✓✓
+                //    (kreditin ödəniş cəminə DAXİL EDİLMİR ✗ → vaxtından tez bağlanmır ✓)
+                if (q.MohletOdenisi)
+                {
+                    setirler.Add(new KreditIdxalSetir
+                    {
+                        Kredit = blok.Basliq,
+                        Ay = 0,
+                        Nov = "⏳ Möhlət ödənişi",
+                        Tarix = q.Tarix,
+                        Odenis = q.Odenis,
+                        Bolgu = string.IsNullOrWhiteSpace(q.Qeyd)
+                            ? "İlkin ödənişə möhlətin ödənişi"
+                            : q.Qeyd,
+                        Odenilib = odenilib
+                    });
+
+                    continue;
+                }
+
+                taksitNo++;
                 odenilmisKok += q.Maya;
 
                 if (odenilib)
@@ -1243,7 +1312,7 @@ namespace EnterpriseAeroStudio.Services
                 setirler.Add(new KreditIdxalSetir
                 {
                     Kredit = blok.Basliq,
-                    Ay = i + 1,
+                    Ay = taksitNo,
                     Nov = "Taksit",
                     Tarix = q.Tarix,
                     Odenis = q.Odenis,
@@ -1495,6 +1564,48 @@ namespace EnterpriseAeroStudio.Services
             return hamisi;
         }
 
+        /// <summary>
+        /// ⏳ <b>İLKİN ÖDƏNİŞ MÖHLƏTİNİ «ÖDƏNİLDİ» EDİR</b> ✓✓✓
+        /// <para>
+        /// Qrafikdəki «İlkin ödəniş möhlətinin ödənilən pulu» sətri → kredit
+        /// taksiti DEYİL ✗, möhlətin ödənişidir ✓. Uyğun <see cref="OdenisMohlet"/>
+        /// tapılır və <c>SetOdenildiAsync</c> ilə bağlanır ✓ — beləliklə pul
+        /// <b>kassaya düşür</b> ✓, kredit balansı isə ARTMI <b>şişmir</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        private async Task MohletiOdenildiAsync(
+            List<OdenisMohlet> mohletler,
+            KreditIdxalQrafikSetir q,
+            KreditIdxalNeticesi netice,
+            CancellationToken cancellationToken)
+        {
+            // Əvvəlcə MƏBLƏĞƏ görə uyğun möhləti axtarırıq ✓
+            var hedef = mohletler.FirstOrDefault(m =>
+                !m.Odenilib && Math.Abs(m.Mebleg - q.Odenis) < 0.01m);
+
+            // Tapılmadısa — ilk ödənilməmiş möhlət ✓
+            hedef ??= mohletler.FirstOrDefault(m => !m.Odenilib);
+
+            if (hedef is null || hedef.Id <= 0)
+            {
+                // Möhlət yazılmayıbsa → adi ödəniş kimi qeyd olunur ✓ (yuxarıda ✗)
+                netice.Setirler.Add(
+                    $"   ℹ️ «{q.Qeyd}» ({Pul(q.Odenis)}) — uyğun ilkin möhlət tapılmadı, ödəniş yazılmadı ✗");
+                return;
+            }
+
+            var oldu = await _mohletler.SetOdenildiAsync(hedef.Id, true, q.Tarix, cancellationToken);
+
+            if (oldu)
+            {
+                netice.MohletOdenisSayi++;
+
+                netice.Setirler.Add(
+                    $"   ⏳ İlkin ödəniş möhləti ÖDƏNİLDİ ✓ — {Pul(hedef.Mebleg)} · {q.Tarix:dd.MM.yyyy} " +
+                    "(pul kassaya düşdü ✓ · kredit balansına SAYILMADI ✗)");
+            }
+        }
+
         /// <summary>⚖️ Cərimə sətirlərini əlavə edir (qalıq payçıları arasında yarı-yarıya ✓).</summary>
         private static void CerimeleriEkle(
             KreditIdxalBloku blok,
@@ -1548,6 +1659,10 @@ namespace EnterpriseAeroStudio.Services
             {
                 cemi += m.Mebleg;
 
+                // ⏳ Bu möhlət qrafikdə ÖDƏNİLİBSƏ → «ödənilib» göstərilir ✓✓✓
+                var odenilib = blok.Qrafik.Any(q =>
+                    q.MohletOdenisi && Math.Abs(q.Odenis - m.Mebleg) < 0.01m);
+
                 setirler.Add(new KreditIdxalSetir
                 {
                     Kredit = blok.Basliq,
@@ -1556,7 +1671,7 @@ namespace EnterpriseAeroStudio.Services
                     Tarix = m.Tarix == default ? baslama : m.Tarix,
                     Odenis = m.Mebleg,
                     Bolgu = string.IsNullOrWhiteSpace(m.Qeyd) ? "İlkin ödənişə möhlət" : m.Qeyd,
-                    Odenilib = false
+                    Odenilib = odenilib
                 });
             }
 

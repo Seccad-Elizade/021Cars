@@ -9,7 +9,7 @@
     <RootNamespace>EnterpriseAeroStudio</RootNamespace>
     <AssemblyName>EnterpriseAeroStudio</AssemblyName>
     <ApplicationTitle>Avtomobil Parkı v6.2</ApplicationTitle>
-    <Version>6.2.26</Version>
+    <Version>6.2.27</Version>
   </PropertyGroup>
 
   <ItemGroup>

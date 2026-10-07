@@ -203,6 +203,16 @@ namespace EnterpriseAeroStudio.Services
         /// <summary>Qeyd («Standart ay» · «Vaxtından tez bağlama» ✓).</summary>
         public string Qeyd { get; set; } = string.Empty;
 
+        /// <summary>
+        /// ⏳ Bu sətir <b>İLKİN ÖDƏNİŞ MÖHLƏTİNİN ödənişi</b>dir? (kredit taksiti DEYİL ✗)
+        /// <para>
+        /// Belə sətirlər <b>kreditin ödəniş cəminə DAXİL EDİLMİR</b> ✗✓✓ — əks halda
+        /// kredit vaxtından əvvəl «bitmiş» sayılır və avtomobil səhvən arxivə düşür ✗.
+        /// Onlar ayrıca <b>OdenisMohlet</b> kimi «ödənilib» işarələnir ✓.
+        /// </para>
+        /// </summary>
+        public bool MohletOdenisi { get; set; }
+
         /// <summary>Tərəfdaş payları (verildiyi kimi ✓).</summary>
         public List<KreditIdxalPay> Paylar { get; set; } = new();
 
@@ -277,17 +287,17 @@ namespace EnterpriseAeroStudio.Services
         public string OdenisMetni => Pul(Odenis);
         public string MayaMetni => Nov == "Taksit" ? Pul(Maya) : "—";
         public string MenfeetMetni => Nov == "Taksit" ? Pul(Menfeet) : "—";
-        public string Kar1Metni => Nov == "⏳ Möhlət" ? "—" : Pul(Kar1);
-        public string Kar2Metni => Nov == "⏳ Möhlət" ? "—" : Pul(Kar2);
-        public string Kar3Metni => Nov == "⏳ Möhlət" || Kar3Ad.Length == 0 ? "—" : Pul(Kar3);
-        public string Kar4Metni => Nov == "⏳ Möhlət" || Kar4Ad.Length == 0 ? "—" : Pul(Kar4);
+        public string Kar1Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) ? "—" : Pul(Kar1);
+        public string Kar2Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) ? "—" : Pul(Kar2);
+        public string Kar3Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar3Ad.Length == 0 ? "—" : Pul(Kar3);
+        public string Kar4Metni => Nov.StartsWith("⏳", StringComparison.Ordinal) || Kar4Ad.Length == 0 ? "—" : Pul(Kar4);
         public string QaliqKokMetni => Nov == "Taksit" ? Pul(QaliqKok) : "—";
 
         /// <summary>Vəziyyət mətni növə görə ✓.</summary>
         public string Veziyyet => Nov switch
         {
             "⚖️ Cərimə" => Odenilib ? "⚖️ Cərimə (öd.)" : "⚖️ Cərimə (gözl.)",
-            "⏳ Möhlət" => "⏳ Möhlət",
+            "⏳ Möhlət" => Odenilib ? "⏳ Möhlət (öd. ✓)" : "⏳ Möhlət",
             _ => Odenilib ? "✅ Ödənilib" : "🕓 Plan"
         };
 
@@ -394,6 +404,9 @@ namespace EnterpriseAeroStudio.Services
 
         /// <summary>⏳ Yazılan ilkin ödəniş möhləti sayı.</summary>
         public int MohletSayi { get; set; }
+
+        /// <summary>⏳ Ödənildiyi işarələnən ilkin möhlət sayı.</summary>
+        public int MohletOdenisSayi { get; set; }
 
         /// <summary>⏭️ Mövcud olduğu üçün KEÇİLƏN kredit sayı (təkrar idxal yoxdur ✗).</summary>
         public int KecirilenKredit { get; set; }
