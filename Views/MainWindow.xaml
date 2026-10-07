@@ -6050,6 +6050,233 @@
                         </Grid>
                     </Grid>
                 </TabItem>
+                <!-- ============================================================ -->
+                <!-- 🧾 TAB: KREDİT İDXALI (TOPLU MƏTN) ✓✓✓                       -->
+                <!--   ① mətni yapışdır ② «🔎 Yoxla» ③ «📥 İdxal et» ✓            -->
+                <!--   Kredit · avtomobil · ödəniş · tərəfdaş bölgüsü ✓✓✓          -->
+                <!-- ============================================================ -->
+                <TabItem Header="🏦 Kredit İdxalı">
+                    <Grid Margin="0,14,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <!-- 🚀 «*» → pəncərə hündürlüyünə uyğunlaşır ✓ -->
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- ① BAŞLIQ + DÜYMƏLƏR -->
+                        <Border Grid.Row="0" Background="#0F172A" CornerRadius="10"
+                                BorderBrush="#1F2937" BorderThickness="1" Padding="14,10">
+                            <DockPanel>
+                                <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                           VerticalAlignment="Center">
+                                    <Button Content="🔎  Yoxla" Command="{Binding KreditIdxal.YoxlaCommand}"
+                                            Style="{StaticResource iOSButton}" Height="32" Padding="14,0"
+                                            Background="#0891B2" Foreground="White" Margin="0,0,6,0"
+                                            Cursor="Hand"
+                                            ToolTip="YALNIZ yoxlayır ✓ — bazaya heç nə yazılmır ✗ (aylıq cədvəl göstərilir ✓)"/>
+                                    <Button Content="📥  İdxal et" Command="{Binding KreditIdxal.IdxalEtCommand}"
+                                            Style="{StaticResource iOSButton}" Height="32" Padding="18,0"
+                                            Background="#10B981" Foreground="White" Margin="0,0,6,0"
+                                            Cursor="Hand"
+                                            ToolTip="Avtomobilləri · kreditləri · ödənişləri · tərəfdaş paylarını proqrama YAZIR ✓✓✓"/>
+                                    <Button Content="📋  Nümunə" Command="{Binding KreditIdxal.NumuneYukleCommand}"
+                                            Style="{StaticResource iOSButton}" Height="32" Padding="12,0"
+                                            Background="#1E3A8A" Foreground="#DBEAFE" Margin="0,0,6,0"
+                                            Cursor="Hand"
+                                            ToolTip="Formatı göstərən nümunə mətni yapışdırır ✓ (Kia Ceed · 30 ay · 654 ₼)"/>
+                                    <Button Content="🧹  Təmizlə" Command="{Binding KreditIdxal.TemizleCommand}"
+                                            Style="{StaticResource iOSButton}" Height="32" Padding="12,0"
+                                            Background="#1F2937" Foreground="#E2E8F0" Cursor="Hand"
+                                            ToolTip="Mətni və nəticəni təmizləyir ✓"/>
+                                </WrapPanel>
+
+                                <StackPanel>
+                                    <TextBlock Text="🧾 KREDİT İDXALI  ·  toplu mətn → kredit · avtomobil · ödəniş · tərəfdaş bölgüsü"
+                                               FontSize="15" FontWeight="SemiBold" Foreground="#F8FAFC"/>
+                                    <TextBlock Text="{Binding KreditIdxal.StatusMetni}" FontSize="11.5"
+                                               Foreground="#9CA3AF" TextWrapping="Wrap" MaxWidth="820"
+                                               Margin="0,3,0,0"/>
+                                    <CheckBox Content="🚘 Maşının mənfəətini (xeyir) də tərəfdaşlara bölüşdür"
+                                              IsChecked="{Binding KreditIdxal.MaasinXeyiriniBol}"
+                                              Foreground="#FBBF24" FontSize="11" Margin="0,5,0,0"
+                                              ToolTip="İşarələnərsə kredit yaradılarkən «satış qiyməti − maya» mənfəəti də bölünür ✓"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- ② XÜLASƏ KARTLARI -->
+                        <UniformGrid Grid.Row="1" Columns="8" Margin="0,10,0,0"
+                                     Visibility="{Binding KreditIdxal.NeticeVar, Converter={StaticResource BoolToVis}}">
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#3B82F6">
+                                <StackPanel>
+                                    <TextBlock Text="📄 Kredit sayı" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.KreditSayi}"
+                                               Style="{StaticResource StatValue}" Foreground="#60A5FA"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A855F7">
+                                <StackPanel>
+                                    <TextBlock Text="💰 KÖK (əsas borc)" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiKok, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#C084FC"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#06B6D4">
+                                <StackPanel>
+                                    <TextBlock Text="🚘 ÜMUMİ MAYA" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiMaya, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#22D3EE"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#10B981">
+                                <StackPanel>
+                                    <TextBlock Text="✅ ÖDƏNİLMİŞ" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiOdenilmis, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#34D399"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F59E0B">
+                                <StackPanel>
+                                    <TextBlock Text="🕓 QALIQ NİSYƏ" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiQaliqNisye, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#FBBF24"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#EC4899">
+                                <StackPanel>
+                                    <TextBlock Text="👥 BÖLÜNƏN MƏNFƏƏT" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiMayaKar, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#F472B6"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F43F5E">
+                                <StackPanel>
+                                    <TextBlock Text="⚖️ CƏRİMƏLƏR" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiCerime, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#FB7185"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#FBBF24">
+                                <StackPanel>
+                                    <TextBlock Text="⏳ İLKİN MÖHLƏT" Style="{StaticResource StatLabel}"/>
+                                    <TextBlock Text="{Binding KreditIdxal.UmumiMohlet, Converter={StaticResource Currency}}"
+                                               Style="{StaticResource StatValue}" Foreground="#FCD34D"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- ③ MƏTN + HESABAT (sol)  ·  AYLİQ CƏDVƏL (sağ) -->
+                        <Grid Grid.Row="2" Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="360"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="#0B0F17" CornerRadius="10"
+                                    BorderBrush="#1F2937" BorderThickness="1" Padding="10">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Text="🧾 KREDİT MƏTNİ  ·  «Açar: Dəyər» sətirləri (Ctrl+V ✓)"
+                                               FontSize="12" FontWeight="Bold" Foreground="#6B7280"
+                                               Margin="2,0,0,6"/>
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Text="💡 BÖLMƏLƏR: [Müqavilə Məlumatları] · [Tərəfdaşlar və Pay Bölgüsü] · [Gecikmələr və Cərimələr Tarixçəsi] · [Aylıq Ödənişlər və Paylar Qrafiki] ✓ — AÇARLAR: Maşın · Nömrə · Müştəri · Müqavilə No · Alış Qiyməti · Əlavə Xərclər · Ümumi Maya · Satış Qiyməti · İlkin Ödəniş (Beh) · İlkin Ödəniş Möhləti · Müddət (Ay) · Standart Aylıq Ödəniş · Başlama Tarixi · Kök · Maya · Faiz · Qeyd ✓ — 📅 QRAFİK: «# Tarix | Ödəniş | Maya | KarMusa | KarAsif | … | Qeyd» → maya və paylar OLDUĞU KİMİ yazılır ✓ — 👥 TƏRƏFDAŞ: «Musa | 50% | KarM» ✓ — ⚖️ CƏRİMƏ: «07.05.2025 | 20.00 | Qeyd» ✓ — ÇOXLU KREDİT: «---» ayırıcısı ✓"
+                                               FontSize="10" Foreground="#64748B" TextWrapping="Wrap"
+                                               Margin="2,0,2,6"/>
+                                    <TextBox DockPanel.Dock="Top"
+                                             Text="{Binding KreditIdxal.SkriptMetni, UpdateSourceTrigger=PropertyChanged}"
+                                             AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                                             FontFamily="Consolas" FontSize="12" Padding="8" MinHeight="180"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Auto"
+                                             ToolTip="Kredit məlumatını buraya yapışdırın → «🔎 Yoxla» ✓"/>
+                                    <TextBlock DockPanel.Dock="Top" Text="📊 HESABAT"
+                                               FontSize="12" FontWeight="Bold" Foreground="#6B7280"
+                                               Margin="2,8,0,6"/>
+                                    <TextBox Text="{Binding KreditIdxal.HesabatMetni}" IsReadOnly="True"
+                                             AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas"
+                                             FontSize="11" Padding="8"
+                                             VerticalScrollBarVisibility="Auto"
+                                             HorizontalScrollBarVisibility="Auto"
+                                             Background="#0F172A" Foreground="#CBD5E1"
+                                             ToolTip="«🔎 Yoxla» / «📥 İdxal et» nəticəsi ✓"/>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="#111827" CornerRadius="12"
+                                    BorderBrush="#1F2937" BorderThickness="1" Padding="6"
+                                    Margin="8,0,0,0" Effect="{StaticResource GlassShadow}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Text="📅 AYLİQ ÖDƏNİŞ CƏDVƏLİ  ·  MAYA (kök) · MƏNFƏƏT · TƏRƏFDAŞ PAYLARI"
+                                               FontSize="13" FontWeight="Bold" Margin="6,4,6,6"/>
+                                    <DataGrid ItemsSource="{Binding KreditIdxal.Setirler}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False"
+                                              IsReadOnly="True" SelectionMode="Single"
+                                              RowHeight="30" ColumnHeaderHeight="38" MinHeight="200">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="№" Binding="{Binding AyMetni}" Width="45"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="TARİX" Binding="{Binding TarixMetni}" Width="92"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="ÖDƏNİŞ" Binding="{Binding OdenisMetni}" Width="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="MAYA (kök)" Binding="{Binding MayaMetni}" Width="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="MƏNFƏƏT" Binding="{Binding MenfeetMetni}" Width="110"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <!-- 👥 TƏRƏFDAŞ PAYLARI — başlıq AVTOMATİK (ad ilə ✓✓✓) -->
+                                            <DataGridTextColumn Binding="{Binding Kar1Metni}" Width="118"
+                                                                ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="{Binding DataContext.KreditIdxal.Kar1Basliq, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTextColumn.HeaderTemplate>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Binding="{Binding Kar2Metni}" Width="118"
+                                                                ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="{Binding DataContext.KreditIdxal.Kar2Basliq, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTextColumn.HeaderTemplate>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Binding="{Binding Kar3Metni}" Width="112"
+                                                                ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="{Binding DataContext.KreditIdxal.Kar3Basliq, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTextColumn.HeaderTemplate>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Binding="{Binding Kar4Metni}" Width="112"
+                                                                ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontWeight="SemiBold"
+                                                                   Text="{Binding DataContext.KreditIdxal.Kar4Basliq, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                                    </DataTemplate>
+                                                </DataGridTextColumn.HeaderTemplate>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="QALIQ KÖK" Binding="{Binding QaliqKokMetni}" Width="115"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="BÖLGÜ (bütün paylar)" Binding="{Binding Bolgu}" Width="*"
+                                                                MinWidth="180"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="VƏZİYYƏT" Binding="{Binding Veziyyet}" Width="105"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </DockPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </TabItem>
 
             </TabControl>
         </Border>

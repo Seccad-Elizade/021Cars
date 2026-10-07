@@ -20,7 +20,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 🔗 COM INTEROP DƏSTƏYİ ✓✓✓ (v6.2.21) — trimmed publish-də qısayol SİNMƏSİN ✗✓✓ -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <Version>6.2.25</Version>
+    <Version>6.2.26</Version>
     <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
     <Product>021Cars — Avtomobil Parkı</Product>
     <Company>021Cars</Company>

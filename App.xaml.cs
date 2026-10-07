@@ -724,6 +724,7 @@ namespace EnterpriseAeroStudio
 
             // 📜 Skript (JSON) idxalı — avtomobil · xərc · qeyd ✓✓✓
             services.AddTransient<IScriptImportService, ScriptImportService>();
+            services.AddTransient<IKreditIdxalService, KreditIdxalService>();
             services.AddTransient<IMediaService, MediaService>();
             services.AddTransient<ITrashService, TrashService>();
             services.AddTransient<ICreditService, CreditService>();
@@ -772,6 +773,7 @@ namespace EnterpriseAeroStudio
 
             // 📜 «Skript İdxalı» tabı ✓✓✓
             services.AddSingleton<ScriptImportViewModel>();
+            services.AddSingleton<KreditIdxalViewModel>();
 
             services.AddSingleton<MainViewModel>();
 

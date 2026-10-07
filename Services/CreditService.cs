@@ -915,9 +915,26 @@ namespace EnterpriseAeroStudio.Services
 
             foreach (var credit in credits)
             {
-                if (credit.BitmisKredit)
+                // ================================================================
+                //  ✅ YALNIZ HƏQİQƏTƏN «BAĞLI» OLANLAR KEÇİLİR ✓✓✓  (v6.2.26)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏLKİ SƏHV: burada `credit.BitmisKredit` yoxlanılırdı ✗ —
+                //  o xassə TARİXƏ görə də true olur:
+                //      «BaşlamaTarixi + MüddətAy <= bu gün»  ✗✓✓
+                //  Nəticədə müddəti bitmiş AMMA TAM ÖDƏNİLMƏMİŞ (status hələ
+                //  «Aktiv») kreditlər BURADA `continue` edilirdi ✗ →
+                //  • kredit heç vaxt «Bağlı» edilmirdi ✗
+                //  • avtomobil heç vaxt «Satıldı» olub arxivə keçmirdi ✗
+                //  → «Kreditlər» tabında ƏBƏDİ qalırdı ✗, eyni zamanda tarixə
+                //    görə «Krediti Bitmiş» tabında da görünürdü ✗ (İKİ YERDƏ ✗)
+                //
+                //  ✅ İNDİ: yalnız STATUSU «Bağlı» olan kredit keçilir ✓ —
+                //  qalanları ödənişə görə DÜZGÜN bağlanır ✓✓✓
+                //  (tətbiq hər açılışda da işlədir → köhnə qeydlər ÖZÜ DÜZƏLİR ✓)
+                // ================================================================
+                if (string.Equals(credit.Status?.Trim(), "Bağlı", StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;   // artıq bağlıdır
+                    continue;   // artıq HƏQİQƏTƏN bağlıdır ✓
                 }
 
                 // ⚠ AVTOMOBİL ARTIQ PARKA QAYTARILIB?

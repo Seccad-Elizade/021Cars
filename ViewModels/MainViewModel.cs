@@ -47,6 +47,12 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         public ScriptImportViewModel Skript { get; }
 
+        /// <summary>
+        /// 🧾 «🏦 Kredit İdxalı» tabının ViewModel-i — toplu mətndən
+        /// kredit · avtomobil · ödəniş · tərəfdaş bölgüsü idxalı ✓✓✓
+        /// </summary>
+        public KreditIdxalViewModel KreditIdxal { get; }
+
         // ====================================================================
         //  🔐 İSTİFADƏÇİ / ROL MƏLUMATI  (LOGIN SİSTEMİ) ✓✓✓
         // --------------------------------------------------------------------
@@ -1159,6 +1165,7 @@ namespace EnterpriseAeroStudio.ViewModels
             yield return ("🌐 Veb Sayt", Web);                              // 16
             yield return ("⚙️ Tənzimləmələr", this);                        // 17
             yield return ("📜 Skript İdxalı", Skript);                      // 18
+            yield return ("🏦 Kredit İdxalı", KreditIdxal);                 // 19
         }
 
         // ====================================================================
@@ -1300,6 +1307,7 @@ namespace EnterpriseAeroStudio.ViewModels
             PartnersViewModel partners,
             WebViewModel web,
             ScriptImportViewModel skript,
+            KreditIdxalViewModel kreditIdxal,
 
             IDataChangeWatcher? dataChanges = null)
         {
@@ -1332,6 +1340,12 @@ namespace EnterpriseAeroStudio.ViewModels
             // ================================================================
             Skript = skript;
             Skript.IdxalBitdi += async (_, _) => await YalnizAktivTabYenileAsync();
+
+            // ================================================================
+            //  🧾 KREDİT İDXALI BİTDİ → BÜTÜN TAB-LAR DƏRHAL YENİLƏNİR ✓✓✓
+            // ================================================================
+            KreditIdxal = kreditIdxal;
+            KreditIdxal.IdxalBitdi += async (_, _) => await YalnizAktivTabYenileAsync();
 
             CarPark.ArchiveRequested += (_, car) => ArchiveRequested?.Invoke(this, car);
 

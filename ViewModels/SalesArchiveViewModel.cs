@@ -443,20 +443,21 @@ namespace EnterpriseAeroStudio.ViewModels
                 var kreditAcildi = await _creditService.ReopenCreditByCarAsync(car.Id);
 
                 // ================================================================
-                //  2️⃣ 🔑 AVTOMOBİLİN STATUSU — KREDİT VARSa «KREDİTDƏ» ✓✓✓
+                //  2️⃣ 🔑 AVTOMOBİLİN STATUSU — PARKA QAYIDIR («Stokda») ✓✓✓ (v6.2.26)
                 // ----------------------------------------------------------------
-                //  ⚠ ƏVVƏL həmişə `Catalog.StockStatus` («Stokda») yazılırdı ✗ →
-                //    krediti açılmış maşın
-                //      ① «🚘 Avto Park» cədvəlinə DÜŞÜRDÜ ✗  (satış bölməsi ✗)
-                //      ② «💳 Kreditlər» bölməsinə DƏ düşürdü ✓
-                //    → İKİ YERDƏ görünürdü ✗✓✓ (istifadəçi şikayəti ✓)
-                //  ✅ İNDİ:
-                //      • kredit açıldısa → status **«Kreditdə»** ✓ →
-                //        maşın YALNIZ «💳 Kreditlər» bölməsindədir ✓✓✓
-                //        (park cədvəlinə DÜŞMÜR ✗ — «Kreditdə» parkdankənardır ✓)
-                //      • kredit yoxdursa → «Stokda» ✓ → parka qayıdır ✓
+                //  ⚠ ƏVVƏLKİ DAVRANIŞ: kredit açılıbsa status «Kreditdə» edilirdi ✗ →
+                //    AVTOMATİK BAĞLAMA dövrü (RefreshCreditCompletionAsync) həmin
+                //    krediti YENİDƏN «Bağlı» edirdi ✗ (tam ödənilmişdi ✗) →
+                //    maşın DƏRHAL yenidən arxivə qayıdırdı ✗ → «geri qaytarma»
+                //    ƏMƏLİYYATI LƏĞV OLUNURDU ✗✓✓
+                //
+                //  ✅ İNDİ: maşın «Stokda» olur ✓
+                //      • «🚘 Avto Park» cədvəlinə qayıdır ✓ (istifadəçi gözləntisi ✓)
+                //      • kredit isə «Aktiv» qalır ✓ → «💳 Kreditlər» bölməsində
+                //        GÖRÜNÜR ✓ (avtomatik bağlama ona TOXUNMUR ✗ —
+                //        çünki maşın «Satıldı»/«Kreditdə» DEYİL ✓✓✓)
                 // ================================================================
-                var hedefStatus = kreditAcildi ? Catalog.CreditStatus : Catalog.StockStatus;
+                var hedefStatus = Catalog.StockStatus;
 
                 var deyisdi = await _carService.SetStatusAsync(car.Id, hedefStatus);
 
@@ -476,12 +477,12 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 _dialogs.ShowInfo(
                     $"✅ \"{car.DisplayName}\" geri qaytarıldı.\n\n" +
-                    (kreditAcildi
-                        ? $"• Status: {hedefStatus}  →  YALNIZ «💳 Kreditlər» bölməsindədir ✓\n" +
-                          "  (avto park cədvəlinə düşmür ✓ — krediti aktivdir ✓)\n"
-                        : $"• Status: {hedefStatus}  →  AVTO PARKA əlavə edildi ✓\n") +
+                    $"• Status: {hedefStatus}  →  «🚘 Avto Park» cədvəlinə qayıtdı ✓\n" +
                     "• Satış qeydi silindi: ✓\n" +
-                    (kreditAcildi ? "• Kredit yenidən AÇILDI: ✓" : "• Kredit: dəyişmədi"));
+                    (kreditAcildi
+                        ? "• Kredit yenidən AÇILDI ✓  →  «💳 Kreditlər» bölməsində görünür ✓\n" +
+                          "  (tam ödənilmiş kredit AVTOMATİK BAĞLANMIR ✗ — çünki maşın parkdadır ✓)"
+                        : "• Kredit: dəyişmədi"));
             }
             catch (Exception ex)
             {
