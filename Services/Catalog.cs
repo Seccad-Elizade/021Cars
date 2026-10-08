@@ -146,6 +146,22 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         public const string IlkinBolguNovu = "İlkin bölgü";
 
+        /// <summary>
+        /// 👥 <b>ƏLAVƏ TƏRƏFDAŞ BÖLGÜSÜ</b> — tarixli, çoxsaylı bölgü ✓✓✓ (v6.2.35)
+        /// <para>
+        /// Bir kreditdə tərəfdaş bölgüsü <b>BİRDƏN ÇOX</b> ola bilər ✓
+        /// (məs. maşına 3 dəfə əlavə iş görülüb → 3 ayrı bölgü ✓).
+        /// Hər bölgünün <b>ÖZ TARİXİ</b> olur ✓ → tərəfdaş kartlarında və
+        /// jurnalda həmin tarixlə görünür ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⚙ <c>Mebleg = 0</c> yazılır ✓ → kredit balansına / kassaya TƏSİR
+        /// ETMİR ✗ — yalnız tərəfdaş paylarını daşıyır ✓
+        /// (🧩 «İlkin bölgü» ilə EYNİ prinsip ✓).
+        /// </para>
+        /// </summary>
+        public const string TerefdasBolguNovu = "Tərəfdaş bölgüsü";
+
         public const string CreditStatus = "Kreditdə";
         public const string SoldStatus = "Satıldı";
 

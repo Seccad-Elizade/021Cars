@@ -88,6 +88,48 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Xeyir bölgüsü varmı? (panel göstərilsin?)</summary>
         public bool HasCreditShares => SelectedCreditShares.Count > 0;
 
+        // ====================================================================
+        //  👥 ƏLAVƏ TƏRƏFDAŞ BÖLGÜLƏRİ — TARİXLİ, ÇOXSAYLI ✓✓✓ (v6.2.35)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «kreditin tərəfdaş bölgüsündə bir düymə ol,
+        //    o YENİ tərəfdaş bölgüsü yaratsın ✓ və TARİXLƏRİ də üzərlərində
+        //    yazsın ✓ — bəzi maşınlarda tərəfdaş bölgüsü 3 dəfə ola bilər ✓,
+        //    onun üçün 2 və daha artıq bölgü açıla bilməlidir ✓» ✓✓✓
+        //
+        //  ⚙ Hər bölgü ayrı bir <c>CreditTransaction</c>-dır
+        //    (<c>Nov = «Tərəfdaş bölgüsü»</c> · <c>Mebleg = 0</c> ✓) →
+        //    balansa/kassaya təsir etmir ✗, yalnız payları daşıyır ✓.
+        //    Tarix həmin əməliyyatın <c>Tarix</c>-idir ✓ → 👥 tərəfdaş
+        //    kartlarında və jurnalda TARİXLƏ görünür ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 👥 Seçilmiş kreditin <b>əlavə tərəfdaş bölgüləri</b> (tarixlə) ✓.
+        /// <para>Hər sətir ayrı bölgüdür — <c>Mebleg = 0</c> olan əməliyyat ✓.</para>
+        /// </summary>
+        public ObservableCollection<CreditTransaction> KreditBolguleri { get; } = new();
+
+        /// <summary>Əlavə bölgü mövcuddurmu?</summary>
+        public bool HasEkstraBolguleri => KreditBolguleri.Count > 0;
+
+        /// <summary>➕ Yeni bölgü redaktoru AÇIQDIR?</summary>
+        [ObservableProperty] private bool yeniBolguAciq;
+
+        /// <summary>📅 Yeni bölgünün TARİXİ ✓ (hansı tarixdə ödənilib ✓).</summary>
+        [ObservableProperty] private DateTime? yeniBolguTarixi = DateTime.Today;
+
+        /// <summary>📝 Yeni bölgünün qeydi (izah ✓).</summary>
+        [ObservableProperty] private string yeniBolguQeyd = string.Empty;
+
+        /// <summary>👥 Yeni bölgünün tərəfdaş sətirləri (ad + məbləğ ✓).</summary>
+        public ObservableCollection<PartnerPayRow> YeniBolguPaylari { get; } = new();
+
+        /// <summary>➕ Yeni bölgünün CƏMİ (₼) ✓.</summary>
+        public decimal YeniBolguCemi => YeniBolguPaylari.Where(p => p.Aktiv).Sum(p => p.Mebleg);
+
+        /// <summary>➕ Cəm mətni ✓.</summary>
+        public string YeniBolguCemiMetni => $"{YeniBolguCemi:N2} ₼";
+
         /// <summary>Aylıq bölgü varmı?</summary>
         public bool HasMonthlyShares => SelectedMonthlyShares.Count > 0;
 
@@ -380,6 +422,7 @@ namespace EnterpriseAeroStudio.ViewModels
         {
             SelectedCreditShares.Clear();
             SelectedMonthlyShares.Clear();
+            KreditBolguleri.Clear();
 
             if (credit is not null)
             {
@@ -434,6 +477,26 @@ namespace EnterpriseAeroStudio.ViewModels
 
             OnPropertyChanged(nameof(HasCreditShares));
             OnPropertyChanged(nameof(HasMonthlyShares));
+
+            // ---- 3) 👥 ƏLAVƏ TƏRƏFDAŞ BÖLGÜLƏRİ (TARİXLƏ) ✓✓✓ (v6.2.35)
+            //  ★ İstifadəçi tələbi: bir kreditdə tərəfdaş bölgüsü BİRDƏN ÇOX
+            //    ola bilər ✓ (məs. maşına 3 dəfə iş görülüb → 3 bölgü ✓).
+            //    Hər bölgünün ÖZ TARİXİ var ✓ → üzərində yazılır ✓✓✓
+            if (credit is not null)
+            {
+                var kreditId = credit.Id;
+
+                foreach (var tx in _creditTransactions
+                             .Where(t => t.CreditId == kreditId
+                                         && t.Nov == Catalog.TerefdasBolguNovu)
+                             .OrderBy(t => t.Tarix)
+                             .ThenBy(t => t.Id))
+                {
+                    KreditBolguleri.Add(tx);
+                }
+            }
+
+            OnPropertyChanged(nameof(HasEkstraBolguleri));
             OnPropertyChanged(nameof(SelectedCreditSharesTotal));
             OnPropertyChanged(nameof(SelectedCreditSharesTotalMetni));
             OnPropertyChanged(nameof(SelectedCreditSharesXulase));
@@ -681,6 +744,234 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
+        // ====================================================================
+        //  👥 YENİ TƏRƏFDAŞ BÖLGÜSÜ — AÇ · LƏĞV · ƏLAVƏ ET · SİL ✓✓✓ (v6.2.35)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «kreditin tərəfdaş bölgüsündə düymə olsun ✓ —
+        //    yeni bölgü yaratsın ✓, TARİXLƏRİ üzərində yazılsın ✓; bəzi
+        //    maşınlarda bölgü 3 dəfə ola bilər ✓ → 2+ bölgü açıla bilməlidir ✓»
+        // ====================================================================
+
+        /// <summary>➕ Yeni bölgü redaktorunu açır (tərəfdaş sətirləri hazırlanır ✓)</summary>
+        [RelayCommand]
+        private void YeniBolguAc()
+        {
+            if (SelectedCredit is null)
+            {
+                _dialogs.ShowWarning("Əvvəlcə kredit seçin ✗");
+                return;
+            }
+
+            YeniBolguSifirla();
+            YeniBolguAciq = true;
+        }
+
+        /// <summary>✖ Redaktoru bağlayır (heç nə saxlanılmır ✓)</summary>
+        [RelayCommand]
+        private void YeniBolguLegv()
+        {
+            YeniBolguAciq = false;
+            YeniBolguPaylari.Clear();
+            YeniBolguQeyd = string.Empty;
+            BolguCemiBildir();
+        }
+
+        /// <summary>
+        /// 👥 Redaktoru <b>standart tərəfdaşlarla</b> doldurur ✓✓✓
+        /// <para>
+        /// ⚠ Adlar ƏVVƏLCƏ kreditin öz bölgüsündən götürülür ✓ (məs. «Tural» ✓),
+        /// sonra çatışmayan standart adlar əlavə olunur ✓.
+        /// </para>
+        /// </summary>
+        private void YeniBolguSifirla()
+        {
+            YeniBolguPaylari.Clear();
+            YeniBolguQeyd = string.Empty;
+            YeniBolguTarixi = DateTime.Today;
+
+            // ① Kreditin ÖZ tərəfdaş adları (əsl adlar ✓)
+            foreach (var ad in SelectedCreditShares.Select(s => s.Terefdas))
+            {
+                AdElaveEt(ad);
+            }
+
+            // ② Standart tərəfdaşlar (çatışmayanlar ✓)
+            foreach (var p in Catalog.DefaultPartners)
+            {
+                AdElaveEt(p.Ad);
+            }
+
+            BolguCemiBildir();
+
+            void AdElaveEt(string? ad)
+            {
+                if (string.IsNullOrWhiteSpace(ad))
+                {
+                    return;
+                }
+
+                var temiz = ad.Trim();
+
+                if (YeniBolguPaylari.Any(r => string.Equals(r.Terefdas, temiz, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return;
+                }
+
+                var row = new PartnerPayRow
+                {
+                    Terefdas = temiz,
+                    Faiz = 0m,
+                    Mebleg = 0m,
+                    QaligPayi = false,
+                    Aktiv = true
+                };
+
+                // ➕ Məbləğ yazıldıqca CƏM dərhal yenilənir ✓✓✓
+                row.PropertyChanged += (_, __) => BolguCemiBildir();
+
+                YeniBolguPaylari.Add(row);
+            }
+        }
+
+        /// <summary>➕ Cəm göstəricilərini yeniləyir ✓.</summary>
+        private void BolguCemiBildir()
+        {
+            OnPropertyChanged(nameof(YeniBolguCemi));
+            OnPropertyChanged(nameof(YeniBolguCemiMetni));
+        }
+
+        /// <summary>
+        /// 💾 Yeni bölgünü <b>TARİXLƏ</b> yazır ✓✓✓
+        /// <para>
+        /// ⚙ <c>Mebleg = 0</c> olan əməliyyat yaradılır ✓ → kredit balansına
+        /// və kassaya TƏSİR ETMİR ✗, yalnız tərəfdaş paylarını daşıyır ✓.
+        /// </para>
+        /// </summary>
+        [RelayCommand]
+        private async Task YeniBolguElaveEtAsync()
+        {
+            if (SelectedCredit is not Credit credit)
+            {
+                _dialogs.ShowWarning("Əvvəlcə kredit seçin ✗");
+                return;
+            }
+
+            if (YeniBolguTarixi is not DateTime tarix)
+            {
+                _dialogs.ShowWarning("📅 Tarixi seçin ✗");
+                return;
+            }
+
+            var paylar = YeniBolguPaylari
+                .Where(p => p.Aktiv && p.Mebleg > 0m && !string.IsNullOrWhiteSpace(p.Terefdas))
+                .Select((p, i) => new PartnerShare
+                {
+                    Terefdas = p.Terefdas.Trim(),
+                    Faiz = 0m,
+                    Mebleg = p.Mebleg,
+                    QaligPayi = false,
+                    Aktiv = true,
+                    Sira = i
+                })
+                .ToList();
+
+            if (paylar.Count == 0)
+            {
+                _dialogs.ShowWarning("Ən azı bir tərəfdaşa məbləğ yazın ✗");
+                return;
+            }
+
+            var cem = paylar.Sum(p => p.Mebleg);
+
+            try
+            {
+                IsBusy = true;
+
+                await _creditService.AddTransactionAsync(new CreditTransaction
+                {
+                    CreditId = credit.Id,
+                    Nov = Catalog.TerefdasBolguNovu,
+                    InstallmentNo = null,
+                    Mebleg = 0m,                    // ⚙ balansa təsir ETMİR ✗✓✓
+                    Tarix = tarix.Date,
+                    Tesvir = string.IsNullOrWhiteSpace(YeniBolguQeyd)
+                        ? "👥 Tərəfdaş bölgüsü"
+                        : $"👥 Tərəfdaş bölgüsü — {YeniBolguQeyd.Trim()}",
+                    TerefdasBolguTetbiqOlunub = true,
+                    BolguBazasi = cem,
+                    TerefdasPaylari = paylar
+                });
+
+                _logger.LogInformation(
+                    "👥 Yeni tərəfdaş bölgüsü: {Muqavile} · {Tarix:dd.MM.yyyy} · {Cem:N2} ₼ · {Say} pay",
+                    credit.MuqavileNomresi, tarix, cem, paylar.Count);
+
+                YeniBolguAciq = false;
+                YeniBolguPaylari.Clear();
+                YeniBolguQeyd = string.Empty;
+
+                await LoadAsync();
+
+                // 📢 👥 Tərəfdaş kartları + jurnal DƏRHAL yenilənir ✓✓✓
+                CreditsChanged?.Invoke(this, EventArgs.Empty);
+
+                _dialogs.ShowInfo(
+                    $"✅ Yeni bölgü əlavə edildi ✓\n\n" +
+                    $"📅 {tarix:dd.MM.yyyy} · {cem:N2} ₼ · {paylar.Count} tərəfdaş\n\n" +
+                    "👥 Tərəfdaş kartlarında və jurnalda bu TARİXLƏ görünür ✓");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Tərəfdaş bölgüsü əlavə edilərkən xəta baş verdi.");
+                _dialogs.ShowError("Bölgü əlavə edilə bilmədi: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        /// <summary>🗑️ Əlavə bölgünü silir (tərəfdaş payları da silinir ✓).</summary>
+        [RelayCommand]
+        private async Task BolguSilAsync(CreditTransaction? bolgu)
+        {
+            if (bolgu is null)
+            {
+                return;
+            }
+
+            if (!_dialogs.Confirm(
+                    $"📅 {bolgu.Tarix:dd.MM.yyyy} tarixli tərəfdaş bölgüsü silinsin?\n\n" +
+                    "Bütün tərəfdaş payları da silinəcək ✓",
+                    "🗑️ Bölgünü sil"))
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                await _creditService.DeleteTransactionAsync(bolgu.Id);
+
+                _logger.LogInformation(
+                    "🗑️ Tərəfdaş bölgüsü silindi: {Muqavile} · {Tarix:dd.MM.yyyy}",
+                    SelectedCredit?.MuqavileNomresi, bolgu.Tarix);
+
+                await LoadAsync();
+                CreditsChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Tərəfdaş bölgüsü silinərkən xəta baş verdi.");
+                _dialogs.ShowError("Bölgü silinə bilmədi: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
         [RelayCommand]
         private void ClearContractFilter()
         {
@@ -769,6 +1060,21 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </para>
         /// </summary>
         public decimal SelectedQaliq { get; private set; }
+
+        /// <summary>
+        /// 💸 <b>KREDİTƏ YAZILAN ƏLAVƏ XƏRC CƏMİ (₼)</b> ✓✓✓ (v6.2.35)
+        /// <para>
+        /// «🏷️ Kredit Əlavə Gəlir/Xərc» tabında bu kreditə yazılan bütün
+        /// <c>«Xərc»</c> qeydlərinin cəmi ✓ — bu məbləğ <b>QALIĞA ƏLAVƏ
+        /// OLUNUR</b> ✓ (qalıq borc artır ✓).
+        /// </para>
+        /// </summary>
+        public decimal SelectedXercCemi { get; private set; }
+
+        /// <summary>💸 Əlavə xərc varsa izah sətri (yoxsa boş ✓).</summary>
+        public string SelectedXercIzahi => SelectedXercCemi <= 0m
+            ? string.Empty
+            : $"💸 Əlavə xərc — qalıq borca ƏLAVƏ olunub ✓: +{SelectedXercCemi:N2} ₼";
 
         /// <summary>Ödənişdən əvvəlki ümumi borc (kreditləşdirilən + faiz).</summary>
         public decimal SelectedKreditQiymeti => SelectedCredit?.KreditQiymeti ?? 0m;
@@ -1070,6 +1376,8 @@ namespace EnterpriseAeroStudio.ViewModels
                         .Where(t => t.CreditId == SelectedCredit.Id
                                     && t.Nov == "Gecikmə")
                         .Sum(t => t.Mebleg)
+                    // 💸 v6.2.35 — kreditə yazılan «Xərc» QALIQ BORCA ƏLAVƏ olunur ✓✓✓
+                    + XercCemiHesabla(SelectedCredit)
                     - SelectedOdenilen);
 
                 SelectedOdenisSayi = payments.Count;
@@ -1079,7 +1387,12 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
             OnPropertyChanged(nameof(SelectedOdenilen));
+            // 💸 v6.2.35 — kreditə yazılan əlavə xərc cəmi (qalığa əlavə olunur ✓)
+            SelectedXercCemi = XercCemiHesabla(SelectedCredit!);
+
             OnPropertyChanged(nameof(SelectedQaliq));
+            OnPropertyChanged(nameof(SelectedXercCemi));
+            OnPropertyChanged(nameof(SelectedXercIzahi));
             OnPropertyChanged(nameof(SelectedKreditQiymeti));
             OnPropertyChanged(nameof(SelectedFaizMeblegi));
             OnPropertyChanged(nameof(SelectedFaizVeQiymet));
@@ -1688,9 +2001,20 @@ namespace EnterpriseAeroStudio.ViewModels
             var transferCemiYerli = TransferCemiHesabla(credit);
             var cixilan = barterCemi + transferCemiYerli;
 
+            // ================================================================
+            //  💸 KREDİTƏ YAZILAN «XƏRC» QALIQ BORCA ƏLAVƏ OLUNUR ✓✓✓ (v6.2.35)
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi tələbi: «Kredit Əlavə Gəlir/Xərc-də maşına xərc
+            //    yazıram, əlavə edirəm amma qalıq borcunun üzərinə gəlmir ✗»
+            //  ✅ İNDİ: kreditə aid BÜTÜN «Xərc» qeydləri borca ƏLAVƏ olunur ✓
+            //    → qrafik artmış məbləğ üzərindən qurulur ✓ → qalan ayların
+            //      ödənişlərinə bərabər paylanır ✓ (mövcud mexanizm ✓)
+            // ================================================================
+            var xercCemi = XercCemiHesabla(credit);
+
             // Qrafik yalnız KREDİTLƏŞDİRİLƏN məbləğ (Məbləğ − İlkin ödəniş) üzərindən
             // qurulur — BARTER və TRANSFER dəyərləri çıxıldıqdan sonra ✓
-            var balance = Math.Max(0m, credit.Kreditlesdirilen - cixilan);
+            var balance = Math.Max(0m, credit.Kreditlesdirilen + xercCemi - cixilan);
             if (balance <= 0m)
             {
                 return;
@@ -2058,6 +2382,23 @@ namespace EnterpriseAeroStudio.ViewModels
             row.PropertyChanged += OnPaymentRowChanged;
             return row;
         }
+
+        /// <summary>
+        /// 💸 <b>KREDİTƏ YAZILAN «XƏRC» CƏMİ</b> ✓✓✓ (v6.2.35)
+        /// <para>
+        /// «🏷️ Kredit Əlavə Gəlir/Xərc» tabında bu kreditə yazılan
+        /// <b>BÜTÜN «Xərc» qeydləri</b> (əlavə xərc ✓ · təmir ✓ · ehtiyat ✓)
+        /// toplanır — və <b>QALIQ BORCA ƏLAVƏ OLUNUR</b> ✓✓✓
+        /// </para>
+        /// <para>
+        /// ★ İstifadəçi tələbi: «Kredit Əlavə Gəlir/Xərc-də maşına xərc
+        /// yazıram, əlavə edirəm amma qalıq borcunun üzərinə gəlmir ✗» ✓
+        /// </para>
+        /// </summary>
+        private decimal XercCemiHesabla(Credit credit)
+            => _creditTransactions
+                .Where(t => t.CreditId == credit.Id && t.Nov == "Xərc")
+                .Sum(t => t.Mebleg);
 
         /// <summary>
         /// Kreditə aid "Gəlir" qeydlərini ay sırasına görə qruplaşdırır.

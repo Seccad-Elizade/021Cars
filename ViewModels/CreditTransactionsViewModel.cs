@@ -90,6 +90,11 @@ namespace EnterpriseAeroStudio.ViewModels
             //     daşıyır ✓ → kredit balansına/kassaya TƏSİR ETMİR ✗
             Catalog.IlkinBolguNovu,
 
+            // 👥 v6.2.35 — ƏLAVƏ TƏRƏFDAŞ BÖLGÜSÜ (tarixli, çoxsaylı ✓)
+            //   Kreditin öz panelindəki «➕ YENİ TƏRƏFDAŞ BÖLGÜSÜ» ilə eynidir ✓
+            //   ⚠ Mebleg = 0 ✓ → balansa təsir ETMİR ✗, yalnız payları daşıyır ✓
+            Catalog.TerefdasBolguNovu,
+
             // 📥 v6.2.32 — SKRİPT İDXALI ✓✓✓
             //   Aylıq qrafik cədvəli (Tarix | Ödəniş | Maya | Kar…) MÖVCUD kreditə
             //   «Gəlir» qeydləri kimi yazılır ✓ — hər sətir ayrı əməliyyat ✓.
