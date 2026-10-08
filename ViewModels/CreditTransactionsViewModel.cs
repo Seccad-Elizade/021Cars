@@ -649,15 +649,19 @@ namespace EnterpriseAeroStudio.ViewModels
                     .ToHashSet();
 
                 // ================================================================
-                //  ✅ BAĞLI (ARXİVƏ DÜŞMÜŞ) KREDİTLƏR GÖSTƏRİLMİR ✗✓✓ (v6.2.29)
+                //  ✅ BİTMİŞ (BAĞLI) KREDİTLƏR DƏ GÖSTƏRİLİR ✓✓✓ (v6.2.33)
                 // ----------------------------------------------------------------
-                //  ★ İstifadəçi tələbi: «Krediti tam ödənilib arxivə düşən maşın
-                //    bu tabın axtarışında GÖRÜNMƏMƏLİDİR ✗» ✓✓✓
-                //  Maşın «🗄️ Satılan & Krediti Bitmiş»-ə keçib ✓ → kredit
-                //  `Status = "Bağlı"` olub ✗ → nə seçim siyahısında, nə cədvəldə
-                //  görünür ✓ (transfer edilmiş kreditlərlə EYNİ davranış ✓)
+                //  ★ İstifadəçi tələbi: «bütün avtomobillər kredit
+                //    əməliyyatlarında görünməlidir ✓» ✓✓✓
+                //  ⚠ ƏVVƏL (v6.2.29) bu kreditlər GİZLƏDİLİRDİ ✗ → kredit
+                //    avtomatik «Bağlı» olanda istifadəçi ona sonradan
+                //    ödəniş/qeyd ƏLAVƏ EDƏ BİLMİRDİ ✗✓✓
+                //  ✅ İNDİ: hamısı seçim siyahısındadır ✓ — bitmişlər 🗄️
+                //    nişanı ilə görünür ✓ (şərti silmək ÜÇÜN seçim qalır ✓)
+                //  📤 Transfer edilmiş kreditlər isə GÖSTƏRİLMİR ✗ (artıq
+                //    bizim deyil ✗ — «📤 Transfer» bölməsi idarə edir ✓)
                 // ================================================================
-                var bağliKreditIdler = credits
+                var bitmisKreditIdler = credits
                     .Where(c => string.Equals(c.Status, "Bağlı", StringComparison.Ordinal))
                     .Select(c => c.Id)
                     .ToHashSet();
@@ -667,8 +671,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 //  seçim «itirdi» ✗ (istifadəçi hər dəfə yenidən seçirdi ✗✓✓)
                 var seçilmişId = SelectedCredit?.Id;
 
-                Credits.ReplaceAll(credits.Where(c => !transferliKreditIdler.Contains(c.Id)
-                                                      && !bağliKreditIdler.Contains(c.Id)));
+                Credits.ReplaceAll(credits.Where(c => !transferliKreditIdler.Contains(c.Id)));
 
                 // → seçim EYNİ İD ilə yeni nüsxəyə bağlanır ✓ (tapılmazsa null ✓)
                 if (seçilmişId is int id)
@@ -684,8 +687,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 foreach (var transaction in transactions.Where(t =>
                              !t.CreditId.HasValue
-                             || (!transferliKreditIdler.Contains(t.CreditId.Value)
-                                 && !bağliKreditIdler.Contains(t.CreditId.Value))))
+                             || !transferliKreditIdler.Contains(t.CreditId.Value)))
                 {
                     if (transaction.CreditId is int creditId && creditById.TryGetValue(creditId, out var credit))
                     {
@@ -701,7 +703,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 ApplyCreditFilter();
                 ApplyTransactionFilter();
 
-                _logger.LogInformation("{Count} kredit əməliyyatı yükləndi.", Transactions.Count);
+                _logger.LogInformation(
+                    "{Count} kredit əməliyyatı yükləndi ({Kredit} kredit — {Bitmis} bitmiş 🗄️).",
+                    Transactions.Count, Credits.Count, bitmisKreditIdler.Count);
             }
             catch (Exception ex)
             {

@@ -611,6 +611,76 @@ namespace EnterpriseAeroStudio.ViewModels
             : $"{FilteredContracts.Count} / {Credits.Count} müqavilə";
 
         /// <summary>Axtarış mətnini təmizləyir və bütün müqavilələri göstərir.</summary>
+        // ====================================================================
+        //  ⏹ «KREDİTİ BİTDİ» ✓✓✓ (v6.2.33)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: kredit məlumatının yanında düymə olsun ✓ —
+        //    basanda kredit BİTİR ✓ və maşın «satılmış» kimi
+        //    «🗄️ Satılan & Krediti Bitmiş» bölməsinə keçir ✓✓✓
+        //  ⚙ Nəticə: kredit «Bağlı» · avtomobil «Satıldı» ✓
+        //    (ödənişlər qalıq olsa da — istifadəçi qərarı hörmətlidir ✓)
+        // ====================================================================
+
+        /// <summary>⏹ Seçilmiş krediti «BİTDİ» kimi bağlayır ✓✓✓</summary>
+        [RelayCommand]
+        private async Task KreditiBitirAsync()
+        {
+            if (SelectedCredit is not Credit credit)
+            {
+                _dialogs.ShowWarning("Əvvəlcə kredit seçin ✗");
+                return;
+            }
+
+            if (string.Equals(credit.Status?.Trim(), "Bağlı", StringComparison.OrdinalIgnoreCase))
+            {
+                _dialogs.ShowWarning(
+                    "Bu kredit artıq bitib ✓ — «🗄️ Satılan & Krediti Bitmiş» bölməsindədir ✓");
+                return;
+            }
+
+            if (!_dialogs.Confirm(
+                    $"⏹ «{credit.MuqavileNomresi}» krediti BİTDİ kimi bağlanacaq ✓\n\n" +
+                    "• Kredit → «Bağlı» olacaq ✓\n" +
+                    "• Avtomobil → «Satıldı» → «🗄️ Satılan & Krediti Bitmiş» bölməsinə keçəcək ✓\n\n" +
+                    "Davam edilsin?",
+                    "⏹ Krediti bitdi"))
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var ok = await _creditService.CloseCreditEarlyAsync(
+                    credit.Id, $"⏹ Kredit bitdi ({DateTime.Today:dd.MM.yyyy}) ✓");
+
+                if (!ok)
+                {
+                    _dialogs.ShowError("Kredit bağlana bilmədi ✗");
+                    return;
+                }
+
+                _logger.LogInformation("⏹ Krediti bitdi: {Muqavile} ✓", credit.MuqavileNomresi);
+
+                await LoadAsync();
+                CreditsChanged?.Invoke(this, EventArgs.Empty);
+
+                _dialogs.ShowInfo(
+                    $"✅ «{credit.MuqavileNomresi}» krediti BİTDİ ✓\n\n" +
+                    "«🗄️ Satılan & Krediti Bitmiş» bölməsində görünür ✓");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Kredit bağlanarkən xəta baş verdi.");
+                _dialogs.ShowError("Kredit bağlana bilmədi: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
         [RelayCommand]
         private void ClearContractFilter()
         {

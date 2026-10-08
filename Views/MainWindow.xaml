@@ -1709,6 +1709,12 @@
                                                                     Style="{StaticResource iOSButton}" FontSize="11.5"
                                                                     Margin="7,0,0,0"
                                                                     ToolTip="Kreditin tam sənədi (barter · transferlər · ödəniş cədvəli · tərəfdaş bölgüsü) — brauzerdə açılır, Ctrl+P ilə PDF alın ✓"/>
+                                                            <!-- ⏹ KREDİTİ BİTDİ — kredit «Bağlı», maşın arxivə (Satıldı) ✓✓✓ (v6.2.33) -->
+                                                            <Button Content="⏹ KREDİTİ BİTDİ"
+                                                                    Command="{Binding Credits.KreditiBitirCommand}"
+                                                                    Style="{StaticResource iOSButton}" FontSize="11.5"
+                                                                    Margin="7,0,0,0" Background="#B45309" Foreground="White"
+                                                                    ToolTip="Kredit BİTDİ kimi bağlanır ✓ → kredit «Bağlı» olur ✓, avtomobil «Satıldı» → «🗄️ Satılan &amp; Krediti Bitmiş» bölməsinə keçir ✓"/>
                                                         </WrapPanel>
                                                     </StackPanel>
                                                 </Border>
@@ -2245,10 +2251,17 @@
                                     <ComboBox Width="360" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
                                               ItemsSource="{Binding CreditTransactions.FilteredCredits}"
                                               SelectedItem="{Binding CreditTransactions.SelectedCredit}"
-                                              Text="{Binding CreditTransactions.CreditSearchText, UpdateSourceTrigger=PropertyChanged}">
+                                              Text="{Binding CreditTransactions.CreditSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                              ToolTip="BÜTÜN kreditlər ✓ — bitmiş (🗄️ arxiv) kreditlər də seçilə bilər ✓ (ödəniş/qeyd əlavə etmək üçün ✓)">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding DisplayText}"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <!-- 🗄️ BİTMİŞ KREDİT NİŞANI ✓ (v6.2.33) -->
+                                                    <TextBlock Text="🗄️ "
+                                                               Visibility="{Binding BitmisKredit, Converter={StaticResource BoolToVis}}"
+                                                               ToolTip="Kredit bitmişdir (arxivə düşüb ✓) — yenə də əməliyyat əlavə edilə bilər ✓"/>
+                                                    <TextBlock Text="{Binding DisplayText}"/>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
