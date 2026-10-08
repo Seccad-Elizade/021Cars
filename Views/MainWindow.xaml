@@ -2258,8 +2258,8 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <!-- 🗄️ BİTMİŞ KREDİT NİŞANI ✓ (v6.2.33) -->
                                                     <TextBlock Text="🗄️ "
-                                                               Visibility="{Binding BitmisKredit, Converter={StaticResource BoolToVis}}"
-                                                               ToolTip="Kredit bitmişdir (arxivə düşüb ✓) — yenə də əməliyyat əlavə edilə bilər ✓"/>
+                                                               Visibility="{Binding BagliKredit, Converter={StaticResource BoolToVis}}"
+                                                               ToolTip="Kredit «⏹ KREDİTİ BİTDİ» ilə əl ilə bağlanıb ✓ — yenə də əməliyyat əlavə edilə bilər ✓"/>
                                                     <TextBlock Text="{Binding DisplayText}"/>
                                                 </StackPanel>
                                             </DataTemplate>

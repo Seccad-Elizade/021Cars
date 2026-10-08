@@ -50,7 +50,13 @@ namespace EnterpriseAeroStudio.Data
             await BackfillSiraNomresiAsync(cancellationToken);
             await CleanupOrphansAsync(cancellationToken);
             await RecalcCreditMonthlyAsync(cancellationToken);
-            await CloseFinishedCreditsAsync(cancellationToken);
+
+            // ⛔ v6.2.34 — «CloseFinishedCreditsAsync» ÇAĞIRILMIR ✗✓✓
+            //   ★ İstifadəçi tələbi: tam ödənilmiş kreditlər açılışda
+            //     AVTOMATİK bağlanmasın ✗ — yalnız «⏹ KREDİTİ BİTDİ»
+            //     düyməsi ilə əl ilə bağlanır ✓ (bax: CreditService ✓)
+            // await CloseFinishedCreditsAsync(cancellationToken);
+
             LogPartnerMathSelfCheck();
             LogCreditMathSelfCheck();
             _logger.LogInformation("Verilənlər bazası uğurla hazırlandı.");
@@ -59,17 +65,11 @@ namespace EnterpriseAeroStudio.Data
 
 
         /// <summary>
-        /// 🎯 <b>TAM ÖDƏNİLMİŞ KREDİTLƏRİ AVTOMATİK BAĞLAYIR.</b>
+        /// ⛔ <b>İSTİFADƏDƏN ÇIXARILDI (v6.2.34)</b> ✗✓✓
         /// <para>
-        /// Kredit üzrə toplanmış ödənişlər kreditin qiymətinə
-        /// (<c>Kreditləşdirilən + Faiz</c>) çatdıqda kredit <c>«Bağlı»</c>,
-        /// avtomobil isə <c>«Satıldı»</c> olur və beləliklə
-        /// «🗄️ Satılan &amp; Krediti Bitmiş» bölməsinə keçir.
-        /// </para>
-        /// <para>
-        /// Bu addım tətbiq açılışında bir dəfə işlədilir ki, <b>əvvəlki
-        /// versiyalarda</b> tam ödənilmiş, lakin statusu yenilənməmiş kreditlər
-        /// də düzəlsə — istifadəçi əl ilə heç nə etməsin.
+        /// Əvvəl açılışda tam ödənilmiş kreditləri avtomatik bağlayırdı ✗ —
+        /// İSTİFADƏÇİ TƏLƏBİ ilə <b>çağırılmır</b> ✗: kredit YALNIZ
+        /// «💳 Kreditlər» → <b>«⏹ KREDİTİ BİTDİ»</b> düyməsi ilə əl ilə bağlanır ✓.
         /// </para>
         /// </summary>
         private async Task CloseFinishedCreditsAsync(CancellationToken cancellationToken)

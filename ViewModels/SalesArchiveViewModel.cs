@@ -143,10 +143,20 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
-        /// <summary>Kredit bitmiş sayılır: status "Bağlı" və ya müddəti tamamlanıb.</summary>
+        /// <summary>
+        /// Kredit bitmiş sayılır? — <b>YALNIZ</b> statusu «Bağlı» olduqda ✓✓✓ (v6.2.34)
+        /// <para>
+        /// ★ İstifadəçi tələbi: «avtomatik heç nə bağlanmasın ✗ — kredit
+        /// YALNIZ ƏL İLƏ «⏹ KREDİTİ BİTDİ» düyməsi ilə bitmiş olur ✓» ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⚠ ƏVVƏL: müddəti TARİXƏ GÖRƏ bitən kredit də bu siyahıya avtomatik
+        /// düşürdü ✗ → «💳 Kreditlər»-də qaldığı halda burada da görünürdü ✗
+        /// (İKİ YERDƏ ✗). İndi bu siyahı YALNIZ əl ilə bağlananları göstərir ✓.
+        /// </para>
+        /// </summary>
         private static bool IsCompleted(Credit credit)
-            => credit.Status == "Bağlı"
-               || credit.BaslamaTarixi.AddMonths(credit.MuddetAy) <= DateTime.Today;
+            => string.Equals(credit.Status?.Trim(), "Bağlı", StringComparison.OrdinalIgnoreCase);
 
         // ================================================================
         //  🖱️ İKİ DƏFƏ KLİK → TAM DETAL PƏNCƏRƏSİ ✓✓✓

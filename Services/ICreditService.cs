@@ -88,18 +88,19 @@ namespace EnterpriseAeroStudio.Services
         Task<bool> ReopenCreditByCarAsync(int carId, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// 🎯 <b>KREDİT BİTDİKDƏ AVTOMATİK BAĞLANMA</b>
+        /// 🎯 <b>TAM ÖDƏNİLMİŞ KREDİTLƏRİ BAĞLAYIR</b> — <b>YALNIZ ƏL İLƏ</b> ✗✓✓
         /// <para>
-        /// Kredit üzrə toplanmış ödənişlər <b>kreditin qiymətinə</b>
-        /// (<c>Kreditləşdirilən + Faiz</c>) çatdıqda:
+        /// ⛔ <b>v6.2.34:</b> bu metod artıq <b>AVTOMATİK ÇAĞIRILMIR</b> ✗ —
+        /// nə ödənişdən sonra, nə açılışda ✓.
         /// </para>
-        /// <list type="number">
-        ///   <item>kreditin statusu → <c>«Bağlı»</c></item>
-        ///   <item>avtomobilin statusu → <c>«Satıldı»</c> (arxivə keçir)</item>
-        /// </list>
         /// <para>
-        /// Hər ödəniş əlavə/yeniləmə/silməsindən sonra avtomatik çağırılır;
-        /// tətbiq açılışında da bir dəfə işlədilir ki, köhnə qeydlər düzəlsə.
+        /// ★ İstifadəçi tələbi: «qalıq 0 olsa da kredit avtomatik bağlanmasın ✗ —
+        /// mən əl ilə <b>«⏹ KREDİTİ BİTDİ»</b> düyməsinə basmalıyam ✓» ✓✓✓
+        /// </para>
+        /// <para>
+        /// Kredit üzrə toplanmış ödənişlər kreditin qiymətinə
+        /// (<c>Kreditləşdirilən + Faiz</c>) çatdıqda kredit <c>«Bağlı»</c>,
+        /// avtomobil isə <c>«Satıldı»</c> olur.
         /// </para>
         /// </summary>
         /// <returns>Bu çağırışda bağlanan kreditlərin sayı.</returns>

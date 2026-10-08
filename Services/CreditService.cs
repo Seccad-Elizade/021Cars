@@ -235,8 +235,24 @@ namespace EnterpriseAeroStudio.Services
             // 📤 TRANSFER — kredit bağlanır, avtomobil «Satılan & Krediti Bitmiş»-ə keçir ✓
             await RefreshTransferAsync(transaction, cancellationToken);
 
-            // 🎯 Ödəniş krediti tamamladısa — kredit «Bağlı», maşın «Satıldı».
-            await RefreshCreditCompletionAsync(cancellationToken);
+            // ================================================================
+            //  ⛔ AVTOMATİK BAĞLANMA LƏĞV EDİLDİ ✗✓✓ (v6.2.34)
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi tələbi: «Skript idxalı edəndə qalıq 0 qalır amma
+            //    maşın avtomatik krediti bitmiş tabına gedir ✗ — getməməlidir ✗!
+            //    Mən ƏL İLƏ «⏹ KREDİTİ BİTDİ» düyməsinə basmalıyam ✓» ✓✓✓
+            //
+            //  ⚠ ƏVVƏL: hər ödənişdən sonra `RefreshCreditCompletionAsync`
+            //    çağırılırdı ✗ → ödənişlər kreditin qiymətinə çatanda kredit
+            //    ÖZÜ «Bağlı» olur, avtomobil ÖZÜ «Satıldı» olub arxivə keçirdi ✗
+            //    (istifadəçi bunu İSTƏMİR ✗ — əl ilə idarə etmək istəyir ✓)
+            //
+            //  ✅ İNDİ: status YALNIZ «⏹ KREDİTİ BİTDİ» düyməsi ilə dəyişir ✓
+            //    (📤 Transfer isə əvvəlki kimi AVTOMATİK bağlanır ✓ — bu,
+            //     ödəniş yox, maşının verilməsi əməliyyatıdır ✓)
+            // ================================================================
+            //  ✅ Status dəyişmir ✗ — yalnız əməliyyat qeyd olunur ✓
+            // ================================================================
 
             return transaction;
         }
@@ -383,8 +399,9 @@ namespace EnterpriseAeroStudio.Services
             existing.TerefdasPaylari = transaction.TerefdasPaylari;
             await SavePartnerSharesAsync(existing, cancellationToken);
 
-            // 🎯 Məbləğ dəyişdi — kredit bitibsə avtomatik bağlanır.
-            await RefreshCreditCompletionAsync(cancellationToken);
+            // ⛔ v6.2.34 — AVTOMATİK BAĞLANMA LƏĞV EDİLDİ ✗✓✓
+            //    Məbləğ dəyişsə də kredit statusu AVTOMATİK dəyişmir ✗ —
+            //    yalnız «⏹ KREDİTİ BİTDİ» düyməsi ilə bağlanır ✓
         }
 
         /// <summary>
@@ -474,8 +491,9 @@ namespace EnterpriseAeroStudio.Services
                 await TransferGeriAlAsync(cid, cancellationToken);
             }
 
-            // 4) Ödəniş silindiyi üçün kredit «bağlı»dan çıxa bilər.
-            await RefreshCreditCompletionAsync(cancellationToken);
+            // 4) ⛔ v6.2.34 — avtomatik bağlanma LƏĞV EDİLDİ ✗✓✓
+            //    Ödəniş silinsə də kredit statusu AVTOMATİK dəyişmir ✗ —
+            //    yalnız «⏹ KREDİTİ BİTDİ» düyməsi ilə bağlanır ✓
         }
 
         /// <summary>

@@ -341,6 +341,18 @@ namespace EnterpriseAeroStudio.Models
             string.Equals(Status, "Bağlı", StringComparison.OrdinalIgnoreCase)
             || (MuddetAy > 0 && BaslamaTarixi.AddMonths(MuddetAy) <= DateTime.Today);
 
+        /// <summary>
+        /// 🗄️ Kredit <b>ƏL İLƏ</b> bağlanıbmı? (<c>Status = «Bağlı»</c>) ✓✓✓ (v6.2.34)
+        /// <para>
+        /// ⚠ <see cref="BitmisKredit"/>-dən FƏRLİDİR ✗ — o, <b>TARİXƏ görə</b> də
+        /// <c>true</c> olur ✓. Seçim siyahısındakı 🗄️ nişanı isə YALNIZ
+        /// «⏹ KREDİTİ BİTDİ» ilə bağlanmış kreditləri göstərməlidir ✓✓✓
+        /// </para>
+        /// </summary>
+        [NotMapped]
+        public bool BagliKredit =>
+            string.Equals(Status?.Trim(), "Bağlı", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Kreditin neçə faizi ödənilib (0–100).</summary>
         public decimal OdenisFaizi(decimal odenilmis)
             => KreditQiymeti <= 0m ? 0m : Math.Min(100m, Math.Round(odenilmis / KreditQiymeti * 100m, 1));
