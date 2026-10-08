@@ -713,9 +713,41 @@ namespace EnterpriseAeroStudio.ViewModels
         public string SelectedFaizVeQiymet => SelectedCredit?.FaizVeQiymetMetni ?? string.Empty;
 
         /// <summary>Qalıq kartının altındakı izah: «Qiymət 23 819,60 ₼ − ödənilmiş 5 000,00 ₼».</summary>
-        public string SelectedQaliqIzahi => SelectedCredit is null
-            ? string.Empty
-            : $"Qiymət {SelectedKreditQiymeti:N2} ₼ − ödənilmiş {SelectedOdenilen:N2} ₼";
+        public string SelectedQaliqIzahi
+        {
+            get
+            {
+                if (SelectedCredit is null)
+                {
+                    return string.Empty;
+                }
+
+                // ================================================================
+                //  📊 ŞƏFFAF VƏ DƏQİQ DÜSTUR ✓✓✓ (v6.2.30)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: «Qiymət X − ödənilmiş Y» ✗ — cərimələr YOX ✗ →
+                //    rəqəmlər uyğun GƏLMİRDİ ✗ (istifadəçi şikayəti ✓✓✓)
+                //
+                //  ✅ İNDİ:  Qiymət + (ÖDƏNİLMƏMİŞ cərimə) − taksit ödənişləri
+                //    • ödənilməmiş gecikmə → QALIĞA ƏLAVƏ olunur ✓
+                //    • ödənilmiş gecikmə   → əlavə OLUNMUR ✗ (bir-birini ləğv edir ✓)
+                //    → düstur DƏQİQ balanslaşır ✓✓✓
+                // ================================================================
+                var esas = $"Qiymət {SelectedKreditQiymeti:N2} ₼";
+
+                if (SelectedGecikmeQaliq > 0m)
+                {
+                    esas += $" + cərimə {SelectedGecikmeQaliq:N2} ₼";
+                }
+
+                return $"{esas} − taksit ödənişləri {SelectedTaksitOdenisCemi:N2} ₼";
+            }
+        }
+
+        /// <summary>
+        /// Taksit (kredit) ödənişlərinin cəmi — <b>cərimələr DAXİL DEYİL</b> ✗ (v6.2.30).
+        /// </summary>
+        public decimal SelectedTaksitOdenisCemi => Math.Max(0m, SelectedOdenilen - SelectedGecikmeOdenilmis);
 
         /// <summary>Edilmiş ödənişlərin sayı.</summary>
         public int SelectedOdenisSayi { get; private set; }
@@ -827,6 +859,43 @@ namespace EnterpriseAeroStudio.ViewModels
                 return SelectedGecikmeQaliq <= 0m
                     ? $"{esas} (ödənilib ✓)"
                     : $"{esas} (ödənilib {SelectedGecikmeOdenilmis:N2} ₼ · qalıq {SelectedGecikmeQaliq:N2} ₼)";
+            }
+        }
+
+        /// <summary>⚠️ Seçilmiş kreditdə gecikmə cəriməsi VAR? (panel görünsün ✓) — v6.2.30.</summary>
+        public bool GecikmeVar => SelectedGecikmeSayi > 0 || SelectedGecikmeCerimesi > 0m;
+
+        /// <summary>
+        /// ⚠️ <b>GECİKMƏ CƏRİMƏSİ XÜLASƏSİ</b> ✓✓✓ (v6.2.30)
+        /// <para>
+        /// ★ İstifadəçi tələbi: «kredit məlumatında yazılmalıdır — <b>ne qədər
+        /// gecikmə olub, ne qədər pul, ne qədər ödənilib</b>» ✓✓✓
+        /// </para>
+        /// <example>
+        /// <code>
+        /// ⚠️ GECİKMƏ CƏRİMƏSİ — 4 qeyd · cəmi 80,00 ₼  ·  ödənilib 20,00 ₼  ·  qalıq 60,00 ₼
+        /// ↳ ödənilməmiş hissə (60,00 ₼) QALIĞA əlavə olunur ✓
+        /// </code>
+        /// </example>
+        /// </summary>
+        public string SelectedGecikmeDetal
+        {
+            get
+            {
+                if (!GecikmeVar)
+                {
+                    return string.Empty;
+                }
+
+                var metn =
+                    $"⚠️ GECİKMƏ CƏRİMƏSİ — {SelectedGecikmeSayi} qeyd" +
+                    $"  ·  cəmi {SelectedGecikmeCerimesi:N2} ₼" +
+                    $"  ·  ödənilib {SelectedGecikmeOdenilmis:N2} ₼" +
+                    $"  ·  qalıq {SelectedGecikmeQaliq:N2} ₼";
+
+                return SelectedGecikmeQaliq > 0m
+                    ? metn + $"\n↳ ödənilməmiş hissə ({SelectedGecikmeQaliq:N2} ₼) QALIĞA əlavə olunur ✓"
+                    : metn + "\n↳ hamısı ödənilib ✓ — qalığa əlavə olunmur ✗";
             }
         }
 
@@ -973,19 +1042,24 @@ namespace EnterpriseAeroStudio.ViewModels
 
             // Gecikmə göstəriciləri.
             SelectedGecikmeSayi = Schedule.Count(r => r.GecikmeVar);
-            SelectedGecikmeCerimesi = Schedule.Where(r => r.GecikmeVar).Sum(r => r.GecikmeMeblegi);
 
             // ================================================================
-            //  ⚠️ CƏRİMƏNİN «ÖDƏNİLMİŞ / QALIQ» BÖLGÜSÜ ✓✓✓ (v6.2.29)
+            //  ⚠️ CƏRİMƏNİN «ÖDƏNİLMİŞ / QALIQ» BÖLGÜSÜ ✓✓✓ (v6.2.30)
             // ----------------------------------------------------------------
-            //  ★ İstifadəçi tələbi: «gecikmə 100 AZN cərimə var — 50 manatı
-            //    ödənilib» kimi məlumat kartda GÖRÜNMƏLİDİR ✓✓✓
+            //  ★ İstifadəçi tələbi:
+            //    • «cərimə 100 AZN var — 50 manatı ödənilib» GÖRÜNSÜN ✓
+            //    • «ödənilməmiş gecikmə QALIĞIN ÜSTÜNƏ gəlsin ✓,
+            //       ödənilmiş gecikmə gəlməsin ✗» ✓✓✓
             // ================================================================
             var cerimeHereketleri = SelectedCredit is null
                 ? new List<CreditTransaction>()
                 : _creditTransactions
                     .Where(t => t.CreditId == SelectedCredit.Id && t.Nov == "Gecikmə")
                     .ToList();
+
+            // Cəmi BİRBAŞA əməliyyatlardan ✓ → `SelectedQaliq` düsturu ilə
+            // BİR-BİRDİR ✓ (dəqiq balans ✓)
+            SelectedGecikmeCerimesi = cerimeHereketleri.Sum(t => t.Mebleg);
 
             SelectedGecikmeOdenilmis = cerimeHereketleri
                 .Where(t => t.Odenilib)
@@ -1000,6 +1074,10 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(SelectedGecikmeOdenilmis));
             OnPropertyChanged(nameof(SelectedGecikmeQaliq));
             OnPropertyChanged(nameof(SelectedGecikmeYekunu));
+            OnPropertyChanged(nameof(SelectedGecikmeDetal));
+            OnPropertyChanged(nameof(GecikmeVar));
+            OnPropertyChanged(nameof(SelectedTaksitOdenisCemi));
+            OnPropertyChanged(nameof(SelectedQaliqIzahi));
         }
 
         [RelayCommand]

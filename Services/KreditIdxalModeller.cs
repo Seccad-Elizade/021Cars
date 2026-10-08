@@ -15,10 +15,73 @@ namespace EnterpriseAeroStudio.Services
     {
         /// <summary>📋 Nümunə mətn — «📋 Nümunə» düyməsi bunu input sahəsinə yazır ✓.</summary>
         public const string Numune = """
+        # ============================================================
+        #  021Cars — KREDİT İDXALI NÜMUNƏSİ (TAM VƏ ƏHATƏLİ) ✓
+        #  BÖLMƏLƏR: [Müqavilə Məlumatları] · [Tərəfdaşlar və Pay
+        #  Bölgüsü] · [Gecikmələr və Cərimələr Tarixçəsi] · [Aylıq
+        #  Ödənişlər və Paylar Qrafiki] ✓
+        #  AÇARLAR: Maşın · Nömrə · İl · Müştəri · Müqavilə No · Alış
+        #  Qiyməti · Əlavə Xərclər · Ümumi Maya · Satış Qiyməti ·
+        #  İlkin Ödəniş (Beh) · İlkin Ödəniş Möhləti · Müddət (Ay) ·
+        #  Standart Aylıq Ödəniş · Ödəniş Gün Aralığı · Başlama Tarixi ·
+        #  Faiz · Kök · Maya · Qeyd ✓
+        #  QRAFİK: «# Tarix | Ödəniş | Maya | Kar<Ad> | … | Qeyd» ✓
+        #    • «İlkin mənfəət bölgüsü» sətri (0,00 ₼) → ÖDƏNİŞ SAYILMIR ✗
+        #    • «…möhlətinin ödənilən pulu» → kredit taksiti DEYİL ✗
+        #  ÇOXLU KREDİT: blokları «---» sətri ilə ayırın ✓
+        # ============================================================
+
+        [Müqavilə Məlumatları]
+        Maşın: Kia Megantis
+        Nömrə: 90-MX-712
+        İl: 2019
+        Müştəri: Kamran Həsənov
+        Müqavilə No: M-0712
+        Alış Qiyməti: 11907.00
+        Əlavə Xərclər: 763.00
+        Ümumi Maya: 12670.00
+        Satış Qiyməti: 15630.00
+        İlkin Ödəniş (Beh): 11000.00
+        Müddət (Ay): 36
+        Standart Aylıq Ödəniş: 300.00
+        Ödəniş Gün Aralığı: Hər ayın 1-i ilə 7-si arası
+        Başlama Tarixi: 29.04.2024
+
+        [Tərəfdaşlar və Pay Bölgüsü]
+        Zaur | 6% | KarZaur
+        Eşqin | 5% | KarEshgin
+        Asiman | 4% | KarAsiman
+        Asif | qalıq | KarAsif
+        Musa | qalıq | KarMusa
+
+        [Gecikmələr və Cərimələr Tarixçəsi (Kassa)]
+        # Tarix | Məbləğ (AZN) | Qeyd
+        10.02.2025 | 20.00 | Gecikmə cəriməsi (çatmayan pul) -> Kassaya yazılır
+        11.07.2025 | 20.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
+        13.11.2025 | 20.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
+        08.12.2025 | 20.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
+
+        [Aylıq Ödənişlər və Paylar Qrafiki]
+        # Tarix | Ödəniş | Maya | KarMusa | KarAsif | KarZaur | KarAsiman | Qeyd
+        29.04.2024 | 0.00 | 0.00 | 1332.00 | 1332.00 | 177.00 | 119.00 | İlkin mənfəət bölgüsü
+        04.06.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        05.07.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        03.08.2024 | 298.00 | 144.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        30.08.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        04.10.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        05.11.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        06.12.2024 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        06.01.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        06.02.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        05.03.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        04.04.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        02.05.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+        05.06.2025 | 300.00 | 146.00 | 77.00 | 77.00 | 0.00 | 0.00 | Standart ay
+
+        ---
         [Müqavilə Məlumatları]
         Maşın: Kia Ceed 1.6
         Nömrə: 90-GA-455
-        İl: 2018
         Müştəri: Rebbil Əliyev
         Müqavilə No: M-0021
         Alış Qiyməti: 13800.00
@@ -34,43 +97,36 @@ namespace EnterpriseAeroStudio.Services
         Faiz: 66.67
         Kök: 7200.00
         Maya: 15000.00
-        Qeyd: Nümunə kredit — bütün bölmələr və açarlar göstərilmişdir
 
         [Tərəfdaşlar və Pay Bölgüsü]
-        Zaur | 6% | KarZ
-        Eşqin | 5% | KarA
-        Asiman | 5% | KarA2
+        Zaur | 6% | KarZaur
+        Eşqin | 5% | KarEshgin
+        Asiman | 4% | KarAsiman
         Asif | qalıq | KarAsif
         Musa | qalıq | KarMusa
 
-        [Gecikmələr və Cərimələr Tarixçəsi]
-        # Tarix | Məbləğ (AZN) | Qeyd
-        07.05.2025 | 100.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
-        09.06.2025 | 50.00 | Gecikmə cəriməsi (obyekt) -> Kassaya yazılır
-        11.07.2025 | 150.00 | 100 AZN obyekt + 50 AZN günə görə
-
         [Aylıq Ödənişlər və Paylar Qrafiki]
-        # Tarix | Ödəniş | Maya | KarZ | KarA | KarA2 | KarAsif | KarMusa | Qeyd
-        05.03.2024 | 0.00 | 0.00 | 30.00 | 25.00 | 25.00 | 210.00 | 210.00 | İlkin mənfəət bölgüsü
+        # Tarix | Ödəniş | Maya | KarZaur | KarEshgin | KarAsiman | KarAsif | KarMusa | Qeyd
+        05.03.2024 | 0.00 | 0.00 | 30.00 | 25.00 | 20.00 | 212.50 | 212.50 | İlkin mənfəət bölgüsü
         25.04.2024 | 4000.00 | 4000.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | İlkin ödəniş möhlətinin ödənilən pulu
-        05.04.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.05.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.06.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.07.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.08.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.09.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.10.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.11.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.12.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.01.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.02.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Standart ay
-        05.03.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 20.00 | 168.00 | 168.00 | Sonuncu ay
+        05.04.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.05.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.06.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.07.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.08.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.09.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.10.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.11.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.12.2024 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.01.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.02.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Standart ay
+        05.03.2025 | 1000.00 | 600.00 | 24.00 | 20.00 | 16.00 | 170.00 | 170.00 | Sonuncu ay
 
         ---
         [Müqavilə Məlumatları]
         Maşın: Hyundai i30
         Nömrə: 77-KL-936
-        Müştəri: Kamran Həsənov
+        Müştəri: Nurlan Quliyev
         Müqavilə No: M-0936
         Alış Qiyməti: 12900.00
         Əlavə Xərclər: 735.00
@@ -92,6 +148,8 @@ namespace EnterpriseAeroStudio.Services
         30.06.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
         29.07.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
         30.08.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
+        30.09.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
+        29.10.2024 | 600.00 | 272.00 | 164.00 | 164.00 | 0.00 | 0.00 | Standart ay
         """;
     }
 
@@ -266,6 +324,22 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         public bool MohletOdenisi { get; set; }
 
+        /// <summary>
+        /// 🧩 Bu sətir <b>«İLKİN MƏNFƏƏT BÖLGÜSÜ»</b>dür? ✓✓✓ (v6.2.29)
+        /// <para>
+        /// ★ İstifadəçi tələbi: «İlkin mənfəət bölgüsü» sətri (ödəniş = <b>0,00</b>,
+        /// maya = <b>0,00</b>) <b>aylıq kredit ödənişi SAYILMAMALIDIR</b> ✗ —
+        /// yalnız tərəfdaşların <b>ilkin pay bölgüsünü</b> təyin edir ✓.
+        /// </para>
+        /// <para>
+        /// ⚠ Əks halda bu sətir <b>0 ₼-lıq saxta «Gəlir» əməliyyatı</b> yaradır ✗ və
+        /// <b>bütün taksitləri 1 yer SÜRÜŞDÜRÜR</b> ✗✗✗ (məs. 04.06.2024 ödənişi
+        /// «1-ci ay» yerinə «2-ci ay» olur ✗) → kredit cədvəli və balans səhv
+        /// görünür ✗.
+        /// </para>
+        /// </summary>
+        public bool IlkinBolgu { get; set; }
+
         /// <summary>Tərəfdaş payları (verildiyi kimi ✓).</summary>
         public List<KreditIdxalPay> Paylar { get; set; } = new();
 
@@ -351,6 +425,7 @@ namespace EnterpriseAeroStudio.Services
         {
             "⚖️ Cərimə" => Odenilib ? "⚖️ Cərimə (öd.)" : "⚖️ Cərimə (gözl.)",
             "⏳ Möhlət" => Odenilib ? "⏳ Möhlət (öd. ✓)" : "⏳ Möhlət",
+            "🧩 İlkin bölgü" => "🧩 Bölgü (ödəniş deyil ✗)",
             _ => Odenilib ? "✅ Ödənilib" : "🕓 Plan"
         };
 
@@ -358,6 +433,7 @@ namespace EnterpriseAeroStudio.Services
         {
             "⚖️ Cərimə" => "#FB7185",
             "⏳ Möhlət" => "#F59E0B",
+            "🧩 İlkin bölgü" => "#C084FC",
             _ => Odenilib ? "#34D399" : "#FBBF24"
         };
 

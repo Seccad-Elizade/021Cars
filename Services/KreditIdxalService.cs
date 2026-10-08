@@ -111,8 +111,38 @@ namespace EnterpriseAeroStudio.Services
                 if (kart.Qrafikden)
                 {
                     netice.Setirler.Add(
-                        $"        📅 cədvəl İSTİFADƏÇİDƏN götürüldü (maya və paylar olduğu kimi ✓) — {kart.Setirler.Count(s => s.Nov == "Taksit")} sətir");
+                        $"        📅 cədvəl İSTİFADƏÇİDƏN götürüldü (maya və paylar olduğu kimi ✓) — " +
+                        $"{kart.Setirler.Count(s => s.Nov == "Taksit")} taksit sətri");
                 }
+
+                // ================================================================
+                //  🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — ödəniş SAYILMIR ✗✓✓ (v6.2.29)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL bu sətir 0 ₼-lıq SAXTA «Gəlir» kimi yazılırdı ✗ və
+                //    taksitləri 1 yer sürüşdürürdü ✗ → indi ayrıca göstərilir ✓
+                // ================================================================
+                var ilkinBolguSetirleri = kart.Setirler
+                    .Where(s => s.Nov == "🧩 İlkin bölgü")
+                    .ToList();
+
+                if (ilkinBolguSetirleri.Count > 0)
+                {
+                    var bolguCemi = ilkinBolguSetirleri.Sum(s => s.Menfeet);
+
+                    netice.Setirler.Add(
+                        $"        🧩 ilkin mənfəət bölgüsü {Pul(bolguCemi)} — ödəniş SAYILMIR ✗ " +
+                        $"(kredit taksiti deyil ✓ · yalnız pay bölgüsü ✓)");
+                    netice.Setirler.Add($"           ↳ {ilkinBolguSetirleri[0].Bolgu}");
+                }
+
+                // ================================================================
+                //  📊 BALANS — ŞƏFFAF DÜSTUR ✓✓✓ (v6.2.29)
+                //  ümumi + cərimələr − ödənilmiş = QALİQ NİSYƏ ✓
+                // ================================================================
+                netice.Setirler.Add(
+                    $"        📊 balans: ümumi {kart.UmumiMetni}" +
+                    (kart.CerimeCemi > 0m ? $" + cərimə {kart.CerimeMetni}" : string.Empty) +
+                    $" − ödənilmiş {kart.OdenilmisMetni} = QALIQ NİSYƏ {kart.QaliqNisyeMetni}");
 
                 if (!string.IsNullOrWhiteSpace(kart.BolguXulase))
                 {
@@ -350,6 +380,21 @@ namespace EnterpriseAeroStudio.Services
                     if (q.MohletOdenisi)
                     {
                         await MohletiOdenildiAsync(mohletler, q, netice, cancellationToken);
+                        continue;
+                    }
+
+                    // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — kredit taksiti DEYİL ✗✓✓ (v6.2.29)
+                    // ----------------------------------------------------------------
+                    //  ★ İstifadəçi tələbi: «İlkin mənfəət bölgüsü» sətri (0,00 ₼)
+                    //    REAL AYLIO ÖDƏNİŞ SAYILMAMALIDIR ✗ — yalnız tərəfdaşların
+                    //    ilkin pay bölgüsünü təyin edir ✓.
+                    //  ⚠ Əvvəl buradan 0 ₼-lıq SAXTA «Gəlir» əməliyyatı yaradılırdı ✗
+                    //    və taksitNo++ ilə BÜTÜN ödənişlər 1 yer SÜRÜŞÜRDÜ ✗✗✗
+                    //    (04.06.2024 = «1-ci ay» yerinə «2-ci ay» ✗) → kredit
+                    //    cədvəli/balans səhv görünürdü ✗✓✓
+                    // ----------------------------------------------------------------
+                    if (q.IlkinBolgu)
+                    {
                         continue;
                     }
 
@@ -791,6 +836,15 @@ namespace EnterpriseAeroStudio.Services
                     Mebleg = PulOku(hucreler[i]) ?? 0m
                 });
             }
+
+            // 🧩 «İLKİN MƏNFƏƏT BÖLGÜSÜ» sətri ✓✓✓ (v6.2.29)
+            //  (ödəniş = 0, maya = 0, tərəfdaş payları var → TAKSIT DEYİL ✗,
+            //   yalnız ilkin pay bölgüsünü təyin edir ✓)
+            setr.IlkinBolgu =
+                !setr.MohletOdenisi
+                && setr.Odenis <= 0m
+                && setr.Maya <= 0m
+                && setr.Paylar.Count > 0;
 
             b.Qrafik.Add(setr);
         }
@@ -1287,6 +1341,49 @@ namespace EnterpriseAeroStudio.Services
                             ? "İlkin ödənişə möhlətin ödənişi"
                             : q.Qeyd,
                         Odenilib = odenilib
+                    });
+
+                    continue;
+                }
+
+                // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — kredit taksiti DEYİL ✗✓✓ (v6.2.29)
+                //  (ödəniş = 0, maya = 0 → yalnız ilkin pay bölgüsü ✓)
+                //  ⚠ Taksit NÖMRƏSİ artırılmır ✗ → real ödənişlər DÜZGÜN
+                //    nömrələnir ✓ (məs. 04.06.2024 = 1-ci ay ✓)
+                if (q.IlkinBolgu)
+                {
+                    var bDeyerler = adlar
+                        .Select(a => new KreditIdxalPay
+                        {
+                            Ad = a,
+                            Mebleg = q.Paylar
+                                .FirstOrDefault(p => string.Equals(p.Ad, a, StringComparison.OrdinalIgnoreCase))
+                                ?.Mebleg ?? 0m
+                        })
+                        .ToList();
+
+                    setirler.Add(new KreditIdxalSetir
+                    {
+                        Kredit = blok.Basliq,
+                        Ay = 0,
+                        Nov = "🧩 İlkin bölgü",
+                        Tarix = q.Tarix,
+                        Odenis = 0m,
+                        Maya = 0m,
+                        Menfeet = q.Menfeet,
+                        Kar1 = bDeyerler.ElementAtOrDefault(0)?.Mebleg ?? 0m,
+                        Kar2 = bDeyerler.ElementAtOrDefault(1)?.Mebleg ?? 0m,
+                        Kar3 = bDeyerler.ElementAtOrDefault(2)?.Mebleg ?? 0m,
+                        Kar4 = bDeyerler.ElementAtOrDefault(3)?.Mebleg ?? 0m,
+                        Kar1Ad = adlar.ElementAtOrDefault(0) ?? string.Empty,
+                        Kar2Ad = adlar.ElementAtOrDefault(1) ?? string.Empty,
+                        Kar3Ad = adlar.ElementAtOrDefault(2) ?? string.Empty,
+                        Kar4Ad = adlar.ElementAtOrDefault(3) ?? string.Empty,
+                        Bolgu = string.Join(
+                            " · ",
+                            bDeyerler.Where(x => x.Mebleg > 0m).Select(x => $"{x.Ad} {x.Mebleg:N2} ₼")),
+                        QaliqKok = Math.Max(0m, kok - odenilmisKok),
+                        Odenilib = true
                     });
 
                     continue;
