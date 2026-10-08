@@ -383,22 +383,70 @@ namespace EnterpriseAeroStudio.Services
                         continue;
                     }
 
-                    // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — kredit taksiti DEYİL ✗✓✓ (v6.2.29)
-                    // ----------------------------------------------------------------
-                    //  ★ İstifadəçi tələbi: «İlkin mənfəət bölgüsü» sətri (0,00 ₼)
-                    //    REAL AYLIO ÖDƏNİŞ SAYILMAMALIDIR ✗ — yalnız tərəfdaşların
-                    //    ilkin pay bölgüsünü təyin edir ✓.
-                    //  ⚠ Əvvəl buradan 0 ₼-lıq SAXTA «Gəlir» əməliyyatı yaradılırdı ✗
-                    //    və taksitNo++ ilə BÜTÜN ödənişlər 1 yer SÜRÜŞÜRDÜ ✗✗✗
-                    //    (04.06.2024 = «1-ci ay» yerinə «2-ci ay» ✗) → kredit
-                    //    cədvəli/balans səhv görünürdü ✗✓✓
-                    // ----------------------------------------------------------------
+                    // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — kredit taksiti DEYİL ✗✓✓
+                    // ================================================================
+                    //  ★ İstifadəçi tələbi (v6.2.31):
+                    //    • «İlkin mənfəət bölgüsü» sətri REAL ÖDƏNİŞ SAYILMASIN ✗
+                    //      (balansa/kassaya təsir etməsin ✗ — məbləği 0,00 ₼ ✓)
+                    //    • AMMA tərəfdaş PAYLARI SAXLANSIN ✓ — əks halda
+                    //      tərəfdaş kartlarında **0 ₼** qalır ✗✓✓
+                    //      (məs. Zaur 177 ₼ · Asiman 119 ₼ yalnız bu sətirdən gəlir ✓)
+                    //
+                    //  ✅ HƏLL: ayrı növ (`İlkin bölgü`) ilə 0 ₼-lıq əməliyyat ✓
+                    //    → `Nov != "Gəlir"` olduğu üçün ödəniş qrafikinə, kassa
+                    //      daxilolmasına və «ödənilmiş» cəminə DAXİL OLUNMUR ✗✓✓
+                    //    → tərəfdaş payları yazılır ✓ → kartlarda görünür ✓✓✓
+                    // ================================================================
                     if (q.IlkinBolgu)
                     {
+                        var bolguPaylar = q.Paylar
+                            .Where(p => p.Mebleg > 0m)
+                            .Select((p, i) => new PartnerShare
+                            {
+                                Terefdas = p.Ad,
+                                Mebleg = p.Mebleg,
+                                Aktiv = true,
+                                Sira = i
+                            })
+                            .ToList();
+
+                        if (bolguPaylar.Count > 0)
+                        {
+                            await _kreditler.AddTransactionAsync(new CreditTransaction
+                            {
+                                CreditId = creditId,
+                                Nov = Catalog.IlkinBolguNovu,
+                                InstallmentNo = null,
+                                Mebleg = 0m,                        // ✗ ödəniş DEYİL
+                                Tarix = q.Tarix,
+                                Tesvir = "🧩 İlkin mənfəət bölgüsü (kredit taksiti deyil ✗)",
+                                TerefdasBolguTetbiqOlunub = true,
+                                BolguBazasi = q.Menfeet > 0m ? q.Menfeet : null,
+                                TerefdasPaylari = bolguPaylar
+                            }, cancellationToken);
+
+                            netice.PaySayi += bolguPaylar.Count;
+
+                            netice.Setirler.Add(
+                                $"   🧩 {Pul(q.Menfeet)} ilkin mənfəət bölgüsü yazıldı ✓ — " +
+                                string.Join(" · ", bolguPaylar.Select(p => $"{p.Terefdas} {p.Mebleg:N2} ₼")) +
+                                " (ödəniş SAYILMIR ✗)");
+                        }
+
                         continue;
                     }
 
-                    taksitNo++;
+                    // 📅 TAKSİT NÖMRƏSİ = «Başlama Tarixi»ndən AY FƏRQİ + 1 ✓✓✓ (v6.2.31)
+                    // ----------------------------------------------------------------
+                    //  ⚠ ƏVVƏL sadəcə ardıcıl sayılırdı (`taksitNo++` ✗) → qrafikdə
+                    //    ilk ödəniş başlanğıcdan SONRA gəlirsə (məs. başlama
+                    //    29.04.2024, ilk ödəniş 04.06.2024 ✗) bütün aylar
+                    //    SÜRÜŞÜRDÜ ✗ → tərəfdaşların AYLIQ DÖVRİYYƏSİ səhv aya
+                    //    düşürdü ✗✓✓
+                    //  ✅ İNDİ: nömrə tarixdən hesablanır ✓ →
+                    //    `GosterilenTarix = BaslamaTarixi + (n−1) ay` REAL tarixə
+                    //    uyğun olur ✓✓✓ (tərəfdaş kartlarında aylıq dövriyyə DÜZGÜN ✓)
+                    taksitNo = Math.Max(1, AyFerqi(blok.Baslama, q.Tarix) + 1);
 
                     var verilenPaylar = q.Paylar
                         .Where(p => p.Mebleg > 0m)
@@ -1015,6 +1063,132 @@ namespace EnterpriseAeroStudio.Services
             });
         }
 
+        /// <summary>
+        /// 👥 <b>TƏRƏFDAŞ ADLARINI KANONİKLƏŞDİRİR</b> ✓✓✓ (v6.2.31)
+        /// <para>
+        /// ★ İstifadəçi tələbi: qrafikdəki <b>sütun başlıqları</b> («KarZaur» ·
+        /// «KarAsiman» · «KarAsif» · «KarMusa») ilə <c>[Tərəfdaşlar və Pay Bölgüsü]</c>
+        /// siyahısındakı adlar və <b>tətbiqin tərəfdaş siyahısı</b> EYNİLƏŞDİRİLMƏLİDİR ✓
+        /// — əks halda tərəfdaş kartlarında <b>0 ₼</b> qalır ✗✓✓
+        /// </para>
+        /// <example>
+        /// <code>
+        /// «KarZaur»   → «Zaur»    ✓
+        /// «Kar_Musa»  → «Musa»    ✓
+        /// «Kar Asif»  → «Asif»    ✓
+        /// «Musa»      → «Musa»    ✓
+        /// </code>
+        /// </example>
+        /// </summary>
+        private static void TerefdasAdlariniNormallashdir(KreditIdxalBloku blok)
+        {
+            // 1) MƏLUM ADLAR — blokdaki siyahı + tətbiqin tərəfdaşları + standart siyahı
+            var melum = new List<string>();
+
+            foreach (var t in blok.Terefdaslar)
+            {
+                MelumAdElaveEt(melum, t.Ad);
+            }
+
+            foreach (var p in PartnerMath.PartnersProvider?.Invoke() ?? Array.Empty<Partner>())
+            {
+                MelumAdElaveEt(melum, p.Ad);
+            }
+
+            foreach (var p in Catalog.DefaultPartners)
+            {
+                MelumAdElaveEt(melum, p.Ad);
+            }
+
+            // 2) QRAFİK sətirlərindəki pay adları kanonik formaya gətirilir ✓
+            foreach (var setr in blok.Qrafik)
+            {
+                foreach (var pay in setr.Paylar)
+                {
+                    pay.Ad = KanonikAd(pay.Ad, melum);
+                }
+            }
+        }
+
+        /// <summary>Adı siyahıya əlavə edir (təkrar yoxdur ✓).</summary>
+        private static void MelumAdElaveEt(List<string> siyahi, string? ad)
+        {
+            var t = (ad ?? string.Empty).Trim();
+
+            if (t.Length == 0 || siyahi.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            siyahi.Add(t);
+        }
+
+        /// <summary>
+        /// Adı məlum siyahıya uyğunlaşdırır ✓ («KarZaur» → «Zaur» ✓).
+        /// <para>Uyğunluq tapılmazsa — təmizlənmiş ad qaytarılır ✓.</para>
+        /// </summary>
+        private static string KanonikAd(string ad, List<string> melum)
+        {
+            var temiz = PayAdi(ad);
+
+            if (temiz.Length == 0)
+            {
+                return (ad ?? string.Empty).Trim();
+            }
+
+            var norm = SadeAd(temiz);
+
+            // ① DƏQİQ uyğunluq ✓
+            foreach (var m in melum)
+            {
+                if (SadeAd(m) == norm)
+                {
+                    return m;
+                }
+            }
+
+            // ② Qısa/uzun forma ✓ («Musa» ↔ «Musa Əliyev» — yalnız ≥ 3 hərf ✓)
+            if (norm.Length >= 3)
+            {
+                foreach (var m in melum)
+                {
+                    var nm = SadeAd(m);
+
+                    if (nm.Length >= 3
+                        && (nm.StartsWith(norm, StringComparison.Ordinal)
+                            || norm.StartsWith(nm, StringComparison.Ordinal)))
+                    {
+                        return m;
+                    }
+                }
+            }
+
+            return temiz;
+        }
+
+        /// <summary>Müqayisə üçün adı sadələşdirir («Kar_Musa» → «musa» ✓).</summary>
+        private static string SadeAd(string ad)
+            => new(AcarNorm(ad).Where(char.IsLetterOrDigit).ToArray());
+
+        /// <summary>
+        /// İki tarix arasındakı <b>TAM AY FƏRQİ</b> ✓ (mənfi ola bilər ✗ — v6.2.31).
+        /// <para>
+        /// ⚠ ƏVVƏL bu hesablama YOX idi ✗ → taksit nömrəsi sadəcə ardıcıl sayılırdı
+        /// (1, 2, 3…) ✗ → qrafikdə ilk ödəniş «Başlama Tarixi»ndən sonra gəlirsə
+        /// (məs. 29.04.2024 → 04.06.2024 ✗) bütün tərəfdaş dövriyyəsi
+        /// <b>səhv ay(lar)a</b> düşürdü ✗✓✓
+        /// </para>
+        /// </summary>
+        private static int AyFerqi(DateTime? baslama, DateTime tarix)
+        {
+            if (baslama is not DateTime b)
+            {
+                return 0;
+            }
+
+            return ((tarix.Year - b.Year) * 12) + (tarix.Month - b.Month);
+        }
+
         /// <summary>Tanınmış açarı bloka yazır (normalizə edilmiş açar ✓).</summary>
         private static void SetKey(KreditIdxalBloku b, string a, string? deyer)
         {
@@ -1138,6 +1312,16 @@ namespace EnterpriseAeroStudio.Services
         private static KreditIdxalKart? KartQur(KreditIdxalBloku blok, out string? xeta)
         {
             xeta = null;
+
+            // ================================================================
+            //  👥 TƏRƏFDAŞ ADLARI KANONİKLƏŞDİRİLİR ✓✓✓ (v6.2.31)
+            // ----------------------------------------------------------------
+            //  «KarZaur» → «Zaur» · «Kar_Musa» → «Musa» ✓ →
+            //  həm qrafik cədvəlinin sütunları, həm TƏRƏFDAŞ KARTLARI,
+            //  həm də BÖLGÜ JURNALI EYNİ adı işlədir ✓✓✓
+            //  (əks halda kartlarda 0 ₼ qalırdı ✗)
+            // ================================================================
+            TerefdasAdlariniNormallashdir(blok);
 
             // 📅 İSTİFADƏÇİNİN VERDİYİ DƏQİQ QRAFİK varsa — maya və paylar
             //    HESABLANMIR ✗, olduğu kimi götürülür ✓✓✓

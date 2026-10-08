@@ -83,7 +83,12 @@ namespace EnterpriseAeroStudio.ViewModels
             "Gecikmə",
             "Vaxtından tez bağlama",
             "Barter",
-            "Barter köhnə"
+            "Barter köhnə",
+
+            // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — idxalda yazılır ✓✓✓ (v6.2.31)
+            //   ⚠ Ödəniş DEYİL ✗ (məbləği 0,00 ₼ ✓) — yalnız tərəfdaş paylarını
+            //     daşıyır ✓ → kredit balansına/kassaya TƏSİR ETMİR ✗
+            Catalog.IlkinBolguNovu
 
             // ⚠ «Transfer olunmaq» BU SİYAHIDAN ÇIXARILDI ✓✓✓
             //   Səbəb: transfer «💳 Kreditlər» → «📤 Transfer» bölməsində

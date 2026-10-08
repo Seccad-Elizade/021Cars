@@ -195,7 +195,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 Kar4Basliq = string.IsNullOrWhiteSpace(ilk?.Kar4Ad) ? "KAR (4)" : "KAR · " + ilk!.Kar4Ad;
 
                 KreditSayi = netice.Kartlar.Count;
-                OdenisSayi = Setirler.Count(s => s.Odenilib);
+
+                // ⚠ «🧩 İlkin bölgü» sətri ÖDƏNİŞ DEYİL ✗ → sayılmır ✓ (v6.2.31)
+                OdenisSayi = Setirler.Count(s => s.Odenilib && s.Nov != "🧩 İlkin bölgü");
                 UmumiKok = netice.Kartlar.Sum(k => k.Kok);
                 UmumiMaya = netice.Kartlar.Sum(k => k.Maya);
                 UmumiOdenilmis = netice.Kartlar.Sum(k => k.Odenilmis);

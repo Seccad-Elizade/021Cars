@@ -131,6 +131,21 @@ namespace EnterpriseAeroStudio.Services
 
         /// <summary>Alış üsulu: barter (əvəzləmə).</summary>
         public const string BarterPurchase = "Barter";
+        /// <summary>
+        /// 🧩 <b>«İlkin bölgü»</b> — idxalda yazılan <b>İLKİN MƏNFƏƏT BÖLGÜSÜ</b> əməliyyatı ✓✓✓
+        /// <para>
+        /// ★ İstifadəçi tələbi: qrafikdəki «İlkin mənfəət bölgüsü» sətri <b>real aylıq
+        /// ödəniş SAYILMAMALIDIR</b> ✗ — lakin onun <b>tərəfdaş payları SAXLANILMALIDIR</b> ✓
+        /// (əks halda tərəfdaş kartlarında <b>0 ₼</b> qalır ✗✓✓).
+        /// </para>
+        /// <para>
+        /// ⚠ Bu növ <b>«Gəlir» DEYİL</b> ✗ → kredit balansına, kassa daxilolmasına və
+        /// ödəniş sayına <b>TƏSİR ETMİR</b> ✗ (məbləği 0,00 ₼ ✓) — yalnız tərəfdaş
+        /// paylarını daşıyır ✓✓✓
+        /// </para>
+        /// </summary>
+        public const string IlkinBolguNovu = "İlkin bölgü";
+
         public const string CreditStatus = "Kreditdə";
         public const string SoldStatus = "Satıldı";
 
