@@ -88,7 +88,14 @@ namespace EnterpriseAeroStudio.ViewModels
             // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — idxalda yazılır ✓✓✓ (v6.2.31)
             //   ⚠ Ödəniş DEYİL ✗ (məbləği 0,00 ₼ ✓) — yalnız tərəfdaş paylarını
             //     daşıyır ✓ → kredit balansına/kassaya TƏSİR ETMİR ✗
-            Catalog.IlkinBolguNovu
+            Catalog.IlkinBolguNovu,
+
+            // 📥 v6.2.32 — SKRİPT İDXALI ✓✓✓
+            //   Aylıq qrafik cədvəli (Tarix | Ödəniş | Maya | Kar…) MÖVCUD kreditə
+            //   «Gəlir» qeydləri kimi yazılır ✓ — hər sətir ayrı əməliyyat ✓.
+            //   ⚠ Bu ƏMƏLİYYAT NÖVÜ DEYİL ✗ — REJİMDİR ✓: seçiləndə formanın
+            //     yerinə 📥 skript paneli açılır ✓ (Məbləğ/Tarix sahələri gizlədilir ✗).
+            SkriptIdxalNovu
 
             // ⚠ «Transfer olunmaq» BU SİYAHIDAN ÇIXARILDI ✓✓✓
             //   Səbəb: transfer «💳 Kreditlər» → «📤 Transfer» bölməsində
@@ -260,6 +267,42 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Növ «Barter» və ya «Barter köhnə»-dirmi.</summary>
         public bool IsBarter => Nov == "Barter" || Nov == "Barter köhnə";
+
+        // ====================================================================
+        //  📥 SKRİPT İDXALI REJİMİ ✓✓✓ (v6.2.32)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Kredit Əlavə Gəlir/Xərc» tabında «Növ»də
+        //    <b>SKRİPT İDXAL</b> olsun ✓ — müqavilə seçilir ✓, qrafik cədvəli
+        //    yapışdırılır ✓ (məs. «# Tarix | Ödəniş | Maya | KarMusa | KarAsif |
+        //    KarZaur | KarAsiman | KarEşqin |») → hər sətir <b>«Gəlir»</b>
+        //    qeydi kimi bazaya yazılır ✓✓✓
+        //  ✅ Tərəfdaş sütunları DİNAMİKDİR: «KarTural» → «Tural» ✓
+        //    (yeni tərəfdaş adı yazılsa da avtomatik tanınır ✓ — kartda görünür ✓)
+        //  ⚠ Mövcud kreditə yazır ✗ — YENİ kredit/avtomobil YARADILMIR ✗
+        // ====================================================================
+
+        /// <summary>📥 «Skript idxal» rejiminin NÖV adı ✓.</summary>
+        public const string SkriptIdxalNovu = "Skript idxal";
+
+        /// <summary>📥 «Növ» = Skript idxal seçilibmi? ✓✓✓</summary>
+        public bool IsSkriptIdxal => Nov == SkriptIdxalNovu;
+
+        /// <summary>Standart forma sahələri görünsün? (Skript idxalda GİZLƏDİLİR ✗✓✓)</summary>
+        public bool IsNormalNov => !IsSkriptIdxal;
+
+        /// <summary>
+        /// 📥 Yapışdırılan aylıq qrafik cədvəli ✓✓✓
+        /// <example>
+        /// <code>
+        /// # Tarix | Ödəniş | Maya | KarMusa | KarAsif | KarZaur | KarAsiman | KarEşqin |
+        /// 02.03.2024 | 654.00 | 326.00 | 164.00 | 164.00 | 0.00 | 0.00 | 0.00 |
+        /// </code>
+        /// </example>
+        /// </summary>
+        [ObservableProperty] private string skriptMetni = string.Empty;
+
+        /// <summary>📥 Skript idxalı xidməti (cədvəl təhlili + bazaya yazma ✓).</summary>
+        private readonly IKreditIdxalService _idxal;
 
         /// <summary>📤 Transfer edilən ŞƏXSİN adı (məs. «Tural»).</summary>
         [ObservableProperty] private string transferSexsAdi = string.Empty;
@@ -559,11 +602,13 @@ namespace EnterpriseAeroStudio.ViewModels
             ICreditService creditService,
             IMediaService media,
             IDialogService dialogs,
+            IKreditIdxalService idxal,
             ILogger<CreditTransactionsViewModel> logger)
         {
             _creditService = creditService;
             _media = media;
             _dialogs = dialogs;
+            _idxal = idxal;
             _logger = logger;
 
             // Tərəfdaş bölgüsü sətirləri standart faizlərlə hazırlanır
@@ -673,6 +718,14 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         private async Task AddTransactionAsync()
         {
+            // 📥 v6.2.32 — «Skript idxal» REJİMDİR ✗ (əməliyyat növü DEYİL ✓)
+            //   Bu rejimdə əməliyyat əlavə edilmir ✗ — cədvəl idxal olunur ✓
+            if (IsSkriptIdxal)
+            {
+                await SkriptIdxalEtAsync();
+                return;
+            }
+
             ValidateAllProperties();
             if (HasErrors)
             {
@@ -1818,6 +1871,78 @@ namespace EnterpriseAeroStudio.ViewModels
         /// NÖV dəyişdi — «Gəlir» seçilibsə və məbləğ varsa, bölgü bazası
         /// avtomatik hesablanır (əvvəlki düsturla).
         /// </summary>
+        // ====================================================================
+        //  📥 SKRİPT İDXALI ƏMRİ ✓✓✓ (v6.2.32)
+        // --------------------------------------------------------------------
+        //  ★ Müqavilə seçilir ✓ → qrafik cədvəli yapışdırılır ✓ → «📥 İdxal et»
+        //    basılır ✓ → hər sətir «Gəlir» qeydi kimi yazılır ✓ (tərəfdaş
+        //    payları ilə ✓ — «KarTural» → «Tural» ✓).
+        //  ⚠ Gələcək tarixli sətirlər KEÇİLİR ⏭️ (hələ vaxtı deyil ✗)
+        //  ⚠ Əvvəlcə təsdiq soruşulur ✓
+        // ====================================================================
+
+        [RelayCommand]
+        private async Task SkriptIdxalEtAsync()
+        {
+            if (SelectedCredit is null)
+            {
+                _dialogs.ShowWarning("Əvvəlcə «Müqavilə» seçin ✗ — cədvəl seçilmiş kreditə yazılır ✓");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(SkriptMetni))
+            {
+                _dialogs.ShowWarning("Cədvəl mətnini yapışdırın ✗\n\n" +
+                                     "# Tarix | Ödəniş | Maya | KarMusa | KarAsif | … |");
+                return;
+            }
+
+            if (!_dialogs.Confirm(
+                    $"«{SelectedCredit.DisplayText}» müqaviləsinə qrafik cədvəli yazılacaq ✓\n\n" +
+                    "Hər sətir «Gəlir» (ödəniş) qeydi kimi əlavə olunacaq ✓ —\n" +
+                    "tərəfdaş payları da avtomatik bölünəcək ✓.\n\nDavam edilsin?",
+                    "📥 Skript idxalı"))
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var netice = await _idxal.CedveliKrediteYazAsync(SelectedCredit.Id, SkriptMetni);
+
+                if (!netice.Ugurlu)
+                {
+                    _dialogs.ShowWarning(netice.Xeta ?? "İdxal alınmadı ✗");
+                    return;
+                }
+
+                _logger.LogInformation(
+                    "📥 Skript idxalı tamamlandı — {Odenis} ödəniş · {Pay} pay ✓",
+                    netice.OdenisSayi, netice.PaySayi);
+
+                SkriptMetni = string.Empty;
+
+                // 📢 «💳 Kreditlər» + 👥 tərəfdaş kartları DƏRHAL yenilənir ✓✓✓
+                TransactionsChanged?.Invoke(this, EventArgs.Empty);
+
+                _dialogs.ShowInfo(string.Join(Environment.NewLine, netice.Setirler));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Skript idxalı zamanı xəta baş verdi.");
+                _dialogs.ShowError("Skript idxal edilə bilmədi: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+
+            await LoadAsync();
+            DataChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         partial void OnNovChanged(string value)
         {
             OnPropertyChanged(nameof(TaksitInfo));
@@ -1830,6 +1955,10 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(IsTransferOlunmaq));
             OnPropertyChanged(nameof(IsBarter));
             OnPropertyChanged(nameof(BarterTransferIzahi));
+
+            // 📥 v6.2.32 — SKRİPT İDXALI rejimi (forma ⇄ skript paneli) ✓✓✓
+            OnPropertyChanged(nameof(IsSkriptIdxal));
+            OnPropertyChanged(nameof(IsNormalNov));
 
             // ================================================================
             //  📅 v6.2.19 — «ƏVVƏLCƏDƏN ÖDƏNİŞ» YALNIZ «GƏLİR» ÜÇÜNDÜR ✓✓✓

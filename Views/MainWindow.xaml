@@ -2237,6 +2237,8 @@
                         </UniformGrid>
 
                         <Border Grid.Row="1" Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+                            <StackPanel>
+
                             <WrapPanel Orientation="Horizontal" VerticalAlignment="Top">
                                 <StackPanel Margin="4">
                                     <TextBlock Text="Müqavilə" Style="{StaticResource FieldLabel}"/>
@@ -2257,6 +2259,43 @@
                                     <TextBlock Text="Növ" Style="{StaticResource FieldLabel}"/>
                                     <ComboBox Width="110" ItemsSource="{Binding CreditTransactions.Types}" SelectedItem="{Binding CreditTransactions.Nov}"/>
                                 </StackPanel>
+                            </WrapPanel>
+
+                            <!-- ================================================ -->
+                            <!--  📥 SKRİPT İDXAL PANELİ ✓✓✓ (v6.2.32)            -->
+                            <!--  «Növ» = Skript idxal seçildikdə görünür ✓       -->
+                            <!--  Standart forma (məbləğ/tarix/bölgü) GİZLƏDİLİR ✗ -->
+                            <!-- ================================================ -->
+                            <Border Background="#0B1220" CornerRadius="10" BorderBrush="#1F2937" BorderThickness="1"
+                                    Padding="12,10" Margin="4,8,4,0"
+                                    Visibility="{Binding CreditTransactions.IsSkriptIdxal, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock FontSize="12.5" FontWeight="SemiBold" Foreground="#38BDF8"
+                                               Text="📥 SKRİPT İDXALI  ·  aylıq qrafik cədvəli MÖVCUD kreditə «Gəlir» qeydi kimi yazılır"/>
+                                    <TextBlock Margin="0,5,0,0" FontSize="10.5" Foreground="#94A3B8" TextWrapping="Wrap">
+                                        <Run Text="① Müqavilə seçin  ② cədvəli (başlıq + sətirlər) Ctrl+V ilə yapışdırın  ③ «📥 İdxal et» basın ✓"/>
+                                        <LineBreak/>
+                                        <Run Text="Tərəfdaş sütunu: KarMusa · KarAsif · KarZaur · KarAsiman · KarEşqin · KarTural … ✓ (yeni ad avtomatik tanınır ✓)"/>
+                                        <LineBreak/>
+                                        <Run Text="⚠ Gələcək tarixli sətirlər keçilir ⏭️ · ⏳ möhlət sətirləri yazılmır ✗"/>
+                                    </TextBlock>
+                                    <TextBox Height="150" Margin="0,9,0,0" AcceptsReturn="True" TextWrapping="NoWrap"
+                                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                             FontFamily="Consolas" FontSize="11.5"
+                                             Text="{Binding CreditTransactions.SkriptMetni, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="# Tarix | Ödəniş | Maya | KarMusa | KarAsif | KarZaur | KarAsiman | KarEşqin |"/>
+                                    <Button Content="📥  İdxal et" HorizontalAlignment="Left" Margin="0,9,0,0"
+                                            Style="{StaticResource iOSButton}" Background="#059669" Foreground="White"
+                                            Command="{Binding CreditTransactions.SkriptIdxalEtCommand}"
+                                            ToolTip="Cədvəldəki hər sətri seçilmiş kreditə «Gəlir» (ödəniş) qeydi kimi yazır ✓ — tərəfdaş payları ilə ✓"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ================================================ -->
+                            <!--  📝 STANDART FORMA — digər növlər üçün ✓          -->
+                            <!-- ================================================ -->
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Top"
+                                       Visibility="{Binding CreditTransactions.IsNormalNov, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="4">
                                     <TextBlock Text="Məbləğ (AZN)" Style="{StaticResource FieldLabel}"/>
                                     <TextBox x:Name="CtMebleg" Width="110" Text="{Binding CreditTransactions.Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
@@ -2518,6 +2557,7 @@
                                             Command="{Binding CreditTransactions.DeleteTransactionCommand}"/>
                                 </StackPanel>
                             </WrapPanel>
+                            </StackPanel>
                         </Border>
 
                         <Grid Grid.Row="2">

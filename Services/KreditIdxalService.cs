@@ -1309,7 +1309,221 @@ namespace EnterpriseAeroStudio.Services
         /// Bir blokdan önizləmə kartını qurur: çatışmayan dəyərləri (faiz · kök · aylıq)
         /// avtomatik tapır və aylıq cədvəli hesablayır ✓✓✓
         /// </summary>
+        // ====================================================================
+        //  📥 SKRİPT İDXALI — MÖVCUD KREDİTƏ CƏDVƏL YAZMA ✓✓✓ (v6.2.32)
+        // ====================================================================
+
+        /// <inheritdoc />
+        public async Task<KreditIdxalNeticesi> CedveliKrediteYazAsync(
+            int creditId,
+            string metn,
+            CancellationToken cancellationToken = default)
+        {
+            var netice = new KreditIdxalNeticesi();
+
+            if (string.IsNullOrWhiteSpace(metn))
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Cədvəl mətni boşdur — başlıq sətrini və ödəniş sətirlərini yapışdırın.";
+                return netice;
+            }
+
+            var kredit = (await _kreditler.GetCreditsAsync(cancellationToken))
+                .FirstOrDefault(k => k.Id == creditId);
+
+            if (kredit is null)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Seçilmiş müqavilə tapılmadı ✗";
+                return netice;
+            }
+
+            var blok = CedveliOku(metn, out var xeta);
+
+            if (blok is null)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = xeta;
+                return netice;
+            }
+
+            if (blok.Qrafik.Count == 0)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Cədvəldə bir dənə də ödəniş sətri tapılmadı ✗ — " +
+                              "format: «02.03.2024 | 654.00 | 326.00 | 164.00 | … |»";
+                return netice;
+            }
+
+            // 👥 Adlar kanonikləşdirilir ✓ («KarTural» → «Tural» ✓ — yeni ad da tanınır ✓)
+            TerefdasAdlariniNormallashdir(blok);
+
+            var bugun = DateTime.Today;
+            var odenis = 0;
+            var bolgu = 0;
+            var gecmis = 0;
+
+            foreach (var q in blok.Qrafik.OrderBy(x => x.Tarix))
+            {
+                // ⏳ Möhlətin ödənişi bu ekranda yazılmır ✗ (Kreditlər tabına aiddir ✓)
+                if (q.MohletOdenisi)
+                {
+                    continue;
+                }
+
+                // 🕓 Gələcək tarixli sətir — hələ yazılmır ✗
+                if (q.Tarix.Date > bugun)
+                {
+                    gecmis++;
+                    continue;
+                }
+
+                // 🧩 İLKİN MƏNFƏƏT BÖLGÜSÜ — «Gəlir» DEYİL ✗ (0 ₼ ✓, yalnız paylar ✓)
+                if (q.IlkinBolgu)
+                {
+                    var bPaylar = PaylariQur(q);
+
+                    if (bPaylar.Count > 0)
+                    {
+                        await _kreditler.AddTransactionAsync(new CreditTransaction
+                        {
+                            CreditId = creditId,
+                            Nov = Catalog.IlkinBolguNovu,
+                            InstallmentNo = null,
+                            Mebleg = 0m,
+                            Tarix = q.Tarix,
+                            Tesvir = "🧩 İlkin mənfəət bölgüsü (kredit taksiti deyil ✗)",
+                            TerefdasBolguTetbiqOlunub = true,
+                            BolguBazasi = q.Menfeet > 0m ? q.Menfeet : null,
+                            TerefdasPaylari = bPaylar
+                        }, cancellationToken);
+
+                        bolgu++;
+                        netice.PaySayi += bPaylar.Count;
+                    }
+
+                    continue;
+                }
+
+                var paylar = PaylariQur(q);
+
+                if (paylar.Count == 0 && q.Odenis <= 0m)
+                {
+                    continue;
+                }
+
+                await _kreditler.AddTransactionAsync(new CreditTransaction
+                {
+                    CreditId = creditId,
+                    Nov = "Gəlir",
+                    // 📅 Taksit = «Başlama Tarixi»ndən AY FƏRQİ + 1 ✓ (real ödəniş ayı ✓)
+                    InstallmentNo = Math.Max(1, AyFerqi(kredit.BaslamaTarixi, q.Tarix) + 1),
+                    Mebleg = q.Odenis,
+                    Tarix = q.Tarix,
+                    Tesvir = string.IsNullOrWhiteSpace(q.Qeyd)
+                        ? "📥 Skript idxalı — kredit ödənişi"
+                        : $"📥 {q.Qeyd}",
+                    TerefdasBolguTetbiqOlunub = paylar.Count > 0,
+                    BolguBazasi = q.Menfeet > 0m ? q.Menfeet : null,
+                    TerefdasPaylari = paylar
+                }, cancellationToken);
+
+                odenis++;
+                netice.OdenisSayi++;
+                netice.PaySayi += paylar.Count;
+            }
+
+            if (odenis == 0 && bolgu == 0)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Yazılacaq sətir tapılmadı ✗ (bütün sətirlər gələcək tarixlidir ✗)";
+                return netice;
+            }
+
+            netice.Ugurlu = true;
+            netice.KreditSayi = 1;
+
+            netice.Setirler.Add($"📥 SKRİPT İDXALI ✓ — {kredit.MuqavileNomresi}");
+            netice.Setirler.Add(
+                $"        ✅ {odenis} ödəniş yazıldı ✓ · {netice.PaySayi} tərəfdaş payı" +
+                (bolgu > 0 ? $" · 🧩 {bolgu} ilkin bölgü sətri ✓" : string.Empty) +
+                (gecmis > 0 ? $" · 🕓 {gecmis} gələcək sətir KEÇİLDİ ⏭️" : string.Empty));
+
+            _logger.LogInformation(
+                "📥 Skript idxalı: {Muqavile} → {Odenis} ödəniş · {Pay} pay ✓",
+                kredit.MuqavileNomresi, odenis, netice.PaySayi);
+
+            return netice;
+        }
+
+        /// <summary>Qrafik sətrinin tərəfdaş paylarını <see cref="PartnerShare"/>-a çevirir ✓.</summary>
+        private static List<PartnerShare> PaylariQur(KreditIdxalQrafikSetir q)
+            => q.Paylar
+                .Where(p => p.Mebleg > 0m)
+                .Select((p, i) => new PartnerShare
+                {
+                    Terefdas = p.Ad,
+                    Mebleg = p.Mebleg,
+                    Aktiv = true,
+                    Sira = i
+                })
+                .ToList();
+
+        /// <summary>
+        /// 📥 «# Tarix | Ödəniş | Maya | KarMusa | … |» cədvəlini oxuyur ✓✓✓ (v6.2.32)
+        /// <para>Blok başlıqları LAZIM DEYİL ✗ — yalnız cədvəl yapışdırılır ✓.</para>
+        /// </summary>
+        private static KreditIdxalBloku? CedveliOku(string metn, out string? xeta)
+        {
+            xeta = null;
+
+            var blok = new KreditIdxalBloku();
+            List<string>? basliqlar = null;
+
+            foreach (var xam in metn.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+            {
+                var setir = xam.Trim();
+
+                if (setir.Length == 0 || setir.StartsWith("//", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // 📅 BAŞLIQ: «# Tarix | Ödəniş | Maya | KarMusa | …»
+                if (QrafikBasliqmi(setir))
+                {
+                    basliqlar = setir.TrimStart('#', ' ', '\t')
+                        .Split('|')
+                        .Select(x => x.Trim())
+                        .ToList();
+
+                    continue;
+                }
+
+                if (basliqlar is null)
+                {
+                    continue;   // başlıqdan ƏVVƏLKİ sətirlər atılır ✓
+                }
+
+                QrafikSetiriEkle(blok, setir, basliqlar);
+            }
+
+            if (basliqlar is null)
+            {
+                xeta = "BAŞLIQ sətri tapılmadı ✗ — birinci sətir belə olmalıdır: " +
+                       "# Tarix | Ödəniş | Maya | KarMusa | KarAsif | KarZaur | KarAsiman | KarEşqin |";
+                return null;
+            }
+
+            return blok;
+        }
+
+        /// <summary>
+        /// Bir blokdan önizləmə kartını qurur: çatışmayan dəyərləri (faiz · kök · aylıq)
+        /// avtomatik tapır və aylıq cədvəli hesablayır ✓✓✓
+        /// </summary>
         private static KreditIdxalKart? KartQur(KreditIdxalBloku blok, out string? xeta)
+
         {
             xeta = null;
 
