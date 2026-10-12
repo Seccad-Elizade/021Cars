@@ -1680,6 +1680,28 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 var kreditlesdirilen = Mebleg - IlkinOdenis;
 
+                // ================================================================
+                //  🛡️ v6.2.36 — EYNİ MÜQAVİLƏ NÖMRƏSİ ƏVVƏLCƏ YOXLANILIR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: «Kredit əlavə edilə bilmədi — An error
+                //    occurred while saving the entity changes» ✗✓✓
+                //  ✅ İNDİ: uyğunsuzluq varsa AYDIŊ izah verilir ✓
+                //    (EF-in anlaşılmaz xətası yerinə ✓✓✓)
+                // ================================================================
+                var movcudKreditler = await _creditService.GetCreditsAsync();
+
+                if (movcudKreditler.Any(c =>
+                        string.Equals(c.MuqavileNomresi?.Trim(), contractNo,
+                                      StringComparison.OrdinalIgnoreCase)))
+                {
+                    _dialogs.ShowWarning(
+                        $"🛡️ «{contractNo}» nömrəli müqavilə ARTIQ MÖVCUDDUR ✗\n\n" +
+                        "Zəhmət olmasa başqa müqavilə nömrəsi yazın ✓\n" +
+                        "(yaxud həmin krediti siyahıdan seçib düzəliş edin ✓)");
+
+                    return;
+                }
+
                 var credit = new Credit
                 {
                     MuqavileNomresi = contractNo,
@@ -1757,8 +1779,23 @@ namespace EnterpriseAeroStudio.ViewModels
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Kredit əlavə edilərkən xəta baş verdi.");
-                _dialogs.ShowError("Kredit əlavə edilə bilmədi: " + ex.Message);
+                // ================================================================
+                //  🔎 v6.2.36 — ƏSL SƏBƏB (INNER EXCEPTION) GÖSTƏRİLİR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: «...An error occurred while saving the
+                //    entity changes. See the inner exception for details» ✗ —
+                //    bu mesaj HEÇ NƏ İZAH ETMİR ✗✓✓
+                //  ✅ İNDİ: ən dərin (əsl) səbəb göstərilir ✓ + aydın tövsiyə ✓
+                // ================================================================
+                var kok = ex.GetBaseException();
+                var sebeb = kok.Message;
+
+                _logger.LogError(ex, "Kredit əlavə edilə bilmədi. Əsas səbəb: {Sebeb}", sebeb);
+
+                _dialogs.ShowError(
+                    "Kredit əlavə edilə bilmədi ✗\n\n" +
+                    $"🔎 Əsas səbəb: {sebeb}\n\n" +
+                    BazaXetaMesleheti(sebeb));
             }
             finally
             {
@@ -1767,6 +1804,59 @@ namespace EnterpriseAeroStudio.ViewModels
 
             await LoadAsync();
             CreditsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 🩺 <b>BAZA XƏTASINI AYDIN İZAHA ÇEVİRİR</b> ✓✓✓ (v6.2.36)
+        /// <para>
+        /// EF-in «An error occurred while saving the entity changes» mesajı
+        /// HEÇ NƏ İZAH ETMİR ✗ → əsl səbəb (fayl kilidi · yalnız-oxuma ·
+        /// disk yeri · köhnə sxem ✓) aydın tövsiyə ilə göstərilir ✓
+        /// </para>
+        /// </summary>
+        private static string BazaXetaMesleheti(string sebeb)
+        {
+            var s = sebeb ?? string.Empty;
+
+            if (s.Contains("readonly", StringComparison.OrdinalIgnoreCase)
+                || s.Contains("read-only", StringComparison.OrdinalIgnoreCase))
+            {
+                return "💡 Baza faylı YALNIZ OXUMA rejimindədir ✗\n" +
+                       "   • Faylın xassələrindən «Read-only» işarəsini götürün ✓\n" +
+                       "   • Baza USB / şəbəkə qovluğundadırsa → yerli diskə köçürün ✓";
+            }
+
+            if (s.Contains("locked", StringComparison.OrdinalIgnoreCase)
+                || s.Contains("busy", StringComparison.OrdinalIgnoreCase))
+            {
+                return "💡 Baza başqa proqram tərəfindən KİLİDLƏNİB ✗\n" +
+                       "   • Proqramın köhnə nüsxəsini bağlayın ✓\n" +
+                       "   • USB-dəki bazanı eyni anda İKİ kompüterdə açmayın ✓";
+            }
+
+            if (s.Contains("no such column", StringComparison.OrdinalIgnoreCase)
+                || s.Contains("no such table", StringComparison.OrdinalIgnoreCase))
+            {
+                return "💡 Bazanın SXEMİ köhnədir ✗\n" +
+                       "   • Proqramı bağlayıb YENİDƏN açın ✓ (sxem avtomatik yenilənir ✓)\n" +
+                       "   • Alınmasa: ⚙️ Tənzimləmələr → «♻️ Ehtiyat nüsxədən BƏRPA ET» ✓";
+            }
+
+            if (s.Contains("disk", StringComparison.OrdinalIgnoreCase)
+                || s.Contains("space", StringComparison.OrdinalIgnoreCase)
+                || s.Contains("full", StringComparison.OrdinalIgnoreCase))
+            {
+                return "💡 Diskdə BOŞ YER yoxdur ✗ — yer açıb yenidən cəhd edin ✓";
+            }
+
+            if (s.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase))
+            {
+                return "💡 Eyni məlumat ARTIQ MÖVCUDDUR ✗ (təkrar qeyd ✓)\n" +
+                       "   • Müqavilə nömrəsini dəyişin ✓";
+            }
+
+            return "💡 Bu mesajı dəstəyə göndərin ✓\n" +
+                   "   (📜 Loqlar → app_errors.log ✓ — tam texniki detal oradadır ✓)";
         }
 
         [RelayCommand]

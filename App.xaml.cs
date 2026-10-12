@@ -42,13 +42,15 @@ namespace EnterpriseAeroStudio
         /// <summary>Tətbiqin DI konteyneri — pəncərələrin xidmətləri tapması üçün.</summary>
         public static IServiceProvider? Services { get; private set; }
 
-        /// <summary>
-        /// ☁️ <b>FIREBASE BULUD KÖRPÜSÜ</b> ✓✓✓ — tətbiq açılanda işə düşür ✓
-        /// <para>HƏR 5 SANİYƏDƏN BİR bütün məlumat (avtomobil · xərc · satış · kredit ·
-        /// əməliyyat · tərəfdaş · pay · ödəniş) buluda göndərilir ✓</para>
-        /// <para>📎 PDF / ŞƏKİL / MEDIA GÖNDƏRİLMİR ✗ — onlar YALNIZ fləşkartda qalır ✓</para>
-        /// </summary>
-        public static Cas0201.Firebase.BuludKopru? Kopru { get; private set; }
+        // ====================================================================
+        //  💾 v6.2.36 — YALNIZ YERLİ BAZA + FLASH USB ✓✓✓
+        //  ----------------------------------------------------------------
+        //  ⛔ Firebase / bulud sinxronizasiyası TAM SİLİNDİ ✗✓✓
+        //  ★ İstifadəçi tələbi: «Firebase ilə əlaqəni tam kəs — hər şeyi sil ✓
+        //    yalnız kompüter və USB-yə save olunsun ✓✓✓»
+        //  ✅ Məlumat YALNIZ bu kompüterdəki SQLite bazasında saxlanılır ✓
+        //    və 💾 fləşkartda ehtiyat nüsxə kimi yazılır ✓ (DataUsbService ✓)
+        // ====================================================================
 
         /// <summary>
         /// 🖥️ <b>MASAÜSTÜ QISAYOLUNU ZƏMANƏTLƏŞDİRİR</b> ✓✓✓ (v6.2.20)
@@ -134,7 +136,7 @@ namespace EnterpriseAeroStudio
                 // ③ ƏVVƏLCƏ istifadəçinin ÖZ masaüstünə ✓ (admin lazım DEYİL ✓)
                 if (QisayolYaz(istifadeciMasa, exe, işQovluğu))
                 {
-                    Cas0201.Firebase.AppLogger.Melumat(
+                    AppLogger.Melumat(
                         "🖥️ Masaüstü qısayolu YARADILDI ✓ (istifadəçi masaüstü ✓)");
 
                     return;
@@ -143,14 +145,14 @@ namespace EnterpriseAeroStudio
                 // ④ Alınmadısa → ORTAQ masaüstünə ✓ (admin olduqda işləyir ✓)
                 if (QisayolYaz(ortaqMasa, exe, işQovluğu))
                 {
-                    Cas0201.Firebase.AppLogger.Melumat(
+                    AppLogger.Melumat(
                         "🖥️ Masaüstü qısayolu YARADILDI ✓ (ortaq masaüstü ✓)");
                 }
             }
             catch (Exception ex)
             {
                 // 🛡️ Qısayol yarada bilməmək proqramın açılışını DAYANDIRMIR ✗✓✓
-                Cas0201.Firebase.AppLogger.Xeta(ex, "masaüstü qısayolu");
+                AppLogger.Xeta(ex, "masaüstü qısayolu");
             }
 
             // ---- yerli köməkçi: verilən masaüstü qovluğuna qısayol yazır ✓ ----
@@ -207,53 +209,15 @@ namespace EnterpriseAeroStudio
             _logger = _services.GetRequiredService<ILogger<App>>();
 
             // ================================================================
-            //  ☁️ FIREBASE BULUD KÖRPÜSÜ — HƏR 5 SANİYƏDƏN BİR BÜTÜN MƏLUMAT ✓
-            //  📎 PDF / ŞƏKİL / MEDIA GÖNDƏRİLMİR ✗ (yalnız fləşkartda qalır ✓)
+            //  💾 v6.2.36 — BULUD SINXRONU SİLİNDİ ✗✓✓
+            //  ----------------------------------------------------------------
+            //  ⛔ ƏVVƏL: hər 5 saniyədə Firebase-ə bütün məlumat göndərilirdi ✗
+            //    və digər kompüterdən oxunurdu ✗ → İNTERNET/ŞƏBƏKƏ problemləri
+            //    yazma əməliyyatlarına təsir edirdi ✗✓✓
+            //  ✅ İNDİ: tətbiq TAM OFLAYN işləyir ✓ — məlumat bu kompüterin
+            //    SQLite bazasında saxlanılır ✓ və 💾 fləşkartda ehtiyat nüsxə
+            //    alınır ✓ (DataUsbService.AvtomatikYedekAsync ✓)
             // ================================================================
-            try
-            {
-                var fb = new Cas0201.Firebase.FirebaseOptions();
-                fb.TokenYukle();                         // 🔐 CAS_FIREBASE_TOKEN (varsa ✓)
-                fb.ClientiQur();
-
-                Kopru = new Cas0201.Firebase.BuludKopru(
-                    _services!, new Cas0201.Firebase.FirebaseRestClient(fb), fb);
-
-                // ⚙️ TƏNZİMLƏMƏLƏR — yalnız 👑 Seccad + 🛡️ Asif dəyişə bilər ✓
-                Cas0201.Firebase.BuludAyarlari.Yukle();
-                Cas0201.Firebase.BuludAyarlari.TətbiqEt(Kopru);
-
-                Kopru.Basla();                           // ⏱️ ayarlardaki fasilə ilə ✓
-
-                // ☁️ Digər kompüter ayarı dəyişibsə → hər 60 saniyədə götür və CANLI tətbiq et ✓
-                var ayarKlient = new Cas0201.Firebase.FirebaseRestClient(fb);
-
-                _ = Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        try
-                        {
-                            await Task.Delay(TimeSpan.FromSeconds(60));
-
-                            await Cas0201.Firebase.BuludAyarlari.YukleBuluddanAsync(ayarKlient);
-                            Cas0201.Firebase.BuludAyarlari.TətbiqEt(Kopru);
-                        }
-                        catch (Exception ex)
-                        {
-                            Cas0201.Firebase.AppLogger.Xeta(ex, "ayar dövrü");
-                        }
-                    }
-                });
-
-                _logger.LogInformation(
-                    "☁️ Bulud körpüsü başladı — hər 5 saniyədə bir bütün məlumat buluda ✓");
-            }
-            catch (Exception ex)
-            {
-                // 🛡️ Bulud olmasa da tətbiq TAM İŞLƏYİR ✓✓✓ (çökmə YOX ✗)
-                Cas0201.Firebase.AppLogger.Xeta(ex, "App: bulud körpüsü");
-            }
 
             // Hesabatın PDF çeviricisi — gizli WebView2 (Chromium) ilə.
             // Beləliklə Azərbaycan hərfləri PDF-də düzgün görünür.
@@ -289,15 +253,15 @@ namespace EnterpriseAeroStudio
                 {
                     // 🔑 Qeydiyyatsız DATA USB-ni AVTOMATİK TANIT ✓✓✓
                     var tanıma = EnterpriseAeroStudio.Services.DataUsbService.UsbAvtomatikTanit();
-                    Cas0201.Firebase.AppLogger.Melumat("🔑 USB: " + tanıma);
+                    AppLogger.Melumat("🔑 USB: " + tanıma);
 
                     // 💾 BƏRPA ✓ / 🔀 BİRLƏŞDİRMƏ ✓
                     var bərpa = EnterpriseAeroStudio.Services.DataUsbService.UsbDenBerpaEt();
-                    Cas0201.Firebase.AppLogger.Melumat("💾 USB bərpa: " + bərpa);
+                    AppLogger.Melumat("💾 USB bərpa: " + bərpa);
                 }
                 catch (Exception ex)
                 {
-                    Cas0201.Firebase.AppLogger.Melumat("💾 USB bərpa yoxlanmadı ✓ — " + ex.Message);
+                    AppLogger.Melumat("💾 USB bərpa yoxlanmadı ✓ — " + ex.Message);
                 }
 
                 // ================================================================
@@ -407,7 +371,7 @@ namespace EnterpriseAeroStudio
                 //  ✅ İNDİ: təmiz quraşdırma + BOŞ baza → BİR DƏFƏ soruşulur ✓
                 //     «Bəli» → bütün məlumat buluddan DƏRHAL götürülür ✓✓✓
                 // ================================================================
-                IlkQurasdirmaYoxla(window);
+                // ⛔ v6.2.36 — «buluddan ilk yükləmə» SİLİNDİ ✗ (yalnız yerli baza + USB ✓)
 
                 // ================================================================
                 //  🖥️ MASAÜSTÜ QISAYOLU ZƏMANƏTİ ✓✓✓ (v6.2.20)
@@ -446,7 +410,7 @@ namespace EnterpriseAeroStudio
                     }
                     catch (Exception ex)
                     {
-                        Cas0201.Firebase.AppLogger.Melumat("🔎 Axtarış mətni hazırlanmadı — " + ex.Message);
+                        AppLogger.Melumat("🔎 Axtarış mətni hazırlanmadı — " + ex.Message);
                     }
                 });
 
@@ -482,138 +446,6 @@ namespace EnterpriseAeroStudio
             }
         }
 
-        /// <summary>
-        /// 🆕 ☁️ <b>YENİ KOMPÜTER AŞKARLANMASI</b> ✓✓✓  (v6.2.12)
-        /// <para>
-        /// Təmiz quraşdırma (ayar faylı YOXDUR ✓) + baza BOŞDURSA → istifadəçidən
-        /// «buluddaki məlumat götürülsün?» soruşulur ✓✓✓
-        /// </para>
-        /// <para>
-        /// ✅ «Bəli» → bulud sinxronizasiyası AKTİV olur ✓ + DƏRHAL tam dövr işlədilir ✓
-        /// → 🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar · 💸 xərclər ·
-        /// 👥 tərəfdaşlar yerli bazaya yazılır ✓✓✓
-        /// </para>
-        /// <para>✗ «Xeyr» → heç nə edilmir ✓ (sonra ⚙️ Tənzimləmələr → «⬇️ BULUDDAN GÖTÜR» ✓)</para>
-        /// <para>
-        /// ⚠ <b>YALNIZ BİR DƏFƏ</b> ✓ — ayar faylı yaranan kimi <c>TemizQurasdirma</c>
-        /// <c>false</c> olur ✓ → növbəti açılışlarda soruşulmur ✗
-        /// </para>
-        /// <para>
-        /// 🛡️ Baza BOŞ deyilsə HEÇ SORUŞULMUR ✗ (mövcud məlumatı olan kompüterə bulud
-        /// «yad» məlumat gətirə bilməz ✗✓✓)
-        /// </para>
-        /// </summary>
-        private void IlkQurasdirmaYoxla(Window window)
-        {
-            try
-            {
-                // ① 🆕 Təmiz quraşdırmadır? (ayar faylı yoxdur ✓)
-                if (!Cas0201.Firebase.BuludAyarlari.TemizQurasdirma)
-                {
-                    return;
-                }
-
-                // ② ☁️ Bulud körpüsü hazırdır?
-                if (Kopru is null || _services is null)
-                {
-                    return;
-                }
-
-                // ③ 🗄️ Baza BOŞDURMU? (SİNXRON EF API ✓ — deadlock TƏHLÜKƏSİ YOXDUR ✗✓✓)
-                bool bos;
-
-                using (var bosScope = _services.CreateScope())
-                {
-                    var bosDb = bosScope.ServiceProvider
-                        .GetRequiredService<EnterpriseAeroStudio.Data.AppDbContext>();
-
-                    bos = !bosDb.Cars.Any()
-                          && !bosDb.Credits.Any()
-                          && !bosDb.Sales.Any()
-                          && !bosDb.Expenses.Any()
-                          && !bosDb.Partners.Any();
-                }
-
-                if (!bos)
-                {
-                    // ⚠ Məlumat var → bulud «ilk yükləmə» QADAĞANDIR ✗ (təhlükəsizlik ✓)
-                    Cas0201.Firebase.AppLogger.Melumat(
-                        "🆕 Təmiz quraşdırma ✓ lakin baza BOŞ DEYİL ✗ — ilk yükləmə soruşulmadı ✓");
-
-                    return;
-                }
-
-                // ================================================================
-                //  ⬇️ AVTOMATİK — İSTİFADƏÇİDƏN SORUŞULMUR ✓✓✓  (v6.2.13)
-                // ----------------------------------------------------------------
-                //  ⚠ ƏVVƏL: modal sual verilirdi ✗ → istifadəçi «əllə basmaq
-                //  lazım idi» deyə şikayət etdi ✗✓✓
-                //  ✅ İNDİ: boş baza + təmiz quraşdırma → məlumat AVTOMATİK
-                //  buluddan götürülür ✓ (yalnız BOŞ bazada ✓ — təhlükəsiz ✓✓✓)
-                // ================================================================
-                Cas0201.Firebase.AppLogger.Melumat(
-                    "🆕 Boş baza aşkarlandı ✓ — bulud məlumatı AVTOMATİK götürülür ✓ (sual verilmir ✓)");
-
-                // ⑤⑥ ⬇️ Faktiki yükləmə + nəticə ✓
-                BuluddanIlkYukle(window);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.Input.Mouse.OverrideCursor = null;
-                _logger?.LogError(ex, "İlk quraşdırma bulud yoxlaması alınmadı.");
-            }
-        }
-
-        /// <summary>
-        /// ⬇️ <b>BULUDDAN İLK YÜKLƏMƏ</b> ✓✓✓ — məlumatı götürür + nəticəni göstərir ✓
-        /// (v6.2.12 — həm açılışda avtomatik ✓ həm ⚙️ Tənzimləmələr düyməsindən ✓)
-        /// </summary>
-        internal static int BuluddanIlkYukle(Window? window)
-        {
-            Cas0201.Firebase.AppLogger.Melumat("⬇️ İlk yükləmə başladı ✓ — buluddan məlumat götürülür…");
-
-            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-
-            int çekilen;
-
-            try
-            {
-                // 🛡️ `Task.Run` → fon ipi ✓ (SynchronizationContext YOXDUR ✗ →
-                //    EF davamı UI ipini gözləmir ✗ → DEADLOCK TƏHLÜKƏSİ YOXDUR ✓✓✓)
-                çekilen = Task.Run(() => App.Kopru!.IlkYuklemeAsync()).GetAwaiter().GetResult();
-            }
-            finally
-            {
-                System.Windows.Input.Mouse.OverrideCursor = null;
-            }
-
-            // 🔄 UI DƏRHAL yenilənir ✓ (bütün tablar ✓)
-            if (window?.DataContext is MainViewModel bVm)
-            {
-                bVm.HamisiniIndiYenileCommand.Execute(null);
-            }
-
-            MessageBox.Show(
-                window ?? Current.MainWindow,
-                "✅ BULUDDAN MƏLUMAT GÖTÜRÜLDÜ ✓\n\n" +
-                $"📥 {çekilen} qeyd yerli bazaya yazıldı ✓\n\n" +
-                "☁️ Avtomatik bulud sinxronizasiyası İŞLƏYİR ✓\n" +
-                "   (yeni dəyişikliklər hər 10 saniyədə avtomatik gedir ✓)\n\n" +
-                "⚠ Məlumat görünmürsə → «🔄 Bütün məlumatları yenilə» düyməsini basın ✓",
-                "Uğurlu ✓",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            return çekilen;
-        }
-
-        /// <summary>
-        /// 🔢 <b>SIRA NÖMRƏLƏRİNİ DÜZƏLDİRİR</b> ✓✓✓ —
-        /// yalnız <c>0</c> nömrəli avtomobillərə nömrə verir ✓
-        /// <para>
-        /// ✅ İstifadəçinin ÖZ yazdığı nömrə (məs. <c>312</c> ✓) <b>HEÇ VAXT dəyişmir</b> ✗✓✓
-        /// </para>
-        /// </summary>
         private void SiraNomreleriDuzelt()
         {
             try
@@ -630,7 +462,7 @@ namespace EnterpriseAeroStudio
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Melumat("🔢 Sıra nömrəsi düzəlişi ✓ — " + ex.Message);
+                AppLogger.Melumat("🔢 Sıra nömrəsi düzəlişi ✓ — " + ex.Message);
             }
         }
 
@@ -805,9 +637,6 @@ namespace EnterpriseAeroStudio
 
         protected override void OnExit(ExitEventArgs e)
         {
-            // ☁️ Körpünü TƏMİZ dayandır ✓✓✓ (yarımçıq yedək yazısı qalmasın ✗)
-            try { Kopru?.Dayandir(); } catch { }
-
             _logger?.LogInformation("Tətbiq bağlanır.");
             _services?.Dispose();
             Log.CloseAndFlush();

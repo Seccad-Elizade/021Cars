@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -71,7 +71,7 @@ namespace EnterpriseAeroStudio.Views
             {
                 GuncellemeXidmeti.SonrayaAt();
 
-                Cas0201.Firebase.AppLogger.Melumat(
+                AppLogger.Melumat(
                     $"⏰ Güncəlləmə SONRAYA atıldı ✓ — {_m?.Versiya} (növbəti açılışda soruşulacaq ✓)");
             }
             catch { }
@@ -304,7 +304,7 @@ namespace EnterpriseAeroStudio.Views
                 }
                 catch (Exception ex)
                 {
-                    Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə düyməsi (yoxlama)");
+                    AppLogger.Xeta(ex, "güncəlləmə düyməsi (yoxlama)");
                     StatusText.Text = "⚠️ Yoxlama alınmadı ✗ — " + ex.Message;
                     return;
                 }
@@ -324,7 +324,7 @@ namespace EnterpriseAeroStudio.Views
             // 📜 Loq ✓ — gələcəkdə problem olsa DƏRHAL görünür ✓✓✓
             try
             {
-                Cas0201.Firebase.AppLogger.Melumat(
+                AppLogger.Melumat(
                     $"🚀 «GÜNCƏLLƏ» basıldı ✓ — {m.Versiya} ({m.Olcu / 1024 / 1024} MB) ✓ → yükləmə başlayır ✓");
             }
             catch { }
@@ -428,7 +428,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə pəncərəsi");
+                AppLogger.Xeta(ex, "güncəlləmə pəncərəsi");
                 StatusText.Text = "⚠️ Xəta ✗ — " + ex.Message;
             }
             finally

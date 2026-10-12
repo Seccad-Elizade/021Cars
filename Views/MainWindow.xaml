@@ -1,4 +1,4 @@
-<Window x:Class="EnterpriseAeroStudio.Views.MainWindow"
+﻿<Window x:Class="EnterpriseAeroStudio.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:svc="clr-namespace:EnterpriseAeroStudio.Services"
@@ -5925,81 +5925,7 @@
                                                 Background="#1F2937" Foreground="#F8FAFC" Cursor="Hand"
                                                 Command="{Binding LoglariAcCommand}"/>
 
-                                        <!-- ============================================================
-                                             ☁️ BULUD SİNXRON TƏNZİMLƏMƏLƏRİ ✓✓✓
-                                             ⚙️ YALNIZ Seccad (BAŞ ADMIN) və Asif (BAŞ İNZİBATÇI) görür ✓
-                                             🚗 Sahil → panel tamamilə gizlədilir ✗
-                                             ============================================================ -->
-                                        <Border Background="#0F172A" CornerRadius="10" BorderBrush="#0EA5E9"
-                                                BorderThickness="1" Padding="12,10" Margin="0,10,0,0"
-                                                Loaded="BuludAyarPaneli_Loaded">
-                                            <StackPanel>
-                                                <TextBlock Text="☁️ BULUD SİNXRON TƏNZİMLƏMƏLƏRİ" FontSize="12.5"
-                                                           FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,3"/>
-                                                 <CheckBox x:Name="BuludAvtomatikQutusu" FontSize="11" Foreground="#E2E8F0"
-                                                           Content="☁️ Avtomatik bulud sinxronizasiyası" Margin="0,0,0,8"
-                                                           Cursor="Hand"
-                                                           ToolTip="✔ Açıq = məlumat buludla sinxronlaşır ✓ · ✗ Bağlı = buluddan HEÇ NƏ oxunmur / yazılmır ✗ (təmiz quraşdırmada standart olaraq BAĞLIDIR ✓ — tətbiq BOŞ açılır ✓)"/>
-
-                                                <TextBlock x:Name="BuludAyarStatusuText" FontSize="10"
-                                                           Foreground="#64748B" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                                <TextBlock Text="⏱️ Firebase yazma fasiləsi (SANİYƏ):" FontSize="11"
-                                                           Foreground="#E2E8F0" Margin="0,0,0,2"/>
-                                                <TextBox x:Name="BuludFbSaniyeQutusu" Width="90" Height="26"
-                                                         HorizontalAlignment="Left" Background="#1F2937"
-                                                         Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,2"
-                                                         ToolTip="Buluda neçə SANİYƏDƏN bir yazılsın? (2 – 3600 ✓)"/>
-
-                                                <TextBlock Text="💾 USB yedək fasiləsi (SANİYƏ):" FontSize="11"
-                                                           Foreground="#E2E8F0" Margin="0,8,0,2"/>
-                                                <TextBox x:Name="BuludUsbSaniyeQutusu" Width="90" Height="26"
-                                                         HorizontalAlignment="Left" Background="#1F2937"
-                                                         Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,2"
-                                                         ToolTip="USB-yə neçə SANİYƏDƏN bir yazılsın? (5 – 86400 ✓)"/>
-
-                                                <TextBlock Text="🖥️ Kompüterə yedək fasiləsi (SANİYƏ):" FontSize="11"
-                                                           Foreground="#E2E8F0" Margin="0,8,0,2"/>
-                                                <TextBox x:Name="BuludYerliSaniyeQutusu" Width="90" Height="26"
-                                                         HorizontalAlignment="Left" Background="#1F2937"
-                                                         Foreground="#F8FAFC" BorderBrush="#334155" Padding="6,2"
-                                                         ToolTip="Kompüterə neçə SANİYƏDƏN bir yazılsın? (5 – 86400 ✓)"/>
-
-                                                <!-- ============================================================ -->
-                                                <!-- ⬇️ BULUDDAN MƏLUMATI GÖTÜR — YENİ KOMPÜTER / İLK YÜKLƏMƏ ✓✓✓ -->
-                                                <!-- ✅ v6.2.12: 💾 USB taxmağa EHTİYAC YOXDUR ✓                    -->
-                                                <!-- ============================================================ -->
-                                                <Button Content="⬇️  BULUDDAN MƏLUMATI GÖTÜR" Style="{StaticResource iOSButton}"
-                                                        Height="34" HorizontalContentAlignment="Center" Padding="12,0"
-                                                        Margin="0,10,0,0" Background="#065F46" Foreground="#D1FAE5"
-                                                        FontWeight="Bold" FontSize="11.5" Cursor="Hand"
-                                                        Click="BuluddanGotur_Click"
-                                                        ToolTip="🆕 YENİ KOMPÜTER: buluddaki BÜTÜN məlumatı (🚗 maşın · 💳 kredit · ⏳ möhlət · 💰 satış · 💸 xərc · 👥 tərəfdaş · 💵 kassa) yerli bazaya götürür ✓ və avtomatik sinxronu İŞƏ SALIR ✓ — USB taxmağa ehtiyac YOXDUR ✓✓✓"/>
-
-                                                <!-- 🩺🔬 DİAQNOSTİKA VƏ 🔥 SIFIRLA+GÖNDƏR ✓✓✓ (v6.2.13) -->
-                                                <UniformGrid Columns="2" Margin="0,6,0,0">
-                                                    <Button Content="🩺  Bağlantını yoxla" Style="{StaticResource iOSButton}"
-                                                            Height="30" Margin="0,0,4,0" Background="#334155"
-                                                            Foreground="#E2E8F0" FontSize="10.5" Cursor="Hand"
-                                                            Click="BuludSinaqEt_Click"
-                                                            ToolTip="🔬 REAL yoxlama ✓ — URL · token · OXUMA (GET) və YAZMA (PUT) testi edir ✓ · HTTP kodunu OLDUĞU KİMİ göstərir ✓ (xəta GİZLƏDİLMİR ✗✓✓)"/>
-                                                    <Button Content="🔥  Sıfırla + göndər" Style="{StaticResource iOSButton}"
-                                                            Height="30" Margin="4,0,0,0" Background="#7C2D12"
-                                                            Foreground="#FFEDD5" FontSize="10.5" Cursor="Hand"
-                                                            Click="BuluduSifirlaGonder_Click"
-                                                            ToolTip="🔥 BULUDU TAM SİLİR ✓ sonra YERLİ BAZADAKI BÜTÜN məlumatı (🚗 maşın · 💸 xərc · 💰 satış · 💳 kredit · ⏳ möhlət · 👥 tərəfdaş · 💵 kassa) buluda YAZIR ✓✓✓ · digər kompüterlər növbəti sinxronda hər şeyi alır ✓"/>
-                                                </UniformGrid>
-
-                                                <Button Content="💾  YADDA SAXLA" Style="{StaticResource iOSButton}"
-                                                        Height="32" HorizontalContentAlignment="Center" Padding="12,0"
-                                                        Margin="0,10,0,0" Background="#0369A1" Foreground="#E0F2FE"
-                                                        Cursor="Hand" Click="BuludAyarSaxla_Click"
-                                                        ToolTip="Həm yerli fayla, həm Firebase-ə yazılır ✓ · dərhal qüvvəyə minir ✓"/>
-
-                                                <TextBlock x:Name="BuludAyarNeticeText" FontSize="10.5"
-                                                           Foreground="#4ADE80" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                                            </StackPanel>
-                                        </Border>
+                                        <!-- 💾 YERLİ BAZA + USB EHTİYAT NÜSXƏSİ ✓ (v6.2.36 — bulud silindi ✗) -->
                                         <Button Content="💾  Ehtiyat nüsxə al (baza)" Style="{StaticResource iOSButton}"
                                                 Height="34" HorizontalContentAlignment="Left" Padding="12,0" Margin="0,0,0,7"
                                                 Background="#065F46" Foreground="#D1FAE5" Cursor="Hand"
@@ -6502,7 +6428,7 @@
 
                 <!-- ============================================================ -->
                 <!-- 🟢🔴🟠 SİNXRON STATUSU — «Avtomobil Parkı» yazısının SOLUNDA ✓ -->
-                <!-- 🖥️ kompüter (sol) · 💾 flash USB (orta) · 🔥 firebase (sağ) ✓ -->
+                <!-- 💾 YALNIZ YERLİ BAZA + FLASH USB ✓ (v6.2.36 — bulud silindi ✗) -->
                 <!-- 🟢 yaşıl = sinxronlaşıb ✓ · 🔴 qırmızı = əlaqə yoxdur ✗     -->
                 <!-- 🟠 narıncı = dəyişiklik var, hələ sinxron olmayıb ✓          -->
                 <!-- ============================================================ -->
@@ -6527,12 +6453,6 @@
                             <TextBlock Text="💾" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal"
-                                    ToolTip="🔥 FIREBASE (bulud) — 🟢 sinxron ✓ · 🟠 dəyişiklik var, hələ sinxron olmayıb ✓ · 🔴 əlaqə yoxdur ✗">
-                            <Ellipse x:Name="DaireBulud" Width="14" Height="14" Fill="#22C55E"
-                                     Stroke="#0B1220" StrokeThickness="1.5" VerticalAlignment="Center"/>
-                            <TextBlock Text="🔥" FontSize="10" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
 
                         <TextBlock x:Name="DaireMetni" FontSize="10" Foreground="#94A3B8"
                                    VerticalAlignment="Center" Margin="8,0,2,0"/>

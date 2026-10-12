@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using EnterpriseAeroStudio.Data.Repositories;
 using EnterpriseAeroStudio.Models;
 using Microsoft.Extensions.Logging;
@@ -401,14 +401,14 @@ namespace EnterpriseAeroStudio.Services
 
                 await _cars.SaveChangesAsync(cancellationToken);
 
-                Cas0201.Firebase.AppLogger.Melumat(
+                AppLogger.Melumat(
                     $"🔢 Sıra nömrələri düzəldildi ✓ — {sıfırlar.Count} avtomobil nömrələndi ✓");
 
                 return sıfırlar.Count;
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Melumat("🔢 Sıra nömrələri düzəldilə bilmədi ✗ — " + ex.Message);
+                AppLogger.Melumat("🔢 Sıra nömrələri düzəldilə bilmədi ✗ — " + ex.Message);
                 return 0;
             }
         }

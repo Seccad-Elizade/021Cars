@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -71,11 +71,6 @@ namespace EnterpriseAeroStudio.Views
                 try { _viewModel.TabDeyisdi(MainTabs.SelectedIndex); } catch { }
             };
 
-            // 🟢🔴🟠 STATUS DAİRƏLƏRİ ✓ — hər 2 saniyədə yenilənir ✓
-            _daireTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            _daireTimer.Tick += (_, _) => DaireleriYenile();
-            _daireTimer.Start();
-
             // ================================================================
             //  🚀 AVTOMATİK GÜNCƏLLƏMƏ ✓✓✓ — GitHub Releases ✓
             // ----------------------------------------------------------------
@@ -113,7 +108,6 @@ namespace EnterpriseAeroStudio.Views
             Loaded += OnLoaded;
             Closed += (_, _) =>
             {
-                try { _daireTimer?.Stop(); } catch { }
                 try { _guncellemeTimer?.Stop(); } catch { }
             };
         }
@@ -149,7 +143,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə yoxlaması ✓ — " + ex.Message);
+                AppLogger.Melumat("🚀 Güncəlləmə yoxlaması ✓ — " + ex.Message);
             }
         }
 
@@ -170,7 +164,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə pəncərəsi açılmadı ✓ — " + ex.Message);
+                AppLogger.Melumat("🚀 Güncəlləmə pəncərəsi açılmadı ✓ — " + ex.Message);
             }
             finally
             {
@@ -244,7 +238,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə düyməsi ✓ — " + ex.Message);
+                AppLogger.Melumat("🚀 Güncəlləmə düyməsi ✓ — " + ex.Message);
             }
             finally
             {
@@ -255,12 +249,6 @@ namespace EnterpriseAeroStudio.Views
         // ====================================================================
         //  🟢🔴🟠 STATUS DAİRƏLƏRİ + 💾 SEÇİM QORUNMASI ✓✓✓
         // ====================================================================
-
-        /// <summary>⏱️ Status dairələrini yeniləyən taymer ✓</summary>
-        private DispatcherTimer? _daireTimer;
-
-        /// <summary>💾 Son görülən fləşkart vəziyyəti ✓ (dəyişəndə panel avtomatik yenilənir ✓✓✓)</summary>
-        private bool _sonUsbVeziyyeti;
 
         /// <summary>💾 Yeniləmədən əvvəl yadda saxlanan seçimlər ✓</summary>
         private readonly System.Collections.Generic.List<(object Sahə, object? Açar)> _secimler = new();
@@ -306,7 +294,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeberdarliq("⚠️ Seçim yadda saxlanmadı ✗ — " + ex.Message);
+                AppLogger.Xeberdarliq("⚠️ Seçim yadda saxlanmadı ✗ — " + ex.Message);
             }
         }
 
@@ -339,7 +327,7 @@ namespace EnterpriseAeroStudio.Views
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeberdarliq("⚠️ Seçim bərpa olunmadı ✗ — " + ex.Message);
+                AppLogger.Xeberdarliq("⚠️ Seçim bərpa olunmadı ✗ — " + ex.Message);
             }
             finally
             {
@@ -347,92 +335,6 @@ namespace EnterpriseAeroStudio.Views
             }
         }
 
-        // ====================================================================
-        //  ☁️ BULUD SİNXRON TƏNZİMLƏMƏLƏRİ ✓✓✓
-        //  ⚙️ «Tənzimləmələr» tabı → 🛠️ Sistem Alətləri → ☁️ panel
-        //  🔐 YALNIZ 👑 Seccad (Admin) və 🛡️ Asif dəyişə bilər ✓ · 🚗 Sahil ✗
-        // ====================================================================
-
-        /// <summary>
-        /// 🟢🔴🟠 <b>STATUS DAİRƏLƏRİNİ YENİLƏYİR</b> ✓✓✓
-        /// <para>
-        /// 🖥️ Kompüter (sol) · 💾 USB (orta) · 🔥 Firebase (sağ) ✓<br/>
-        /// 🟢 yaşıl = sinxronlaşıb ✓ · 🔴 qırmızı = əlaqə yoxdur ✗ ·
-        /// 🟠 narıncı = dəyişiklik var, hələ sinxron olmayıb ✓
-        /// </para>
-        /// </summary>
-        private void DaireleriYenile()
-        {
-            try
-            {
-                var kopru = App.Kopru;
-                var ayar = Cas0201.Firebase.BuludAyarlari.Cari;
-
-                var indi = DateTime.Now;
-
-                // 🖥️ ① KOMPÜTER (yerli baza) — 🔌 İNTERNETSİZ DƏ TAM İŞLƏYİR ✓✓✓
-                var yerli = kopru is null || !kopru.Isleyir
-                    ? "#EF4444"                                        // 🔴 işləmir ✗
-                    : "#22C55E";                                       // 🟢 işləyir ✓ (offline olsa da ✓)
-
-                // 💾 ② FLASH USB ✓
-                var usb = kopru is null || !kopru.UsbHazir
-                    ? "#EF4444"                                        // 🔴 taxılmayıb ✗
-                    : kopru.SonYedek is null ||
-                      (indi - kopru.SonYedek.Value).TotalSeconds >
-                      Math.Max(15, ayar.UsbSaniye * 2)
-                        ? "#F59E0B"                                    // 🟠 yazılır ✓
-                        : "#22C55E";                                   // 🟢 yazılıb ✓
-
-                // 🔥 ③ FIREBASE (bulud) ✓
-                var bulud = kopru is null || !kopru.Onlayn
-                    ? "#EF4444"                                        // 🔴 əlaqə yoxdur ✗
-                    : !string.IsNullOrWhiteSpace(kopru.SonXeta)
-                        ? "#F59E0B"                                    // 🟠 gözləyir ✓
-                        : "#22C55E";                                   // 🟢 sinxron ✓
-
-                DaireYerli.Fill = Rəng(yerli);
-                DaireUsb.Fill = Rəng(usb);
-                DaireBulud.Fill = Rəng(bulud);
-
-                // 📊 NAZİK LOADING BAR — yalnız NORMAL sinxron zamanı görünür ✓
-                //    ⚠ İnternet yoxdursa dövr uzun çəkir ✗ → bar GİZLƏDİLİR ✗✓✓
-                //      (vəziyyəti 🔴 qırmızı FIREBASE dairəsi bildirir ✓)
-                var dövrUzun = kopru?.DovruBaslama is null ||
-                    (indi - kopru.DovruBaslama.Value).TotalSeconds >
-                    Math.Max(8, ayar.FirebaseSaniye * 4);
-
-                SinxronZolaq.Visibility = kopru is not null && kopru.SinxronGedir && !dövrUzun
-                    ? System.Windows.Visibility.Visible
-                    : System.Windows.Visibility.Collapsed;
-
-                // ============================================================
-                //  💾 DATA USB PANELİNİ AVTOMATİK YENİLƏ ✓✓✓ (REAL-TIME ✓)
-                //  Fləşkart taxılanda / çıxarılanda panel DƏRHAL yenilənir ✓
-                //  (əvvəl «🔄 Yenilə» düyməsini əl ilə basmaq lazım idi ✗)
-                // ============================================================
-                var usbVar = kopru is not null && kopru.UsbHazir;
-
-                if (usbVar != _sonUsbVeziyyeti)
-                {
-                    _sonUsbVeziyyeti = usbVar;
-
-                    try
-                    {
-                        _viewModel.UsbYenileCommand.Execute(null);
-                    }
-                    catch { }
-                }
-
-                DaireMetni.Text = kopru is null
-                    ? "sinxron başlamayıb ✗"
-                    : kopru.Onlayn ? "sinxron ✓" : "oflayn ✗";
-            }
-            catch
-            {
-                // 🛡️ status dairəsi heç vaxt proqramı çökdürmür ✗
-            }
-        }
 
         // ==== KÖMƏKÇİ ====
 
@@ -489,303 +391,6 @@ namespace EnterpriseAeroStudio.Views
             }
         }
 
-        /// <summary>🌐 Ayar üçün paylaşılan klient ✓ (bir dəfə yaradılır ✓)</summary>
-        private static Cas0201.Firebase.FirebaseRestClient? _buludAyarKlienti;
-
-        /// <summary>📂 Panel yüklənəndə cari ayarları göstərir ✓ (Sahil üçün gizlədir ✗)</summary>
-        private void BuludAyarPaneli_Loaded(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // 🚗 SAHİL → icazə yoxdur ✗ → panel tamamilə gizlədilir ✗✓✓
-                if (!Cas0201.Firebase.BuludAyarlari.IcazeVar)
-                {
-                    if (sender is FrameworkElement element)
-                    {
-                        element.Visibility = Visibility.Collapsed;
-                    }
-
-                    return;
-                }
-
-                var cari = Cas0201.Firebase.BuludAyarlari.Cari;
-
-                BuludFbSaniyeQutusu.Text = cari.FirebaseSaniye.ToString();
-                BuludUsbSaniyeQutusu.Text = cari.UsbSaniye.ToString();
-                BuludYerliSaniyeQutusu.Text = cari.YerliSaniye.ToString();
-
-                // ☁️ AÇAR VƏZİYYƏTİ ✓ (təmiz quraşdırmada BAĞLI gəlir ✓ — tətbiq BOŞ açılır ✓)
-                BuludAvtomatikQutusu.IsChecked = cari.Avtomatik;
-
-                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
-                BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
-
-                if (Cas0201.Firebase.BuludAyarlari.TemizQurasdirma)
-                {
-                    BuludAyarNeticeText.Text =
-                        "🆕 Təmiz quraşdırma ✓ — bulud sinxronizasiyası BAĞLIDIR ✗ (tətbiq boş açılır ✓). " +
-                        "Buluddaki köhnə məlumatı götürmək üçün ☁️ işarəsini qoyun və «💾 YADDA SAXLA» basın ✓";
-                }
-            }
-            catch (Exception ex)
-            {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "bulud ayar paneli");
-            }
-        }
-
-        /// <summary>
-        /// ⬇️ <b>BULUDDAN MƏLUMATI GÖTÜR</b> ✓✓✓  (v6.2.12 — YENİ KOMPÜTER / İLK YÜKLƏMƏ)
-        /// <para>
-        /// 🆕 İstifadəçi şikayəti: yeni kompüterdə məlumat gəlmirdi ✗ və 💾 USB taxmağa
-        /// məcbur qalırdı ✗✓✓ → bu düymə BİR KLİKLƏ hər şeyi həll edir:
-        /// bulud sinxronizasiyası AKTİV olur ✓ + bütün məlumat DƏRHAL aşağı çəkilir ✓
-        /// </para>
-        /// <para>⚠ İcazə: yalnız 👑 Admin və 🛡️ Asif ✓ (Sahil üçün panel gizlədilir ✗)</para>
-        /// </summary>
-        private void BuluddanGotur_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // 🚗 İcazə yoxsa (Sahil) → düymə işləmir ✗
-                if (!Cas0201.Firebase.BuludAyarlari.IcazeVar)
-                {
-                    BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
-                    return;
-                }
-
-                if (App.Kopru is null)
-                {
-                    BuludAyarNeticeText.Text =
-                        "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓";
-                    return;
-                }
-
-                var təsdiq = MessageBox.Show(
-                    this,
-                    "⬇️ BULUDDAN MƏLUMAT GÖTÜRÜLSÜN?\n\n" +
-                    "☁️ Buluddaki BÜTÜN məlumat yerli bazaya götürülür ✓:\n" +
-                    "   🚗 maşınlar · 💳 kreditlər · ⏳ möhlətlər · 💰 satışlar\n" +
-                    "   💸 xərclər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
-                    "🛡️ Yerli məlumat SİLİNMİR ✗ — yalnız buludda DAHA TƏZƏ olanlar\n" +
-                    "   tətbiq olunur ✓ (Last-Write-Wins ✓)\n\n" +
-                    "☁️ Avtomatik bulud sinxronizasiyası da İŞƏ DÜŞÜR ✓",
-                    "⬇️ Buluddan məlumat götür",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question,
-                    MessageBoxResult.Yes);
-
-                if (təsdiq != MessageBoxResult.Yes)
-                {
-                    return;
-                }
-
-                // ⬇️ Yükləmə + nəticə mesajı + UI yenilənməsi ✓
-                var say = App.BuluddanIlkYukle(this);
-
-                BuludAvtomatikQutusu.IsChecked = true;
-                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
-                BuludAyarNeticeText.Text =
-                    $"✅ {say} qeyd buluddan götürüldü ✓ — ☁️ avtomatik sinxron AKTİVDİR ✓";
-            }
-            catch (Exception ex)
-            {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "buluddan gotur");
-                BuludAyarNeticeText.Text = "⚠️ Xəta ✗ — " + ex.Message;
-            }
-        }
-
-        /// <summary>
-        /// 🩺 <b>BAĞLANTINI YOXLA</b> ✓✓✓ (v6.2.13) — oxu + yazma testi ✓
-        /// <para>
-        /// ⚠ ƏVVƏL bu yoxlama <b>HEÇ BİR YERDƏN çağırılmırdı</b> ✗ →
-        /// istifadəçi «niyə sinxronlaşmır?» sualına cavab tapa bilmirdi ✗✓✓
-        /// ✅ İNDİ: bir kliklə URL · token · OXUMA və YAZMA nəticəsi görünür ✓
-        /// </para>
-        /// </summary>
-        private async void BuludSinaqEt_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                BuludAyarNeticeText.Text = "🩺 Yoxlanılır… ✓";
-                BuludAyarNeticeText.Foreground = System.Windows.Media.Brushes.LightSkyBlue;
-
-                var netice = App.Kopru is null
-                    ? "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓"
-                    : await App.Kopru.SinaqEtAsync();
-
-                BuludAyarNeticeText.Text = netice;
-                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
-            }
-            catch (Exception ex)
-            {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "bulud sınaq");
-                BuludAyarNeticeText.Text = "⚠️ Yoxlama alınmadı ✗ — " + ex.Message;
-            }
-        }
-
-        /// <summary>
-        /// 🔥 <b>BULUDU SIFIRLA + YERLİ MƏLUMATI GÖNDƏR</b> ✓✓✓ (v6.2.13)
-        /// <para>İstifadəçi tələbi: «Firebasedaki bütün dataları sil və proqramımızdaki datanı ötür» ✓✓✓</para>
-        /// </summary>
-        private async void BuluduSifirlaGonder_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (!Cas0201.Firebase.BuludAyarlari.IcazeVar)
-                {
-                    BuludAyarNeticeText.Text = Cas0201.Firebase.BuludAyarlari.IcazeMetni;
-                    return;
-                }
-
-                if (App.Kopru is null)
-                {
-                    BuludAyarNeticeText.Text = "⚠️ Bulud körpüsü hazır deyil ✗ — proqramı yenidən açın ✓";
-                    return;
-                }
-
-                var təsdiq = MessageBox.Show(
-                    this,
-                    "🔥 BULUD TAM SIFIRLANSIN VƏ YERLİ MƏLUMAT GÖNDƏRİLSİN?\n\n" +
-                    "① 🗑️ Firebase-dəki kök «021Cars» qovluğu TAM SİLİNİR ✓\n" +
-                    "② ⬆️ Bu kompüterdəki BÜTÜN məlumat buluda yenidən yazılır ✓:\n" +
-                    "      🚗 maşınlar · 💸 xərclər · 💰 satışlar · 💳 kreditlər\n" +
-                    "      ⏳ möhlətlər · 👥 tərəfdaşlar · 💵 kassa hərəkətləri\n\n" +
-                    "✅ Nəticə: bulud = bu kompüterin TAM surəti ✓\n" +
-                    "   Digər kompüterlər növbəti sinxronda hər şeyi alacaq ✓\n\n" +
-                    "⚠ Diqqət: buluddaki köhnə/natamam məlumat SİLİNİR ✗\n" +
-                    "   (yerli məlumata HEÇ NƏ olmur ✓✓✓)",
-                    "🔥 Buludu sıfırla + göndər",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning,
-                    MessageBoxResult.No);
-
-                if (təsdiq != MessageBoxResult.Yes)
-                {
-                    return;
-                }
-
-                BuludAyarNeticeText.Text = "🔥 Bulud sıfırlanır və məlumat göndərilir… ✓ (bir neçə saniyə ✓)";
-
-                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-
-                (int Push, int Silme) netice;
-
-                try
-                {
-                    // 🛡️ Fon ipində ✓ (UI donmur ✗)
-                    netice = Task.Run(() => App.Kopru!.HamisiniGonderAsync(true))
-                        .GetAwaiter().GetResult();
-                }
-                finally
-                {
-                    System.Windows.Input.Mouse.OverrideCursor = null;
-                }
-
-                // 🔄 UI yenilənir ✓
-                if (DataContext is ViewModels.MainViewModel vm)
-                {
-                    vm.HamisiniIndiYenileCommand.Execute(null);
-                }
-
-                // ================================================================
-                //  ⏱️ SİNXRON FASİLƏSİNİ 10 SANİYƏYƏ SAL ✓✓✓  (v6.2.13)
-                // ----------------------------------------------------------------
-                //  ⚠ Buluddaki ayar 300 saniyə (5 dəqiqə) idi ✗ → istifadəçi
-                //  «5 dəqiqə sonra yaşıl oldu» deyə şikayət etdi ✗✓✓
-                //  ✅ Sıfırlama ilə birlikdə 10 saniyə yazılır ✓ (sürətli sinxron ✓)
-                // ================================================================
-                try
-                {
-                    var ayarKlient = new Cas0201.Firebase.FirebaseRestClient(
-                        new Cas0201.Firebase.FirebaseOptions());
-
-                    await Cas0201.Firebase.BuludAyarlari.YaddaSaxlaAsync(
-                        ayarKlient, firebaseSaniye: 10, avtomatik: true);
-
-                    Cas0201.Firebase.BuludAyarlari.TətbiqEt(App.Kopru);
-                    App.Kopru?.Basla();
-                }
-                catch { }
-
-                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
-                BuludAyarNeticeText.Text =
-                    $"✅ BULUD SIFIRLANDI VƏ YENİDƏN YAZILDI ✓\n" +
-                    $"☁️ {netice.Push} qeyd buluda göndərildi ✓ · 🗑️ {netice.Silme} ✓\n" +
-                    $"⚠ Bulud bağlantısı: {(App.Kopru?.Onlayn == true ? "işləyir ✓" : "YOXDUR ✗")}" +
-                    (App.Kopru?.SonXeta is { Length: > 0 } x ? $"\n❌ Son xəta: {x}" : "");
-
-                MessageBox.Show(
-                    this,
-                    $"✅ HAZIRDIR ✓\n\n☁️ {netice.Push} qeyd buluda yazıldı ✓\n\n" +
-                    "🖥️ Digər kompüterdə 1 dəqiqə gözləyin ✓ yaxud orada\n" +
-                    "⚙️ Tənzimləmələr → «⬇️ BULUDDAN MƏLUMATI GÖTÜR» basın ✓",
-                    "Uğurlu ✓",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.Input.Mouse.OverrideCursor = null;
-                Cas0201.Firebase.AppLogger.Xeta(ex, "buludu sıfırla");
-                BuludAyarNeticeText.Text = "⚠️ Alınmadı ✗ — " + ex.Message;
-            }
-        }
-
-        /// <summary>💾 YADDA SAXLA — yerli fayl ✓ + Firebase ✓ + dərhal tətbiq ✓</summary>
-        private async void BuludAyarSaxla_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                _buludAyarKlienti ??=
-                    new Cas0201.Firebase.FirebaseRestClient(new Cas0201.Firebase.FirebaseOptions());
-
-                if (!int.TryParse(BuludFbSaniyeQutusu.Text, out var saniye))
-                {
-                    saniye = Cas0201.Firebase.BuludAyarlari.Cari.FirebaseSaniye;
-                }
-
-                if (!int.TryParse(BuludUsbSaniyeQutusu.Text, out var usbSaniye))
-                {
-                    usbSaniye = Cas0201.Firebase.BuludAyarlari.Cari.UsbSaniye;
-                }
-
-                if (!int.TryParse(BuludYerliSaniyeQutusu.Text, out var yerliSaniye))
-                {
-                    yerliSaniye = Cas0201.Firebase.BuludAyarlari.Cari.YerliSaniye;
-                }
-
-                var avtomatik = BuludAvtomatikQutusu.IsChecked == true;
-
-                var netice = await Cas0201.Firebase.BuludAyarlari
-                    .YaddaSaxlaAsync(_buludAyarKlienti, saniye, usbSaniye, yerliSaniye, avtomatik);
-
-                BuludAyarNeticeText.Text = netice;
-                BuludAyarStatusuText.Text = Cas0201.Firebase.BuludAyarlari.StatusMetni;
-
-                // ⚡ DƏRHAL tətbiq olunur ✓ — proqramı yenidən başlatmaq LAZIM DEYİL ✗✓✓
-                Cas0201.Firebase.BuludAyarlari.TətbiqEt(App.Kopru);
-
-                // ☁️ AÇAR: yandırıldı → körpü BAŞLAYIR ✓ · söndürüldü → DAYANIR ✗✓✓
-                if (avtomatik)
-                {
-                    App.Kopru?.Basla();
-
-                    BuludAyarNeticeText.Text += "\n☁️ Bulud sinxronizasiyası YANDIRILDI ✓";
-                }
-                else
-                {
-                    App.Kopru?.Dayandir();
-
-                    BuludAyarNeticeText.Text +=
-                        "\n✗ Bulud sinxronizasiyası SÖNDÜRÜLDÜ ✓ — buluddan heç nə oxunmur / yazılmır ✗";
-                }
-            }
-            catch (Exception ex)
-            {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "bulud ayar saxlama");
-                BuludAyarNeticeText.Text = "⚠️ Xəta ✗ — " + ex.Message;
-            }
-        }
 
         private async void OnLoaded(object sender, RoutedEventArgs e)
         {

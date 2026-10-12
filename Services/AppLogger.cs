@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  📜 021Cars — FAIL-SAFE LOQ SİSTEMİ (3/6)
 //  ✅ Xəta HEÇ VAXT proqramı çökdürmür ✗ — səssizcə tutulur ✓
 //  ✅ app_errors.log  (5 MB-dan sonra → app_errors.old.log ✓)
@@ -12,7 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Cas0201.Firebase
+namespace EnterpriseAeroStudio.Services
 {
     /// <summary>
     /// 🛡️ <b>QÜSURSUZ XƏTA TUTUCU</b> ✓✓✓

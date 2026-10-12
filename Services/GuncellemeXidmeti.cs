@@ -229,7 +229,7 @@ namespace EnterpriseAeroStudio.Services
                 // ℹ️ 404 = hələ HEÇ BİR buraxılış yoxdur ✗ (problem deyil ✓)
                 if (!cavab.IsSuccessStatusCode)
                 {
-                    Cas0201.Firebase.AppLogger.Melumat(
+                    AppLogger.Melumat(
                         $"🚀 Güncəlləmə yoxlaması: {(int)cavab.StatusCode} ✓ (buraxılış yoxdur ✗)");
 
                     VeziyyetQur(Vəziyyət.EnSon);   // 🟢 ən son versiyadadır ✓
@@ -241,7 +241,7 @@ namespace EnterpriseAeroStudio.Services
 
                 if (m is null)
                 {
-                    Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə yoxlaması: buraxılış oxunmadı ✗");
+                    AppLogger.Melumat("🚀 Güncəlləmə yoxlaması: buraxılış oxunmadı ✗");
                     VeziyyetQur(Vəziyyət.EnSon);
                     return null;
                 }
@@ -249,7 +249,7 @@ namespace EnterpriseAeroStudio.Services
                 // ⚖️ Versiya müqayisəsi ✓ — yalnız YENİ varsa ✓
                 if (!Yenidir(m.Versiya))
                 {
-                    Cas0201.Firebase.AppLogger.Melumat(
+                    AppLogger.Melumat(
                         $"🚀 Güncəlləmə yox ✓ — cari {CariVersiyaMetni} · son {m.Versiya}");
 
                     Tapilan = null;
@@ -260,7 +260,7 @@ namespace EnterpriseAeroStudio.Services
                 Tapilan = m;
                 VeziyyetQur(Vəziyyət.Yenivar);   // 🎉 yeni versiya var ✓
 
-                Cas0201.Firebase.AppLogger.Melumat(
+                AppLogger.Melumat(
                     $"🎉 YENİ GÜNCƏLLƏMƏ TAPILDI ✓ — {CariVersiyaMetni} → {m.Versiya} ✓");
 
                 try { Tapildi?.Invoke(m); } catch { }
@@ -270,7 +270,7 @@ namespace EnterpriseAeroStudio.Services
             catch (Exception ex)
             {
                 // 🛡️ İnternet yoxdur ✗ / GitHub əlçatmaz ✗ → SƏSSİZCƏ keçir ✓
-                Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə yoxlanmadı ✓ — " + ex.Message);
+                AppLogger.Melumat("🚀 Güncəlləmə yoxlanmadı ✓ — " + ex.Message);
                 VeziyyetQur(Vəziyyət.Xeta);   // 🔴 yoxlana bilmədi ✗
                 return null;
             }
@@ -343,7 +343,7 @@ namespace EnterpriseAeroStudio.Services
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə JSON");
+                AppLogger.Xeta(ex, "güncəlləmə JSON");
                 return null;
             }
         }
@@ -438,7 +438,7 @@ namespace EnterpriseAeroStudio.Services
                 try { if (File.Exists(hedef)) File.Delete(hedef); }
                 catch { hedef = Path.Combine(YolQovlug, $"setup_{DateTime.Now:HHmmss}.exe"); }
 
-                Cas0201.Firebase.AppLogger.Melumat($"⬇️ Güncəlləmə yüklənir ✓ → {hedef}");
+                AppLogger.Melumat($"⬇️ Güncəlləmə yüklənir ✓ → {hedef}");
 
                 using var cavab = await Http
                     .GetAsync(m.YuklemeUrl, HttpCompletionOption.ResponseHeadersRead, ct)
@@ -473,7 +473,7 @@ namespace EnterpriseAeroStudio.Services
                 // ⚠️ Yarımçıq yüklənmə ✗ (10 MB-dan kiçik ✗) → uğursuz ✓
                 if (ölçü < 10 * 1024 * 1024)
                 {
-                    Cas0201.Firebase.AppLogger.Melumat($"⚠️ Yükləmə yarımçıq ✗ — yalnız {ölçü / 1024 / 1024} MB ✓");
+                    AppLogger.Melumat($"⚠️ Yükləmə yarımçıq ✗ — yalnız {ölçü / 1024 / 1024} MB ✓");
                     try { File.Delete(hedef); } catch { }
                     return null;
                 }
@@ -488,12 +488,12 @@ namespace EnterpriseAeroStudio.Services
                 }
                 catch { }
 
-                Cas0201.Firebase.AppLogger.Melumat($"✅ Güncəlləmə yükləndi ✓ — {ölçü / 1024 / 1024} MB ✓");
+                AppLogger.Melumat($"✅ Güncəlləmə yükləndi ✓ — {ölçü / 1024 / 1024} MB ✓");
                 return hedef;
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə yükləmə");
+                AppLogger.Xeta(ex, "güncəlləmə yükləmə");
                 return null;
             }
         }
@@ -525,13 +525,13 @@ namespace EnterpriseAeroStudio.Services
             {
                 if (string.IsNullOrWhiteSpace(installerYolu) || !File.Exists(installerYolu))
                 {
-                    Cas0201.Firebase.AppLogger.Melumat("🚀 Güncəlləmə başladılmadı ✗ — installer tapılmadı ✗");
+                    AppLogger.Melumat("🚀 Güncəlləmə başladılmadı ✗ — installer tapılmadı ✗");
                     return false;
                 }
 
                 var hədəf = Cas0201.Kok.Qovluq;
 
-                Cas0201.Firebase.AppLogger.Melumat(
+                AppLogger.Melumat(
                     $"🚀 Güncəlləmə başladılır ✓ — installer: {installerYolu} · hədəf: {hədəf}");
 
                 var psi = new ProcessStartInfo(installerYolu)
@@ -555,7 +555,7 @@ namespace EnterpriseAeroStudio.Services
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "güncəlləmə başlatma");
+                AppLogger.Xeta(ex, "güncəlləmə başlatma");
                 return false;
             }
         }

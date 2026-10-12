@@ -1001,7 +1001,7 @@ namespace EnterpriseAeroStudio.Services
 
                     var ö = new FileInfo(əsas).Length / 1024;
 
-                    Cas0201.Firebase.AppLogger.Melumat($"♻️ Köhnə yoldan baza kopyalandı ✓ → {əsas} ({ö:N0} KB ✓)");
+                    AppLogger.Melumat($"♻️ Köhnə yoldan baza kopyalandı ✓ → {əsas} ({ö:N0} KB ✓)");
 
                     return $"♻️ KÖHNƏ YOLDAN BAZA BƏRPA OLUNDU ✓ ({ö:N0} KB)\n" +
                            $"   • Köhnə yol: {köhnə}\n" +
@@ -1094,7 +1094,7 @@ namespace EnterpriseAeroStudio.Services
 
                     var ö = new FileInfo(yerli).Length / 1024;
 
-                    Cas0201.Firebase.AppLogger.Melumat($"📥 USB-dən baza kopyalandı ✓ ({ö:N0} KB ✓)");
+                    AppLogger.Melumat($"📥 USB-dən baza kopyalandı ✓ ({ö:N0} KB ✓)");
 
                     return $"📥 USB-DƏN BƏRPA OLUNDU ✓ ({ö:N0} KB)\n" +
                            $"   • Mənbə: {mənbə}\n" +
@@ -1110,7 +1110,7 @@ namespace EnterpriseAeroStudio.Services
                 // ============================================================
                 var birləşdirmə = BirləşdirUnion(mənbə, "USB");
 
-                Cas0201.Firebase.AppLogger.Melumat("🔀 USB birləşdirmə: " + birləşdirmə.Replace("\n", " "));
+                AppLogger.Melumat("🔀 USB birləşdirmə: " + birləşdirmə.Replace("\n", " "));
 
                 return birləşdirmə;
             }
@@ -1166,7 +1166,7 @@ namespace EnterpriseAeroStudio.Services
 
                     YaddaSaxla();
 
-                    Cas0201.Firebase.AppLogger.Melumat(
+                    AppLogger.Melumat(
                         $"🔑 DATA USB avtomatik tanındı ✓ → {root} ✓ (token qeydə alındı ✓)");
 
                     return $"🔑 DATA USB AVTOMATİK TANINDI ✓\n   • Disk: {root}\n" +
@@ -1366,13 +1366,13 @@ namespace EnterpriseAeroStudio.Services
                             "   • Mövcud qeydlərə TOXUNULMADI ✗✓✓ (heç nə silinmir ✓)\n" +
                             "   • ☁️ Sonra Firebase-ə də göndəriləcək ✓";
 
-                Cas0201.Firebase.AppLogger.Melumat(mesaj.Replace("\n", " "));
+                AppLogger.Melumat(mesaj.Replace("\n", " "));
 
                 return (əlavə, düzəliş + doldurulan, mesaj);
             }
             catch (Exception ex)
             {
-                Cas0201.Firebase.AppLogger.Xeta(ex, "birləşdirmə: " + ad);
+                AppLogger.Xeta(ex, "birləşdirmə: " + ad);
 
                 return (əlavə, düzəliş, $"⚠️ «{ad}» birləşdirməsi alınmadı ✗ — {ex.Message}");
             }
@@ -2133,7 +2133,7 @@ namespace EnterpriseAeroStudio.Services
                             "   • " + string.Join("\n   • ", detallar) + "\n" +
                             "   • Mövcud qeydlərə TOXUNULMADI ✗✓✓";
 
-                Cas0201.Firebase.AppLogger.Melumat(mesaj.Replace("\n", " "));
+                AppLogger.Melumat(mesaj.Replace("\n", " "));
 
                 return mesaj;
             }

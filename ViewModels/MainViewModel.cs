@@ -706,7 +706,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 UsbMesaji = "⚠️ USB əlavə etmə xətası ✗ — " + ex.Message;
                 StatusMessage = UsbMesaji;
 
-                Cas0201.Firebase.AppLogger.Xeta(ex, "USB əlavə et");
+                AppLogger.Xeta(ex, "USB əlavə et");
             }
         }
 
@@ -761,7 +761,7 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 UsbMesaji = "⚠️ USB oxuma xətası ✗ — " + ex.Message;
 
-                Cas0201.Firebase.AppLogger.Xeta(ex, "USB tax və oxu");
+                AppLogger.Xeta(ex, "USB tax və oxu");
             }
         }
 
@@ -1027,7 +1027,11 @@ namespace EnterpriseAeroStudio.ViewModels
             //       seçilmiş maşın ✓ — boş dövrlərdə QORUNUR ✓ (5 saniyəlik yeniləmə toxunmur ✗)
             try
             {
-                var versiya = App.Kopru?.Versiya ?? -1;
+                // 💾 v6.2.36 — YERLİ dəyişiklik sayğacı ✓✓✓ (bulud SİLİNDİ ✗)
+                //   ⚠ ƏVVƏL `App.Kopru?.Versiya` idi ✗ (buluddan gələn versiya ✓)
+                //   ✅ İNDİ: yerli baza faylının dəyişiklik sayğacı ✓ —
+                //      dəyişiklik YOXDURSA UI-a HEÇ TOXUNULMUR ✗ (seçimlər qorunur ✓)
+                var versiya = _dataChanges is null ? -1 : _dataChanges.ChangeCount;
 
                 if (versiya >= 0 && versiya == _sonVersiya)
                 {
