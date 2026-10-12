@@ -1895,8 +1895,15 @@ namespace EnterpriseAeroStudio.ViewModels
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Kredit silinərkən xəta baş verdi.");
-                _dialogs.ShowError("Kredit silinə bilmədi: " + ex.Message);
+                // 💡 v6.2.37 — ƏSL SƏBƏB (inner exception) göstərilir ✓✓✓
+                var sebeb = ex.GetBaseException().Message;
+
+                _logger.LogError(ex, "Kredit silinə bilmədi. Əsas səbəb: {Sebeb}", sebeb);
+
+                _dialogs.ShowError(
+                    "Kredit silinə bilmədi ✗\n\n" +
+                    $"🔎 Əsas səbəb: {sebeb}\n\n" +
+                    BazaXetaMesleheti(sebeb));
             }
             finally
             {

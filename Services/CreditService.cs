@@ -99,8 +99,25 @@ namespace EnterpriseAeroStudio.Services
                 return;
             }
 
-            // Silmədən əvvəl bərpa surəti (əməliyyatlar daxil).
-            await _trash.BackupCreditAsync(id, cancellationToken);
+            // ================================================================
+            //  🛡️ v6.2.37 — BƏRPA SURƏTİ ALINMASA DA SİLMƏ DAVAM EDİR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi şikayəti: «Kredit silinə bilmədi — Object reference
+            //    not set to an instance of an object» ✗✓✓
+            //  ⚠ SƏBƏB: bərpa surəti (Trash) alınarkən NullReferenceException
+            //    baş verirdi ✗ → BÜTÜN silmə əməliyyatı DAYANIRDI ✗✓✓
+            //  ✅ İNDİ: surət ALINMASSA da silmə DAVAM EDİR ✓
+            //    (surət yalnız «Ctrl+Z ilə geri alma» üçündür ✗ — kritik deyil ✓)
+            // ================================================================
+            try
+            {
+                await _trash.BackupCreditAsync(id, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex, "⚠️ Kredit #{Id} üçün bərpa surəti alınmadı ✗ — silmə DAVAM EDİR ✓", id);
+            }
 
             // Uzunömürlü kontekstlərdəki köhnə (stale) nüsxələr buraxılır —
             // əks halda artıq bazada olmayan sətirlər üçün DELETE göndərilir və

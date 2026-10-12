@@ -390,6 +390,9 @@ namespace EnterpriseAeroStudio.ViewModels
             /// <summary>Artıq ödənilibmi? ✓</summary>
             public bool Odenilib { get; init; }
 
+            /// <summary>📅 v6.2.37 — ☑ <b>SEÇİLMİŞDİR</b> (çoxsaylı taksit ödənişi ✓✓✓)</summary>
+            public bool Secilmis { get; set; }
+
             /// <summary>ComboBox-da göstərilən mətn ✓</summary>
             public string Metn { get; init; } = string.Empty;
 
@@ -724,6 +727,102 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
+        /// <summary>
+        /// 📅 <b>ÇOXSAYLI TAKSİT ÖDƏNİŞİ</b> ✓✓✓ (v6.2.37)
+        /// <para>
+        /// Seçilmiş hər taksit üçün <b>AYRI</b> ödəniş yazılır ✓ — məbləğ
+        /// <b>PLANA görə</b> bölünür ✓ (500 · 500 · 500 ✓); artıq/əskik hissə
+        /// <b>SONUNCU</b> taksitə düşür ✓ (1400 → 500 · 500 · 400 ✓).
+        /// </para>
+        /// <para>👥 Tərəfdaş bölgüsü işarələnibsə paylar mütənasib bölünür ✓.</para>
+        /// </summary>
+        private async Task CoxTaksitOdenisiAsync(List<int> taksitler)
+        {
+            if (SelectedCredit is not Credit kredit)
+            {
+                return;
+            }
+
+            var plan = kredit.AylıqOdenis > 0m ? kredit.AylıqOdenis : Mebleg / taksitler.Count;
+            var qalan = Mebleg;
+            var tarix = Tarix ?? DateTime.Today;
+
+            // 👥 paylar — hər ödəniş üçün MÜTƏNASİB ✓ (sonuncu qalığı tamamlayır ✓)
+            var butunPaylar = BolguTetbiqOlunub ? BolguModelleri() : new List<PartnerShare>();
+            var payCemi = butunPaylar.Sum(p => p.Mebleg);
+            var paylanmis = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            var setirler = new List<string>();
+
+            for (var i = 0; i < taksitler.Count; i++)
+            {
+                var sonuncu = i == taksitler.Count - 1;
+                var ver = sonuncu ? qalan : Math.Min(plan, qalan);
+                ver = Math.Round(ver, 2);
+
+                if (ver <= 0m)
+                {
+                    continue;
+                }
+
+                var paylar = new List<PartnerShare>();
+
+                foreach (var p in butunPaylar)
+                {
+                    paylanmis.TryGetValue(p.Terefdas, out var evvelki);
+                    var bu = sonuncu
+                        ? Math.Round(p.Mebleg - evvelki, 2)
+                        : Math.Round(p.Mebleg * (ver / Mebleg), 2);
+
+                    if (bu <= 0m)
+                    {
+                        continue;
+                    }
+
+                    paylanmis[p.Terefdas] = evvelki + bu;
+
+                    paylar.Add(new PartnerShare
+                    {
+                        Terefdas = p.Terefdas,
+                        Faiz = p.Faiz,
+                        Mebleg = bu,
+                        QaligPayi = p.QaligPayi,
+                        Aktiv = p.Aktiv,
+                        Sira = p.Sira
+                    });
+                }
+
+                await _creditService.AddTransactionAsync(new CreditTransaction
+                {
+                    CreditId = kredit.Id,
+                    InstallmentNo = taksitler[i],
+                    Nov = "Gəlir",
+                    Mebleg = ver,
+                    Tarix = tarix,
+                    Tesvir = $"💰 {taksitler[i]}-ci taksitin ödənişi (çoxsaylı ✓)",
+                    TerefdasBolguTetbiqOlunub = paylar.Count > 0,
+                    BolguBazasi = paylar.Count > 0 ? paylar.Sum(p => p.Mebleg) : null,
+                    TerefdasPaylari = paylar
+                });
+
+                qalan = Math.Round(qalan - ver, 2);
+                setirler.Add($"   • {taksitler[i]}-ci taksit → {ver:N2} ₼ ✓");
+            }
+
+            _logger.LogInformation(
+                "📅 Çoxsaylı taksit ödənişi: kredit #{Id} · {Say} taksit · cəm {Cem:N2} ₼",
+                kredit.Id, taksitler.Count, Mebleg);
+
+            BasqaTaksit = false;
+            SecilmisTaksitNo = 0;
+            TaksitSecimleri.Clear();
+
+            _dialogs.ShowInfo(
+                $"✅ ÇOXSAYLI TAKSİT ÖDƏNİŞİ YAZILDI ✓\n\n{string.Join("\n", setirler)}\n\n" +
+                $"💰 CƏMİ: {Mebleg:N2} ₼ · 📅 {tarix:dd.MM.yyyy}");
+
+            TransactionsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         [RelayCommand]
         private async Task AddTransactionAsync()
         {
@@ -740,6 +839,21 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 _dialogs.ShowWarning("Zəhmət olmasa formada göstərilən səhvləri düzəldin.");
                 return;
+            }
+
+            // ================================================================
+            //  📅 v6.2.37 — ☑ SEÇİLMİŞ TAKSİTLƏRDƏN effektiv nömrə ✓✓✓
+            //  (bir taksit → adi ödəniş ✓ · 2+ taksit → aşağıda bölünür ✓)
+            // ================================================================
+            var isaretliTaksitler = TaksitSecimleri
+                .Where(t => t.Secilmis)
+                .Select(t => t.No)
+                .OrderBy(n => n)
+                .ToList();
+
+            if (BasqaTaksit && isaretliTaksitler.Count > 0)
+            {
+                SecilmisTaksitNo = isaretliTaksitler[0];
             }
 
             // ⚠️ «XÜSUSİ» NÖVLƏR — tarix/müddət məcburi deyil, taksit hesablanmır ✓
@@ -791,6 +905,26 @@ namespace EnterpriseAeroStudio.ViewModels
                     installmentNo = BasqaTaksit && SecilmisTaksitNo > 0
                         ? SecilmisTaksitNo
                         : ComputeInstallmentNo(SelectedCredit, Tarix ?? DateTime.Today);
+                }
+
+                // ================================================================
+                //  📅 v6.2.37 — ÇOXSAYLI TAKSİT ÖDƏNİŞİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «adam 3 ayın ödənişini birdən verib ✓ —
+                //    3 taksiti seçirəm → məbləğ bölünür: 500 · 500 · 500 ✓;
+                //    1400 veribsə → 500 · 500 · 400 ✓.
+                //    Artıq / əskik HƏMİŞƏKİ kimi SONUNCU aya düşür ✓» ✓✓✓
+                // ================================================================
+                var secilenTaksitler = TaksitSecimleri
+                    .Where(t => t.Secilmis)
+                    .Select(t => t.No)
+                    .OrderBy(n => n)
+                    .ToList();
+
+                if (Nov == "Gəlir" && BasqaTaksit && secilenTaksitler.Count > 1)
+                {
+                    await CoxTaksitOdenisiAsync(secilenTaksitler);
+                    return;
                 }
 
                 if (isException && installmentNo is null)

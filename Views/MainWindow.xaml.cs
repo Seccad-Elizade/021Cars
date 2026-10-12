@@ -72,6 +72,15 @@ namespace EnterpriseAeroStudio.Views
             };
 
             // ================================================================
+            //  💾 v6.2.37 — YERLİ BAZA + USB STATUS DAİRƏLƏRİ ✓✓✓
+            //  🔴 USB taxılmayıb ✗ · 🟠 taxılıb, hələ sinxron deyil ✓ · 🟢 tamam ✓
+            // ================================================================
+            _usbDaireTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _usbDaireTimer.Tick += (_, _) => UsbDaireleriniYenile();
+            _usbDaireTimer.Start();
+            UsbDaireleriniYenile();
+
+            // ================================================================
             //  🚀 AVTOMATİK GÜNCƏLLƏMƏ ✓✓✓ — GitHub Releases ✓
             // ----------------------------------------------------------------
             //  ① Tətbiq AÇILANDA ~15 saniyə sonra yoxlanılır ✓
@@ -108,6 +117,7 @@ namespace EnterpriseAeroStudio.Views
             Loaded += OnLoaded;
             Closed += (_, _) =>
             {
+                try { _usbDaireTimer?.Stop(); } catch { }
                 try { _guncellemeTimer?.Stop(); } catch { }
             };
         }
@@ -118,6 +128,75 @@ namespace EnterpriseAeroStudio.Views
 
         /// <summary>⏱️ Güncəlləmə yoxlama taymeri ✓ (hər 10 dəqiqə ✓)</summary>
         private DispatcherTimer? _guncellemeTimer;
+
+        // ====================================================================
+        //  💾 v6.2.37 — YERLİ BAZA + USB STATUS DAİRƏLƏRİ ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «USB taxılmayıbsa 🔴 QIRMIZI olsun ✓;
+        //    taxılıbsa amma hələ sinxron olmayıbsa 🟠 NARINCI ✓;
+        //    sonra hər şey 🟢 YAŞIL ✓» ✓✓✓
+        // ====================================================================
+
+        /// <summary>⏱️ USB/yerli baza statusunu yeniləyən taymer ✓</summary>
+        private DispatcherTimer? _usbDaireTimer;
+
+        /// <summary>
+        /// 🟢🟠🔴 <b>YERLİ BAZA + USB STATUSUNU YENİLƏYİR</b> ✓✓✓
+        /// <list type="bullet">
+        ///   <item>🖥️ Yerli baza — proqram işlədiyi üçün həmişə 🟢 YAŞIL ✓</item>
+        ///   <item>🔴 USB <b>taxılmayıb</b> ✗ (və ya qeydiyyatdan keçməyib ✗)</item>
+        ///   <item>🟠 USB taxılıb, amma baza nüsxəsi hələ <b>TƏZƏLƏNMƏYİB</b> ✓</item>
+        ///   <item>🟢 USB + baza <b>SİNXRONDUR</b> ✓</item>
+        /// </list>
+        /// </summary>
+        private void UsbDaireleriniYenile()
+        {
+            try
+            {
+                // 🖥️ YERLİ BAZA — həmişə yaşıl ✓ (proqram açıqdırsa baza işləyir ✓)
+                DaireYerli.Fill = Rəng("#22C55E");
+
+                // 💾 DATA USB TANINDIMI? (yalnız SİZİN fləşkartınız ✓)
+                var tap = Services.DataUsbService.Tap();
+
+                if (tap is null)
+                {
+                    // 🔴 USB YOXDUR ✗ — qeydiyyat yoxdursa ayrı mətn ✓
+                    DaireUsb.Fill = Rəng("#EF4444");
+
+                    DaireMetni.Text = Services.DataUsbService.Qeydiyyat is null
+                        ? "💾 USB: qeydiyyat yoxdur ✗"
+                        : "💾 USB: taxılmayıb ✗";
+
+                    return;
+                }
+
+                // ✅ USB TAXILIDIR → nüsxə TƏZƏDİRMİ? 🟠 / 🟢
+                var yerliBaza = Services.DataUsbService.YerliBazaYolu;
+                var usbBaza = Services.DataUsbService.BazaFayliTap();
+
+                var təzə = usbBaza is not null
+                           && System.IO.File.Exists(yerliBaza)
+                           && System.IO.File.Exists(usbBaza)
+                           && System.IO.File.GetLastWriteTime(usbBaza)
+                              >= System.IO.File.GetLastWriteTime(yerliBaza).AddSeconds(-3);
+
+                if (təzə)
+                {
+                    DaireUsb.Fill = Rəng("#22C55E");     // 🟢 SİNXRON ✓
+                    DaireMetni.Text = "💾 USB: sinxron ✓";
+                }
+                else
+                {
+                    DaireUsb.Fill = Rəng("#F59E0B");     // 🟠 YAZILIR ✓
+                    DaireMetni.Text = "💾 USB: ehtiyat alınır… ✓";
+                }
+            }
+            catch
+            {
+                // 🛡️ status dairəsi HEÇ VAXT proqramı çökdürmür ✗✓✓
+            }
+        }
 
         /// <summary>🔒 Popup artıq açıqdır? ✓ (iki dəfə açılmasın ✗)</summary>
         private bool _guncellemeAciq;

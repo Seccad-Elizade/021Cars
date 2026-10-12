@@ -2461,15 +2461,30 @@
                                     <CheckBox Content="📅 Başqa taksitin ödənişidir" FontSize="11" Foreground="#38BDF8"
                                               IsChecked="{Binding CreditTransactions.BasqaTaksit}"
                                               ToolTip="ƏVVƏLCƏDƏN ÖDƏNİŞ ✓&#x0a;Məsələn: 30.03.2024-də ödəyib, amma 03.04.2024-ün taksitini ödəyir ✓&#x0a;işarələyin → aşağıdan HANSI AYIN taksiti olduğunu seçin ✓✓✓&#x0a;Kredit cədvəlində DÜZGÜN ayın sırasına yazılacaq ✓"/>
-                                    <ComboBox Width="215" Margin="0,4,0,0"
-                                              ItemsSource="{Binding CreditTransactions.TaksitSecimleri}"
-                                              SelectedValue="{Binding CreditTransactions.SecilmisTaksitNo}"
-                                              SelectedValuePath="No"
-                                              DisplayMemberPath="Metn"
-                                              Visibility="{Binding CreditTransactions.TaksitSecimiGorunur, Converter={StaticResource BoolToVis}}"
-                                              ToolTip="Hansı ayın (taksitin) ödənişidir? ✓&#x0a;✅ = artıq ödənilib · ⬜ = ödənilməyib ✓"/>
+                                    <!-- ============================================ -->
+                                    <!-- 📅 v6.2.37 — ÇOXSAYLI TAKSİT SEÇİMİ ✓✓✓      -->
+                                    <!-- ☑ bir neçə ay seçilə bilər → məbləğ PLANA     -->
+                                    <!-- görə bölünür (500·500·500 / 500·500·400 ✓)    -->
+                                    <!-- ============================================ -->
+                                    <Border Background="#0B1220" CornerRadius="6" BorderBrush="#1F2937"
+                                            BorderThickness="1" Padding="6,4" Margin="0,4,0,0" MaxHeight="170"
+                                            Visibility="{Binding CreditTransactions.TaksitSecimiGorunur, Converter={StaticResource BoolToVis}}"
+                                            ToolTip="BİRDƏN ÇOX ayı işarələyə bilərsiniz ✓&#x0a;Məsələn 3 ayın ödənişini birdən veribsə → 3 taksiti ☑ edin ✓&#x0a;Məbləğ PLANA görə bölünür: 1500 → 500 · 500 · 500 ✓ / 1400 → 500 · 500 · 400 ✓&#x0a;Artıq və ya əskik hissə HƏMİŞƏ SONUNCU aya düşür ✓">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" Height="150">
+                                            <ItemsControl ItemsSource="{Binding CreditTransactions.TaksitSecimleri}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Margin="0,2" FontSize="11" Foreground="#E2E8F0"
+                                                                  Content="{Binding Metn}"
+                                                                  IsChecked="{Binding Secilmis}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
                                     <TextBlock Text="{Binding CreditTransactions.BasqaTaksitIzahi}" FontSize="10"
-                                               Foreground="#38BDF8" TextWrapping="Wrap" Margin="2,4,0,0"/>
+                                               Foreground="#38BDF8" TextWrapping="Wrap" Margin="2,4,0,0"
+                                               ToolTip="Neçə taksit işarələnibsə → həmin aylara bölünür ✓ · artıq/əskik sonuncu aya ✓"/>
                                 </StackPanel>
                                 <!-- 📤 TRANSFER OLUNMAQ (yalnız bu növ üçün) ✓ -->
                             <StackPanel Margin="4"
