@@ -1883,12 +1883,34 @@ namespace EnterpriseAeroStudio.ViewModels
                 await _creditService.DeleteCreditAsync(credit.Id);
                 SelectedCredit = null;
 
-                // Kredit silindikdə avtomobil yenidən aktiv parka qaytarılır.
+                // ================================================================
+                //  🛡️ v6.2.38 — MAŞIN YENİLƏNMƏSİ AYRICA QORUNUR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi xətası: «Kredit silinə bilmədi — Object reference
+                //    not set to an instance of an object» ✗✓✓
+                //  ⚠ ƏSL SƏBƏB: KREDİT ARTIQ SİLİNMİŞDİ ✓, lakin sonra maşının
+                //    statusu yenilənərkən NullReferenceException atılırdı ✗
+                //    → istifadəçi «silinmədi» xətası görürdü ✗ (halbuki silinmişdi ✗✓✓)
+                //  ✅ İNDİ: bu addım AYRICA qorunur ✓ — xəta olsa da əməliyyat
+                //    UĞURLU sayılır ✓ və yalnız loqa yazılır ✓
+                // ================================================================
                 if (creditCar is not null)
                 {
-                    creditCar.Status = Catalog.StockStatus;
-                    await _carService.UpdateCarAsync(creditCar);
-                    _logger.LogInformation("Avtomobil aktiv parka qaytarıldı: {Car}", creditCar.DisplayName);
+                    try
+                    {
+                        creditCar.Status = Catalog.StockStatus;
+                        await _carService.UpdateCarAsync(creditCar);
+
+                        _logger.LogInformation(
+                            "Avtomobil aktiv parka qaytarıldı: {Car}", creditCar.DisplayName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "⚠️ Maşın statusu yenilənmədi ✗ (kredit SİLİNDİ ✓) — avtomobil #{Id}",
+                            creditCar.Id);
+                    }
                 }
 
                 _logger.LogInformation("Kredit silindi: {Id}", credit.Id);

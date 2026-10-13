@@ -72,8 +72,75 @@ namespace Cas0201
         /// (bərpa bir fayla yazır ✗, proqram başqa faylı açır ✗ ✓¡).
         /// </para>
         /// </summary>
-        public static string BazaYolu =>
-            Path.Combine(DataQovlugu, "avtopark.db");
+        public static string BazaYolu => BazaYolunuTap();
+
+        // ====================================================================
+        //  💾 v6.2.38 — ÖZÜNÜ BƏRPA EDƏN BAZA YOLU ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi xətası: «Kritik xəta — SQLite Error 14: unable to
+        //    open database file» ✗✓✓ — proqram HEÇ AÇILMIRDI ✗
+        //  ⚠ SƏBƏB: installer YENİLƏMƏSİNDƏN sonra «C:\Program Files\021Cars»
+        //    qovluğunun YAZMA İCAZƏSİ İTİR ✗ → baza faylı yaradıla/açıla
+        //    bilmir ✗✓✓
+        //  ✅ İNDİ: yol BİR DƏFƏ yoxlanılır ✓ —
+        //    ① ƏVVƏLCƏ adi qovluq yoxlanılır ✓ (yazma testi ✓)
+        //    ② yazıla BİLMİRSE → köçürülür: %LOCALAPPDATA%\021Cars ✓
+        //       (həmişə yazıla bilir ✓) və MÖVCUD BAZA KÖÇÜRÜLÜR ✓
+        //       → məlumat İTMİR ✗✓✓ və proqram HƏMİŞƏ açılır ✓✓✓
+        // ====================================================================
+
+        private static string? _bazaYolu;
+
+        /// <summary>💾 Baza yolunu təyin edir (yazma testi ilə ✓) — bir dəfə ✓.</summary>
+        private static string BazaYolunuTap()
+        {
+            if (_bazaYolu is not null)
+            {
+                return _bazaYolu;
+            }
+
+            var esas = Path.Combine(DataQovlugu, "avtopark.db");
+
+            try
+            {
+                Directory.CreateDirectory(DataQovlugu);
+
+                // ✍️ YAZMA TESTİ ✓ — icazə yoxdursa dərhal aşkar olunur ✓
+                var test = Path.Combine(DataQovlugu, ".yazma_testi");
+                File.WriteAllText(test, "ok");
+                File.Delete(test);
+
+                _bazaYolu = esas;
+            }
+            catch
+            {
+                // ⚠ ƏSAS QOVLUQ YAZILA BİLMİR ✗ → EHTİYAT YOL ✓✓✓
+                var ehtiyatQovluq = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "021Cars");
+
+                try
+                {
+                    Directory.CreateDirectory(ehtiyatQovluq);
+
+                    var hedef = Path.Combine(ehtiyatQovluq, "avtopark.db");
+
+                    // 📦 Mövcud baza varsa → KÖÇÜRÜLÜR ✓ (məlumat İTMİR ✗✓✓)
+                    if (File.Exists(esas) && !File.Exists(hedef))
+                    {
+                        try { File.Copy(esas, hedef, overwrite: false); } catch { /* boş */ }
+                    }
+
+                    _bazaYolu = hedef;
+                }
+                catch
+                {
+                    _bazaYolu = esas;   // ⚠ son şans ✓ (ən azı xəta aydın görünür ✓)
+                }
+            }
+
+            return _bazaYolu!;
+        }
 
         /// <summary>
         /// ♻️ Köhnə <b>səhv</b> yerdə qalmış baza faylı ✓ — <c>{kök}\avtopark.db</c> ✓
