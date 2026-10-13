@@ -223,18 +223,31 @@ namespace EnterpriseAeroStudio
             {
                 _ = Task.Run(async () =>
                 {
-                    try
+                    // ⚠ Baza hələ TAM HAZIR OLMAYA BİLƏR ✗ (açılış yarışı ✓)
+                    //   → 3 CƏHD ✓ (2 saniyə fasilə ilə ✓)
+                    for (var cehd = 1; cehd <= 3; cehd++)
                     {
-                        using var scope = _services!.CreateScope();
+                        try
+                        {
+                            using var scope = _services!.CreateScope();
 
-                        await scope.ServiceProvider
-                            .GetRequiredService<IPartnerService>()
-                            .RefreshProviderAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLogger.Xeberdarliq(
-                            "👥 Tərəfdaş siyahısı yüklənmədi ✗ — " + ex.Message);
+                            await scope.ServiceProvider
+                                .GetRequiredService<IPartnerService>()
+                                .RefreshProviderAsync();
+
+                            return;      // ✅ yükləndi ✓
+                        }
+                        catch (Exception ex)
+                        {
+                            if (cehd >= 3)
+                            {
+                                AppLogger.Xeberdarliq(
+                                    "👥 Tərəfdaş siyahısı yüklənmədi ✗ — " + ex.Message);
+                                return;
+                            }
+
+                            await Task.Delay(TimeSpan.FromSeconds(2));
+                        }
                     }
                 });
             }
