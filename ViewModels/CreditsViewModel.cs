@@ -795,10 +795,10 @@ namespace EnterpriseAeroStudio.ViewModels
                 AdElaveEt(ad);
             }
 
-            // ② Standart tərəfdaşlar (çatışmayanlar ✓)
-            foreach (var p in Catalog.DefaultPartners)
+            // ② Standart tərəfdaşlar — DB-dən ✓ (yeni adlar, məs. «Vusal» DA daxil ✓✓✓ v6.2.39)
+            foreach (var p in PartnerMath.CreateDefaultRows())
             {
-                AdElaveEt(p.Ad);
+                AdElaveEt(p.Terefdas);
             }
 
             BolguCemiBildir();
@@ -4059,9 +4059,57 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>
         /// KREDİTİN BÖLGÜ BAZASI = <b>Satış Qiyməti − Maya Dəyəri</b> («xeyir»).
         /// </summary>
+        /// <summary>
+        /// 👥 <b>YENİ TƏRƏFDAŞLAR CƏDVƏLƏ AVTOMATİK ƏLAVƏ OLUNUR</b> ✓✓✓ (v6.2.39)
+        /// <para>
+        /// ★ İstifadəçi şikayəti: «Tərəfdaşlar tabında «Vusal» adlı qalıq payçısı
+        /// əlavə etdim ✗ amma tərəfdaş bölgüsü cədvəlinə düşmədi ✗ —
+        /// adı AVTOMATİK yenilənməlidir ✓» ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⚠ Mövcud sətirlərə <b>TOXUNULMUR</b> ✗ — yazılmış məbləğ / faiz
+        /// <b>QORUNUR</b> ✓; yalnız <b>ÇATIŞMAYAN</b> tərəfdaşlar əlavə olunur ✓.
+        /// </para>
+        /// </summary>
+        private void YeniTerefdaslariElaveEt()
+        {
+            try
+            {
+                foreach (var share in PartnerMath.CreateDefaultRows())
+                {
+                    var ad = (share.Terefdas ?? string.Empty).Trim();
+
+                    if (ad.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    // ✅ Artıq cədvəldədirsə — heç nə edilmir ✗ (dəyərlər qorunur ✓)
+                    if (KreditTerefdaslari.Any(r =>
+                            string.Equals(r.Terefdas?.Trim(), ad, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    KreditTerefdaslari.Add(PartnerPayRow.FromModel(share));
+
+                    _logger.LogInformation(
+                        "👥 Yeni tərəfdaş bölgü cədvəlinə əlavə olundu: {Ad} — {Pay} ✓",
+                        ad, share.FaizMetni);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Yeni tərəfdaşlar cədvələ əlavə olunmadı ✗");
+            }
+        }
+
         [RelayCommand]
         private void KreditBolguHesabla()
         {
+            // 👥 v6.2.39 — YENİ tərəfdaşlar (məs. «Vusal») avtomatik əlavə olunur ✓
+            YeniTerefdaslariElaveEt();
+
             // Sətirlər hazır deyilsə — standart faizlərlə doldurulur.
             if (KreditTerefdaslari.Count == 0)
             {
@@ -4098,6 +4146,9 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         private void KreditBolguDefault()
         {
+            // 👥 v6.2.39 — YENİ tərəfdaşlar (məs. «Vusal») avtomatik əlavə olunur ✓
+            YeniTerefdaslariElaveEt();
+
             var standart = PartnerMath.CreateDefaultRows();
 
             foreach (var row in KreditTerefdaslari)

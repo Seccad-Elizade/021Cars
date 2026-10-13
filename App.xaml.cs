@@ -209,6 +209,41 @@ namespace EnterpriseAeroStudio
             _logger = _services.GetRequiredService<ILogger<App>>();
 
             // ================================================================
+            //  👥 v6.2.39 — TƏRƏFDAŞ KEŞİ YÜKLƏNİR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi şikayəti: «Tərəfdaşlar tabında yeni ad (Vusal)
+            //    əlavə etdim ✗ amma tərəfdaş bölgüsü cədvəlinə düşmədi ✗» ✓✓✓
+            //  ⚠ SƏBƏB: `PartnerMath.PartnersProvider` keşi yalnız
+            //    `RefreshProviderAsync()` ilə dolur ✗ — o isə HEÇ VAXT
+            //    çağırılmırdı ✗ → bölgü cədvəlləri həmişə STATİK siyahını
+            //    işlədirdi ✗✓✓
+            //  ✅ İNDİ: açılışda keş yüklənir ✓ → yeni adlar avtomatik görünür ✓
+            // ================================================================
+            try
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _services!.CreateScope();
+
+                        await scope.ServiceProvider
+                            .GetRequiredService<IPartnerService>()
+                            .RefreshProviderAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogger.Xeberdarliq(
+                            "👥 Tərəfdaş siyahısı yüklənmədi ✗ — " + ex.Message);
+                    }
+                });
+            }
+            catch
+            {
+                // 🛡️ keş yüklənməsə də tətbiq TAM İŞLƏYİR ✓ (statik siyahı ✓)
+            }
+
+            // ================================================================
             //  💾 v6.2.36 — BULUD SINXRONU SİLİNDİ ✗✓✓
             //  ----------------------------------------------------------------
             //  ⛔ ƏVVƏL: hər 5 saniyədə Firebase-ə bütün məlumat göndərilirdi ✗

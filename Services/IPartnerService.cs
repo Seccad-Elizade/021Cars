@@ -107,5 +107,19 @@ namespace EnterpriseAeroStudio.Services
             DateTime from,
             DateTime to,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 👥 <b>TƏRƏFDAŞ KEŞİNİ YENİLƏYİR</b> ✓✓✓ (v6.2.39)
+        /// <para>
+        /// ⚠ <c>PartnerMath.PartnersProvider</c> keşi YALNIZ bu metodla dolur ✗ —
+        /// o çağırılmırsa bölgü cədvəlləri həmişə <b>STATİK</b> siyahını işlədir ✗
+        /// → yeni əlavə olunan tərəfdaş (məs. «Vusal») bölgülərdə GÖRÜNMÜR ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ Açılışda və hər yeni tərəfdaşdan sonra çağırılır ✓ → yeni adlar
+        /// avtomatik bütün bölgü panellərində görünür ✓✓✓
+        /// </para>
+        /// </summary>
+        Task RefreshProviderAsync(CancellationToken cancellationToken = default);
     }
 }

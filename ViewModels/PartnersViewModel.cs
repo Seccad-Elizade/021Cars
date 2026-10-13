@@ -487,6 +487,20 @@ namespace EnterpriseAeroStudio.ViewModels
                 var partner = await _partnerService.AddPartnerAsync(
                     ad, NewPartnerFaiz, NewPartnerQalig, NewPartnerQeyd);
 
+                // ================================================================
+                //  👥 v6.2.39 — KEŞ DƏRHAL YENİLƏNİR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: «Tərəfdaşlar tabında «Vusal» adlı qalıq
+                //    payçısı əlavə etdim ✗ amma tərəfdaş bölgüsü cədvəlinə
+                //    düşmədi ✗» ✓✓✓
+                //  ⚠ SƏBƏB: `PartnerMath.PartnersProvider` keşi YALNIZ
+                //    `RefreshProviderAsync()` ilə dolur ✗ — bu metod isə
+                //    HEÇ YERDƏN ÇAĞIRILMIRDI ✗✓✓ → keş BOŞ qalırdı ✗ →
+                //    `CreateDefaultRows()` həmişə STATİK siyahını qaytarırdı ✗
+                //  ✅ İNDİ: hər yeni tərəfdaşdan sonra keş yenilənir ✓
+                // ================================================================
+                await _partnerService.RefreshProviderAsync();
+
                 NewPartnerAd = string.Empty;
                 NewPartnerFaiz = 5m;
                 NewPartnerQalig = false;
