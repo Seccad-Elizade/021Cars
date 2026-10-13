@@ -331,13 +331,37 @@ namespace EnterpriseAeroStudio.ViewModels
 
         partial void OnSelectedCreditChanged(Credit? value)
         {
-            BuildSchedule(value);
-            UpdateSelectedSummary();
-            BuildSelectedShares(value);
-            BarterYenile(value);          // 🤝 BARTER paneli ✓
-            TransferYenile(value);        // 📤 TRANSFER paneli + «Transfer olunan» ✓
-            IlkinMohletYukle(value);      // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT paneli ✓✓✓
-            OnPropertyChanged(nameof(ScheduleInfo));
+            // ================================================================
+            //  🛡️ v6.2.41 — SEÇİM DƏYİŞMƏSİ HEÇ VAXT PARTLAMIR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi şikayəti: «Kreditdə olan maşını transfer edəndə
+            //    xəta verir: Kredit siyahısı yüklənə bilmədi — Object
+            //    reference not set to an instance of an object» ✗✓✓
+            //  🔎 KÖK SƏBƏB: transferdən sonra kredit «Bağlı» olur ✓ →
+            //     `ApplyContractFilter` `SelectedCredit = null` edir ✓ →
+            //     bu setter işə düşür ✓ → `UpdateSelectedSummary()` içində
+            //     `XercCemiHesabla(null)` NRE verirdi ✗✓✓
+            //  ✅ İNDİ:  (1) `XercCemiHesabla(Credit?)` null-safe ✓
+            //            (2) bu blok qorunur ✓ → xəta yalnız LOG-a yazılır ✓
+            //            (3) kredit siyahısı HEÇ VAXT yüklənməmiş qalmır ✓
+            // ================================================================
+            try
+            {
+                BuildSchedule(value);
+                UpdateSelectedSummary();
+                BuildSelectedShares(value);
+                BarterYenile(value);          // 🤝 BARTER paneli ✓
+                TransferYenile(value);        // 📤 TRANSFER paneli + «Transfer olunan» ✓
+                IlkinMohletYukle(value);      // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT paneli ✓✓✓
+                OnPropertyChanged(nameof(ScheduleInfo));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "⚠️ Kredit panelləri yenilənə bilmədi ✗ (tətbiq İŞLƏMƏYƏ DAVAM EDİR ✓) — kredit #{Id}",
+                    value?.Id);
+            }
         }
 
         /// <summary>
@@ -1388,7 +1412,8 @@ namespace EnterpriseAeroStudio.ViewModels
 
             OnPropertyChanged(nameof(SelectedOdenilen));
             // 💸 v6.2.35 — kreditə yazılan əlavə xərc cəmi (qalığa əlavə olunur ✓)
-            SelectedXercCemi = XercCemiHesabla(SelectedCredit!);
+            // 🛡️ v6.2.41 — kredit SEÇİLMƏYİBSƏ → 0 ✓ (əvvəl NRE verirdi ✗✓✓)
+            SelectedXercCemi = XercCemiHesabla(SelectedCredit);
 
             OnPropertyChanged(nameof(SelectedQaliq));
             OnPropertyChanged(nameof(SelectedXercCemi));
@@ -1547,7 +1572,10 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
                 ApplyCarFilter();
 
-                _creditTransactions = (await _creditService.GetTransactionsAsync()).ToList();
+                // 🛡️ v6.2.41 — NULL qeydlər kəsilir ✓ (bütün LINQ sorğuları qorunur ✓)
+                _creditTransactions = (await _creditService.GetTransactionsAsync())
+                    .Where(t => t is not null)
+                    .ToList();
 
                 // ================================================================
                 //  🔄 ŞƏXS / BARTER SİYAHILARINI DƏRHAL YENİLƏ ✓✓✓
@@ -1625,9 +1653,19 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
                 else
                 {
-                    BuildSchedule(SelectedCredit);
-                    UpdateSelectedSummary();
-                    BuildSelectedShares(SelectedCredit);
+                    // 🛡️ v6.2.41 — xülasə xətası SİYAHINI QIRMASIN ✗✓✓
+                    try
+                    {
+                        BuildSchedule(SelectedCredit);
+                        UpdateSelectedSummary();
+                        BuildSelectedShares(SelectedCredit);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "⚠️ Kredit xülasəsi yenilənmədi ✗ (siyahı yükləndi ✓)");
+                    }
                 }
                 _logger.LogInformation("{Count} kredit yükləndi.", Credits.Count);
             }
@@ -2514,10 +2552,14 @@ namespace EnterpriseAeroStudio.ViewModels
         /// yazıram, əlavə edirəm amma qalıq borcunun üzərinə gəlmir ✗» ✓
         /// </para>
         /// </summary>
-        private decimal XercCemiHesabla(Credit credit)
-            => _creditTransactions
-                .Where(t => t.CreditId == credit.Id && t.Nov == "Xərc")
-                .Sum(t => t.Mebleg);
+        private decimal XercCemiHesabla(Credit? credit)
+            => credit is null
+                ? 0m
+                : _creditTransactions
+                    .Where(t => t is not null
+                                && t.CreditId == credit.Id
+                                && t.Nov == "Xərc")
+                    .Sum(t => t.Mebleg);
 
         /// <summary>
         /// Kreditə aid "Gəlir" qeydlərini ay sırasına görə qruplaşdırır.
