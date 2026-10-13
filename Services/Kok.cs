@@ -91,7 +91,7 @@ namespace Cas0201
 
         private static string? _bazaYolu;
 
-        /// <summary>💾 Baza yolunu təyin edir (yazma testi ilə ✓) — bir dəfə ✓.</summary>
+        /// <summary>💾 Baza yolunu təyin edir (yazma + AÇILIŞ testi ✓) — bir dəfə ✓.</summary>
         private static string BazaYolunuTap()
         {
             if (_bazaYolu is not null)
@@ -101,45 +101,75 @@ namespace Cas0201
 
             var esas = Path.Combine(DataQovlugu, "avtopark.db");
 
-            try
+            // ① ƏSAS YOL ✓ (quraşdırma qovluğu ✓)
+            if (Yoxla(esas, esas))
             {
-                Directory.CreateDirectory(DataQovlugu);
-
-                // ✍️ YAZMA TESTİ ✓ — icazə yoxdursa dərhal aşkar olunur ✓
-                var test = Path.Combine(DataQovlugu, ".yazma_testi");
-                File.WriteAllText(test, "ok");
-                File.Delete(test);
-
                 _bazaYolu = esas;
+                return _bazaYolu;
             }
-            catch
-            {
-                // ⚠ ƏSAS QOVLUQ YAZILA BİLMİR ✗ → EHTİYAT YOL ✓✓✓
-                var ehtiyatQovluq = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "021Cars");
 
+            // ② EHTİYAT: %LOCALAPPDATA%\021Cars ✓ (həmişə yazıla bilir ✓)
+            var ehtiyatQovluq = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "021Cars");
+
+            var hedef = Path.Combine(ehtiyatQovluq, "avtopark.db");
+
+            if (Yoxla(ehtiyatQovluq, hedef) && Yoxla(hedef, hedef))
+            {
+                _bazaYolu = hedef;
+                return _bazaYolu;
+            }
+
+            // ③ EHTİYAT: %TEMP%\021Cars ✓ (son şans — həmişə açılır ✓)
+            var tempQovluq = Path.Combine(Path.GetTempPath(), "021Cars");
+            var tempBaza = Path.Combine(tempQovluq, "avtopark.db");
+
+            if (Yoxla(tempQovluq, tempBaza) && Yoxla(tempBaza, tempBaza))
+            {
+                _bazaYolu = tempBaza;
+                return _bazaYolu;
+            }
+
+            // ⚠ HEÇ BİRİ ALINMADI ✗ → əsas yol qaytarılır ✓ (xəta aydın görünsün ✓)
+            _bazaYolu = esas;
+            return _bazaYolu;
+
+            // ================================================================
+            //  🔎 YOXLAMA: qovluq yaranır + fayl AÇILA BİLİR? ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ `File.Create` İSTİFADƏ OLUNMUR ✗ — mövcud bazanı SIFIRLAYARDI ✗✓✓
+            //  ✅ `OpenOrCreate` — fayl varsa TOXUNULMUR ✓ (məlumat QORUNUR ✓)
+            //  ✅ Uğurlu olarsa: «SQLite Error 14» MÜMKÜN DEYİL ✗✓✓
+            // ================================================================
+            static bool Yoxla(string qovluq, string fayl)
+            {
                 try
                 {
-                    Directory.CreateDirectory(ehtiyatQovluq);
+                    Directory.CreateDirectory(qovluq);
 
-                    var hedef = Path.Combine(ehtiyatQovluq, "avtopark.db");
+                    using var axın = new FileStream(
+                        fayl,
+                        FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite,
+                        FileShare.ReadWrite);
 
-                    // 📦 Mövcud baza varsa → KÖÇÜRÜLÜR ✓ (məlumat İTMİR ✗✓✓)
-                    if (File.Exists(esas) && !File.Exists(hedef))
+                    // ✍️ real yazma testi ✓
+                    axın.WriteByte(0);
+                    axın.Flush();
+
+                    if (axın.Length <= 1)
                     {
-                        try { File.Copy(esas, hedef, overwrite: false); } catch { /* boş */ }
+                        axın.SetLength(0);   // ⚠ yalnız YENİ (boş) faylı təmizləyirik ✓
                     }
 
-                    _bazaYolu = hedef;
+                    return true;
                 }
                 catch
                 {
-                    _bazaYolu = esas;   // ⚠ son şans ✓ (ən azı xəta aydın görünür ✓)
+                    return false;
                 }
             }
-
-            return _bazaYolu!;
         }
 
         /// <summary>

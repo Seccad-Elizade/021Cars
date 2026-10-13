@@ -223,12 +223,17 @@ namespace EnterpriseAeroStudio
             {
                 _ = Task.Run(async () =>
                 {
-                    // ⚠ Baza hələ TAM HAZIR OLMAYA BİLƏR ✗ (açılış yarışı ✓)
-                    //   → 3 CƏHD ✓ (2 saniyə fasilə ilə ✓)
-                    for (var cehd = 1; cehd <= 3; cehd++)
+                    // ⚠ v6.2.40 — ƏVVƏLCƏ GÖZLƏNİLİR ✓✓✓
+                    //   ★ Log sübutu: «no such table: Terefdaslar» ✗ — çünki bu
+                    //     blok `InitializeDatabase()`-dən ƏVVƏL işə düşürdü ✗
+                    //     (miqrasiya hələ cədvəlləri yaratmamışdı ✗✓✓)
+                    //   ✅ İNDİ: ilk cəhd 3 saniyə SONRA ✓ (baza hazır olur ✓)
+                    for (var cehd = 1; cehd <= 5; cehd++)
                     {
                         try
                         {
+                            await Task.Delay(TimeSpan.FromSeconds(cehd == 1 ? 3 : 2));
+
                             using var scope = _services!.CreateScope();
 
                             await scope.ServiceProvider
@@ -239,14 +244,12 @@ namespace EnterpriseAeroStudio
                         }
                         catch (Exception ex)
                         {
-                            if (cehd >= 3)
+                            if (cehd >= 5)
                             {
                                 AppLogger.Xeberdarliq(
                                     "👥 Tərəfdaş siyahısı yüklənmədi ✗ — " + ex.Message);
                                 return;
                             }
-
-                            await Task.Delay(TimeSpan.FromSeconds(2));
                         }
                     }
                 });
