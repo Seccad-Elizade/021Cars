@@ -1859,9 +1859,12 @@ namespace EnterpriseAeroStudio.ViewModels
             if (s.Contains("readonly", StringComparison.OrdinalIgnoreCase)
                 || s.Contains("read-only", StringComparison.OrdinalIgnoreCase))
             {
+                // 🛡️ v6.2.42 — REAL YOL göstərilir ✓ + AVTOMATİK BƏRPA izahı ✓✓✓
                 return "💡 Baza faylı YALNIZ OXUMA rejimindədir ✗\n" +
-                       "   • Faylın xassələrindən «Read-only» işarəsini götürün ✓\n" +
-                       "   • Baza USB / şəbəkə qovluğundadırsa → yerli diskə köçürün ✓";
+                       $"   📂 Cari baza: {Cas0201.Kok.BazaYolu}\n" +
+                       "   • Proqramı BAĞIB YENİDƏN AÇIN ✓ — baza AVTOMATİK olaraq\n" +
+                       "     yazıla bilən yola keçiriləcək ✓ (məlumat İTMİR ✗✓✓)\n" +
+                       "   • Alınmasa: ⚙️ Tənzimləmələr → «♻️ Ehtiyat nüsxədən BƏRPA ET» ✓";
             }
 
             if (s.Contains("locked", StringComparison.OrdinalIgnoreCase)

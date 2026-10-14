@@ -83,7 +83,12 @@ if (string.IsNullOrWhiteSpace(dataDirectory))
 }
 Directory.CreateDirectory(dataDirectory);
 
-var dbPath       = Path.Combine(dataDirectory, "avtopark.db");
+// 🛡️ v6.2.42 — VAHİD MƏNBƏ ✓✓✓: baza yolu YALNIZ `Kok.BazaYolu`-dan alınır ✓
+//  ⚠ ƏVVƏL əl ilə `dataDirectory\avtopark.db` qurulurdu ✗ → masaüstü tətbiq
+//    yazıla bilməyən səbəbdən EHTİYAT yola keçəndə Veb server KÖHNƏ faylı
+//    açırdı ✗✓✓ (iki fərqli baza ✗ — məlumat uyğunsuzluğu ✗).
+//  ✅ İNDİ ikisi HƏMİŞƏ EYNİ faylı işlədir ✓
+var dbPath       = Cas0201.Kok.BazaYolu;
 var logDirectory = Path.Combine(dataDirectory, "Logs");
 Directory.CreateDirectory(logDirectory);
 

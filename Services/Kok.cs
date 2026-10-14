@@ -8,7 +8,9 @@
 // ============================================================================
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using EnterpriseAeroStudio.Services;
 
 namespace Cas0201
 {
@@ -72,7 +74,26 @@ namespace Cas0201
         /// (bərpa bir fayla yazır ✗, proqram başqa faylı açır ✗ ✓¡).
         /// </para>
         /// </summary>
-        public static string BazaYolu => BazaYolunuTap();
+        public static string BazaYolu
+        {
+            get
+            {
+                // 🛡️ v6.2.42 — ⚠ test BİR DƏFƏ işləməlidir ✗✓✓ (hər çağırışda YOX ✗)
+                //   • `lock` → çoxsaylı thread eyni anda çağırsa da TƏK karar ✓
+                if (_bazaYolu is not null)
+                {
+                    return _bazaYolu;
+                }
+
+                lock (BazaQapisi)
+                {
+                    return _bazaYolu ??= BazaYolunuTap();
+                }
+            }
+        }
+
+        /// <summary>🔒 Baza yolu qərarı üçün kilid ✓ (thread-safe ✓)</summary>
+        private static readonly object BazaQapisi = new();
 
         // ====================================================================
         //  💾 v6.2.38 — ÖZÜNÜ BƏRPA EDƏN BAZA YOLU ✓✓✓
@@ -91,7 +112,7 @@ namespace Cas0201
 
         private static string? _bazaYolu;
 
-        /// <summary>💾 Baza yolunu təyin edir (yazma + AÇILIŞ testi ✓) — bir dəfə ✓.</summary>
+        /// <summary>💾 Baza yolunu tapır və YAZA BİLDİYİNİ SÜBUT EDİR ✓✓✓ — bir dəfə ✓.</summary>
         private static string BazaYolunuTap()
         {
             if (_bazaYolu is not null)
@@ -99,68 +120,174 @@ namespace Cas0201
                 return _bazaYolu;
             }
 
-            var esas = Path.Combine(DataQovlugu, "avtopark.db");
-
-            // ① ƏSAS YOL ✓ (quraşdırma qovluğu ✓)
-            if (Yoxla(esas, esas))
+            var qovluqlar = new List<(string Qovluq, string Ad)>
             {
-                _bazaYolu = esas;
-                return _bazaYolu;
+                (DataQovlugu, "quraşdırma qovluğu"),
+                (Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "021Cars"), "%LOCALAPPDATA%\\021Cars"),
+                (Path.Combine(Path.GetTempPath(), "021Cars"), "%TEMP%\\021Cars")
+            };
+
+            var esasFayl = Path.Combine(qovluqlar[0].Qovluq, "avtopark.db");
+            var problemlər = new List<string>();
+
+            for (var i = 0; i < qovluqlar.Count; i++)
+            {
+                var (qovluq, ad) = qovluqlar[i];
+                var fayl = Path.Combine(qovluq, "avtopark.db");
+
+                // ① 📁 QOVLUQ YAZILA BİLİRMİ? ✓ (SQLite jurnal/WAL faylı buraya yazır ✓)
+                if (!QovluqYazilaBilir(qovluq))
+                {
+                    problemlər.Add($"{ad} — qovluq YAZILA BİLMİR ✗");
+                    continue;
+                }
+
+                // ② 📦 Ehtiyat yola keçiriksə → MÖVCUD BAZA ƏVVƏLCƏ KÖÇÜRÜLÜR ✓✓✓
+                //   (beləliklə istifadəçinin MƏLUMATI İTMİR ✗✓✓)
+                var köçürüldü = i > 0 && BazaKopyala(esasFayl, fayl);
+
+                // ③ 📄 BAZA FAYLI AÇILA BİLİRMİ? ✓ (mövcud baza TOXUNULMUR ✗✓✓)
+                if (!FaylAcilir(fayl))
+                {
+                    problemlər.Add($"{ad} — baza faylı AÇILA BİLMİR ✗");
+                    continue;
+                }
+
+                // ④ 🗄️ ƏSL SQLITE YAZMA TESTİ ✓✓✓
+                //   ★ «Error 8: attempt to write a readonly database» MƏHZ BURADA tutulur ✓
+                if (!SqliteYazir(fayl))
+                {
+                    problemlər.Add($"{ad} — SQLite READ-ONLY ✗ (Error 8/14)");
+                    continue;
+                }
+
+                if (i == 0)
+                {
+                    AppLogger.Melumat($"💾 Baza hazırdır ✓ → «{fayl}»");
+                }
+                else
+                {
+                    AppLogger.Xeberdarliq(
+                        $"🩺 BAZA ÖZÜNÜ BƏRPA ETDİ ✓ → «{fayl}»" +
+                        $"{(köçürüldü ? " · məlumat köçürüldü ✓" : "")}" +
+                        $" · səbəb: {problemlər[0]}");
+                }
+
+                return fayl;
             }
 
-            // ② EHTİYAT: %LOCALAPPDATA%\021Cars ✓ (həmişə yazıla bilir ✓)
-            var ehtiyatQovluq = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "021Cars");
+            AppLogger.Xeta(
+                null,
+                "⚠️ YAZILA BİLƏN BAZA YOLU TAPILMADI ✗ — " + string.Join(" · ", problemlər));
 
-            var hedef = Path.Combine(ehtiyatQovluq, "avtopark.db");
-
-            if (Yoxla(ehtiyatQovluq, hedef) && Yoxla(hedef, hedef))
-            {
-                _bazaYolu = hedef;
-                return _bazaYolu;
-            }
-
-            // ③ EHTİYAT: %TEMP%\021Cars ✓ (son şans — həmişə açılır ✓)
-            var tempQovluq = Path.Combine(Path.GetTempPath(), "021Cars");
-            var tempBaza = Path.Combine(tempQovluq, "avtopark.db");
-
-            if (Yoxla(tempQovluq, tempBaza) && Yoxla(tempBaza, tempBaza))
-            {
-                _bazaYolu = tempBaza;
-                return _bazaYolu;
-            }
-
-            // ⚠ HEÇ BİRİ ALINMADI ✗ → əsas yol qaytarılır ✓ (xəta aydın görünsün ✓)
-            _bazaYolu = esas;
-            return _bazaYolu;
+            return esasFayl;
 
             // ================================================================
-            //  🔎 YOXLAMA: qovluq yaranır + fayl AÇILA BİLİR? ✓✓✓
-            // ----------------------------------------------------------------
-            //  ⚠ `File.Create` İSTİFADƏ OLUNMUR ✗ — mövcud bazanı SIFIRLAYARDI ✗✓✓
-            //  ✅ `OpenOrCreate` — fayl varsa TOXUNULMUR ✓ (məlumat QORUNUR ✓)
-            //  ✅ Uğurlu olarsa: «SQLite Error 14» MÜMKÜN DEYİL ✗✓✓
+            //  🔎 KÖMƏKÇİ YOXLAMALAR ✓✓✓ (hamısı UĞURSUZLUQDA `false` qaytarır ✓)
             // ================================================================
-            static bool Yoxla(string qovluq, string fayl)
+
+            // ① 📁 QOVLUĞA YAZMAQ MÜMKÜNDÜRMÜ? ✓
+            //  ★ SQLite yazarkən jurnal/WAL faylını MƏHZ bu qovluqda yaradır ✓
+            //  → qovluq yazıla bilmirsə «Error 8: attempt to write a readonly
+            //    database» xətası çıxır ✗✓✓ (fayl özü yazıla bilsə də ✗)
+            static bool QovluqYazilaBilir(string qovluq)
             {
                 try
                 {
                     Directory.CreateDirectory(qovluq);
 
+                    var test = Path.Combine(qovluq, ".yazma_testi.tmp");
+                    File.WriteAllText(test, "ok");
+                    File.Delete(test);
+
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // ② 📄 BAZA FAYLI AÇILA BİLİRMİ? ✓
+            //  ⚠ MÖVCUD BAZA TOXUNULMUR ✗✓✓ — yalnız AÇILIR ✓ (heç nə yazılmır ✗)
+            static bool FaylAcilir(string fayl)
+            {
+                try
+                {
                     using var axın = new FileStream(
                         fayl,
-                        FileMode.OpenOrCreate,
+                        FileMode.OpenOrCreate,      // varsa toxunulmur ✓ · yoxdursa yaranır ✓
                         FileAccess.ReadWrite,
                         FileShare.ReadWrite);
 
-                    // ✍️ real yazma testi ✓
-                    axın.WriteByte(0);
-                    axın.Flush();
+                    return axın.CanWrite;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
 
-                    if (axın.Length <= 1)
+            // ③ 🗄️ ƏSL SQLITE YAZMA TESTİ ✓✓✓ — ★ ƏN VACİB ADDIM ★
+            //  Tam olaraq proqramın etdiyi iş aparılır ✓ (WAL ✓ + real yazma ✓):
+            //  (a) bağlantı açılır ✓
+            //  (b) `journal_mode = WAL` sınanır ✓  ← diskdə -wal faylı yaranır ✓
+            //  (c) cədvəl yaradılır + sətir yazılır + cədvəl silinir ✓
+            //  ➜ «Error 8» (readonly) və «Error 14» (unable to open) MƏHZ BURADA
+            //     tutulur ✓ → növbəti yola keçilir ✓✓✓
+            static bool SqliteYazir(string fayl)
+            {
+                try
+                {
+                    var cs = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
                     {
-                        axın.SetLength(0);   // ⚠ yalnız YENİ (boş) faylı təmizləyirik ✓
+                        DataSource = fayl,
+                        Pooling = false,        // ⚠ test bağlantısı hovuzda QALMASIN ✗✓✓
+                        DefaultTimeout = 5
+                    }.ToString();
+
+                    using var bağlantı = new Microsoft.Data.Sqlite.SqliteConnection(cs);
+                    bağlantı.Open();
+
+                    using var əmr = bağlantı.CreateCommand();
+                    əmr.CommandText =
+                        "PRAGMA journal_mode = WAL;" +
+                        "CREATE TABLE IF NOT EXISTS \"__021cars_yazma_testi\" (Id INTEGER);" +
+                        "INSERT INTO \"__021cars_yazma_testi\" (Id) VALUES (1);" +
+                        "DROP TABLE \"__021cars_yazma_testi\";";
+
+                    əmr.ExecuteNonQuery();
+
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            // ④ 📦 BAZANI EHTİYAT YOLA KÖÇÜRÜR ✓ (MƏLUMAT İTMİR ✗✓✓)
+            //  • `-wal` / `-shm` faylları da köçürülür ✓ (WAL rejimində son
+            //    yazılan məlumat da İTİR ✗✓✓)
+            //  • hədəf artıq varsa TOXUNULMUR ✗ (ən son vəziyyət qalır ✓)
+            static bool BazaKopyala(string mənbə, string hədəf)
+            {
+                try
+                {
+                    if (!File.Exists(mənbə)) return false;
+                    if (File.Exists(hədəf)) return false;
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(hədəf)!);
+                    File.Copy(mənbə, hədəf, overwrite: false);
+
+                    foreach (var uzantı in new[] { "-wal", "-shm" })
+                    {
+                        if (File.Exists(mənbə + uzantı) && !File.Exists(hədəf + uzantı))
+                        {
+                            File.Copy(mənbə + uzantı, hədəf + uzantı, overwrite: false);
+                        }
                     }
 
                     return true;

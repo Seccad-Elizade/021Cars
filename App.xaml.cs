@@ -568,16 +568,30 @@ namespace EnterpriseAeroStudio
 
             services.AddLogging(builder => builder.AddSerilog(Log.Logger, dispose: false));
 
-            // ✅ VAHİD MƏNBƏ ✓✓✓: baza yolu YALNIZ `Cas0201.Kok`-dan götürülür ✓
+            // ✅ VAHİD MƏNBƏ ✓✓✓: baza yolu YALNIZ `Cas0201.Kok.BazaYolu`-dan götürülür ✓
             //  (USB bərpa/birləşdirmə də EYNİ yolu işlədir ✓ → məlumat dərhal görünür ✓✓✓)
-            var dataDirectory = Cas0201.Kok.DataQovlugu;
+            //
+            //  🛡️ v6.2.42 — ★ KRİTİK DÜZƏLİŞ ★
+            //  ⚠ ƏVVƏL burada yol ƏL İLƏ qurulurdu ✗:
+            //      Path.Combine(dataDirectory, "avtopark.db")   ✗✓✓
+            //  → `Kok.BazaYolunuTap()`-ın BÜTÜN özünü-bərpa məntiqi
+            //    (yazma testi · «Error 8» / «Error 14» · ehtiyat yola keçid)
+            //    HEÇ VAXT İŞƏ DÜŞMÜRDÜ ✗✓✓
+            //  ✅ İNDİ: yol YALNIZ `Kok.BazaYolu`-dan alınır ✓ → baza yazıla
+            //    bilmirsə proqram AVTOMATİK olaraq yazıla bilən yola keçir ✓
+            //    (məlumat köçürülür ✓) → «readonly database» xətası BİTMİŞDİR ✓✓✓
+            var bazaYolu = Cas0201.Kok.BazaYolu;
+
+            var dataDirectory = Path.GetDirectoryName(bazaYolu)
+                ?? Cas0201.Kok.DataQovlugu;
+
             Directory.CreateDirectory(dataDirectory);
 
             // 🚀 PERFORMANS: bağlantı hovuzu (pooling) + SQLite PRAGMA sazlaması ✓
             //  (WAL · 64 MB keş · 256 MB mmap ✓) → böyük bazada proqram DONMUR ✓✓✓
             var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
             {
-                DataSource = Path.Combine(dataDirectory, "avtopark.db"),
+                DataSource = bazaYolu,
                 Pooling = true,
                 DefaultTimeout = 30
             }.ToString();
@@ -625,9 +639,12 @@ namespace EnterpriseAeroStudio
             //  Veb server EYNİ avtopark.db faylını işlədir. Bu izləyici faylı
             //  nəzarətdə saxlayır və hər dəyişiklikdə MainViewModel-i xəbərdar
             //  edir ki, bütün tablar dərhal yenilənsin.
+            //  🛡️ v6.2.42 — ⚠ ƏVVƏL yol əl ilə qurulurdu ✗ → ehtiyat yola
+            //   keçildikdə izləyici MÖVCUD OLMAYAN faylı izləyirdi ✗✓✓
+            //  ✅ İNDİ: faktiki işlədilən `bazaYolu` izlənilir ✓✓✓
             services.AddSingleton<IDataChangeWatcher>(_ =>
             {
-                var watcher = new DataChangeWatcher(Path.Combine(dataDirectory, "avtopark.db"));
+                var watcher = new DataChangeWatcher(bazaYolu);
                 watcher.Start();
                 return watcher;
             });
