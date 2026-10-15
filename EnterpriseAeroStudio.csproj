@@ -9,7 +9,7 @@
     <RootNamespace>EnterpriseAeroStudio</RootNamespace>
     <AssemblyName>EnterpriseAeroStudio</AssemblyName>
     <ApplicationTitle>Avtomobil Parkı v6.2</ApplicationTitle>
-    <Version>6.2.43</Version>
+    <Version>6.2.44</Version>
 
     <!-- ======================================================================
          🖼️ PROQRAM İKONU (021 CARS ✓✓✓)
@@ -20,6 +20,16 @@
          ====================================================================== -->
     <ApplicationIcon>Resources\021Cars.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- ======================================================================
+       🖼️ LOQO — WPF RESURS KİMİ ✓✓✓
+       → «Giriş» pəncərəsində loqo göstərilir ✓
+         (Source="/Resources/021Cars.png" ✓)
+       ⚠ Element <ItemGroup> İÇİNDƏDİR ✗ — PropertyGroup-da olsa MSB4066 xətası ✗✓
+       ====================================================================== -->
+  <ItemGroup>
+    <Resource Include="Resources\021Cars.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />

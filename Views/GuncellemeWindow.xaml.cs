@@ -100,7 +100,7 @@ namespace EnterpriseAeroStudio.Views
                 {
                     case Rejim.Yoxlanilir:
                         BasliqText.Text = "🔍 GÜNCƏLLƏMƏ YOXLANILIR…";
-                        Boya("#38BDF8");
+                        Boya("#4EC3F5");
                         VersiyaText.Text = $"🏷️ Cari versiya: {GuncellemeXidmeti.CariVersiyaMetni}   ·   🌐 github.com/{GuncellemeXidmeti.Sahib}/{GuncellemeXidmeti.Depo}";
                         AdText.Text = "021Cars — Avtomobil Parkı";
                         TarixText.Text = "";
@@ -113,7 +113,7 @@ namespace EnterpriseAeroStudio.Views
 
                     case Rejim.EnSon:
                         BasliqText.Text = "✅ ƏN SON VERSİYADASINIZ";
-                        Boya("#4ADE80");
+                        Boya("#5ADF90");
                         VersiyaText.Text = $"🏷️ Cari versiya: {GuncellemeXidmeti.CariVersiyaMetni}   ·   ✨ Ən son versiya: {GuncellemeXidmeti.CariVersiyaMetni}";
                         AdText.Text = "Yeni güncəlləmə yoxdur ✓";
                         TarixText.Text = GuncellemeXidmeti.SonYoxlama is null
@@ -132,7 +132,7 @@ namespace EnterpriseAeroStudio.Views
 
                     case Rejim.Xeta:
                         BasliqText.Text = "⚠️ YOXLANILA BİLMƏDİ";
-                        Boya("#F87171");
+                        Boya("#FF9090");
                         VersiyaText.Text = $"🏷️ Cari versiya: {GuncellemeXidmeti.CariVersiyaMetni}";
                         AdText.Text = "İnternet / GitHub əlçatmazdır ✗";
                         TarixText.Text = "";
@@ -172,7 +172,7 @@ namespace EnterpriseAeroStudio.Views
             try
             {
                 BasliqText.Text = "🎉 YENİ GÜNCƏLLƏMƏ VAR";
-                Boya("#38BDF8");
+                Boya("#4EC3F5");
 
                 VersiyaText.Text =
                     $"🏷️ Cari versiya: {GuncellemeXidmeti.CariVersiyaMetni}   →   ✨ Yeni versiya: {m.Versiya}";

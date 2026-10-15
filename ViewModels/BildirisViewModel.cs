@@ -111,7 +111,7 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>📄 Vəziyyət mətni (neçə bildiriş göstərilir ✓).</summary>
         [ObservableProperty] private string veziyyetMetni = "—";
 
-        public string GecikmisRengi => GecikmisCemi > 0m ? "#FB7185" : "#34D399";
+        public string GecikmisRengi => GecikmisCemi > 0m ? "#FA8A9E" : "#41D39A";
 
         partial void OnGecikmisCemiChanged(decimal value) => OnPropertyChanged(nameof(GecikmisRengi));
 

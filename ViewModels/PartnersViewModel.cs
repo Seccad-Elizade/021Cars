@@ -127,7 +127,7 @@ namespace EnterpriseAeroStudio.ViewModels
         public string QaliqMetni => $"{TotalQaliq:N2} ₼";
 
         /// <summary>Qalıq rəngi.</summary>
-        public string QaliqReng => TotalQaliq > 0m ? "#34D399" : TotalQaliq < 0m ? "#F43F5E" : "#94A3B8";
+        public string QaliqReng => TotalQaliq > 0m ? "#41D39A" : TotalQaliq < 0m ? "#F2677F" : "#A9B8C8";
 
         /// <summary>Bölgü jurnalı boşdursa xəbərdarlıq göstərilir.</summary>
         public bool HasLedger => Ledger.Count > 0;
@@ -775,21 +775,21 @@ namespace EnterpriseAeroStudio.ViewModels
             sb.Append("<!DOCTYPE html><html lang=\"az\"><head><meta charset=\"utf-8\">");
             sb.Append("<title>Tərəfdaş Bölgüsü Hesabatı</title><style>");
             sb.Append("@page{size:A4;margin:13mm 11mm;}");
-            sb.Append("body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;font-size:11px;margin:0;}");
+            sb.Append("body{font-family:'Segoe UI',Arial,sans-serif;color:#1B2634;font-size:11px;margin:0;}");
             sb.Append("h1{font-size:19px;margin:0;}");
-            sb.Append("h2{font-size:13px;margin:19px 0 7px;padding:7px 11px;color:#fff;background:#1e293b;border-radius:6px;}");
-            sb.Append(".head{border-bottom:3px solid #1e293b;padding-bottom:10px;margin-bottom:5px;}");
-            sb.Append(".sub{color:#64748b;font-size:11px;margin-top:3px;}");
-            sb.Append(".right{text-align:right;color:#64748b;font-size:10px;}");
+            sb.Append("h2{font-size:13px;margin:19px 0 7px;padding:7px 11px;color:#fff;background:#1B2634;border-radius:6px;}");
+            sb.Append(".head{border-bottom:3px solid #1B2634;padding-bottom:10px;margin-bottom:5px;}");
+            sb.Append(".sub{color:#8798AD;font-size:11px;margin-top:3px;}");
+            sb.Append(".right{text-align:right;color:#8798AD;font-size:10px;}");
             sb.Append("table{width:100%;border-collapse:collapse;margin-top:5px;}");
-            sb.Append("th{background:#f1f5f9;text-align:left;padding:6px 8px;font-size:10px;");
-            sb.Append("text-transform:uppercase;color:#475569;border-bottom:2px solid #cbd5e1;}");
-            sb.Append("td{padding:5px 8px;border-bottom:1px solid #e2e8f0;}");
+            sb.Append("th{background:#EEF3F9;text-align:left;padding:6px 8px;font-size:10px;");
+            sb.Append("text-transform:uppercase;color:#3A4A5C;border-bottom:2px solid #C6D2E0;}");
+            sb.Append("td{padding:5px 8px;border-bottom:1px solid #DCE5EF;}");
             sb.Append(".num{text-align:right;font-variant-numeric:tabular-nums;}");
-            sb.Append(".pos{color:#047857;font-weight:600;}.neg{color:#b91c1c;font-weight:600;}");
-            sb.Append(".tot td{font-weight:700;background:#f8fafc;border-top:2px solid #94a3b8;}");
-            sb.Append(".foot{margin-top:20px;padding-top:8px;border-top:2px solid #1e293b;");
-            sb.Append("font-size:10px;color:#64748b;display:flex;justify-content:space-between;}");
+            sb.Append(".pos{color:#128063;font-weight:600;}.neg{color:#AD3C3C;font-weight:600;}");
+            sb.Append(".tot td{font-weight:700;background:#F3F7FB;border-top:2px solid #A9B8C8;}");
+            sb.Append(".foot{margin-top:20px;padding-top:8px;border-top:2px solid #1B2634;");
+            sb.Append("font-size:10px;color:#8798AD;display:flex;justify-content:space-between;}");
             sb.Append("</style></head><body>");
 
             // ---------- BAŞLIQ ----------
@@ -861,7 +861,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
             if (Ledger.Count == 0)
             {
-                sb.Append("<tr><td colspan=\"9\" style=\"color:#94a3b8;font-style:italic;\">");
+                sb.Append("<tr><td colspan=\"9\" style=\"color:#A9B8C8;font-style:italic;\">");
                 sb.Append("Bu dövrdə bölgü qeydi yoxdur.</td></tr>");
             }
 
@@ -890,7 +890,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
             if (Payments.Count == 0)
             {
-                sb.Append("<tr><td colspan=\"6\" style=\"color:#94a3b8;font-style:italic;\">");
+                sb.Append("<tr><td colspan=\"6\" style=\"color:#A9B8C8;font-style:italic;\">");
                 sb.Append("Hələ tərəfdaşa pul verilməyib.</td></tr>");
             }
 

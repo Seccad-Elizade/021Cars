@@ -431,10 +431,10 @@ namespace EnterpriseAeroStudio.Services
 
         public string VeziyyetRengi => Nov switch
         {
-            "⚖️ Cərimə" => "#FB7185",
-            "⏳ Möhlət" => "#F59E0B",
-            "🧩 İlkin bölgü" => "#C084FC",
-            _ => Odenilib ? "#34D399" : "#FBBF24"
+            "⚖️ Cərimə" => "#FA8A9E",
+            "⏳ Möhlət" => "#E5A62E",
+            "🧩 İlkin bölgü" => "#C69CFB",
+            _ => Odenilib ? "#41D39A" : "#F3C24B"
         };
 
         private static string Pul(decimal mebleg)

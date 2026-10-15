@@ -84,7 +84,7 @@ namespace EnterpriseAeroStudio.Models
         /// <summary>
         /// Ümumi balansın rəngi: verilməli qalıb yaşıl, avans verilibsə qırmızı.
         /// </summary>
-        public string UmumiBalansReng => Qaliq > 0m ? "#34D399" : Qaliq < 0m ? "#F43F5E" : "#94A3B8";
+        public string UmumiBalansReng => Qaliq > 0m ? "#41D39A" : Qaliq < 0m ? "#F2677F" : "#A9B8C8";
 
         // ====================================================================
         //  📊 PEŞƏKAR GÖRÜNÜŞ (sıra nömrəsi + irəliləyiş zolağı)
@@ -160,7 +160,7 @@ namespace EnterpriseAeroStudio.Models
               $"{Environment.NewLine}Bölgü sayı: {BolguSayi}";
 
         /// <summary>Qalıq rəngi: borc qalıbsa yaşıl, avans varsa qırmızı.</summary>
-        public string QaliqReng => Qaliq > 0m ? "#34D399" : Qaliq < 0m ? "#F43F5E" : "#94A3B8";
+        public string QaliqReng => Qaliq > 0m ? "#41D39A" : Qaliq < 0m ? "#F2677F" : "#A9B8C8";
 
         public override string ToString() => $"{Terefdas} — {QazanilmisMetni}";
     }

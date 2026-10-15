@@ -537,7 +537,7 @@ namespace EnterpriseAeroStudio.ViewModels
             : $"⚠ Fərq: {BolguFergi:N2} ₼ — payların cəmi baza ilə üst-üstə düşmür";
 
         /// <summary>Fərq mətninin rəngi (dəqiqdirsə yaşıl, fərq varsa qırmızı).</summary>
-        public string BolguFergiRengi => BolguFergi == 0m ? "#34D399" : "#F43F5E";
+        public string BolguFergiRengi => BolguFergi == 0m ? "#41D39A" : "#F2677F";
 
         // ====================================================================
         //  🔢 KÖK (ƏSAS BORC) BÖLGÜ İZAHI ✓✓✓ (v6.2.17)

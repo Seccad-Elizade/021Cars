@@ -108,23 +108,23 @@ namespace EnterpriseAeroStudio.Models
         /// <summary>Vəziyyət rəngi: gecikmiş qırmızı ⚠ · bugün narıncı · yaxın sarı · ödənilmiş yaşıl ✓.</summary>
         [NotMapped]
         public string VeziyyetRengi => Odenilib
-            ? "#34D399"
+            ? "#41D39A"
             : GunFerqi switch
             {
-                < 0 => "#FB7185",
-                0 => "#F59E0B",
-                <= 7 => "#FBBF24",
-                _ => "#38BDF8"
+                < 0 => "#FA8A9E",
+                0 => "#E5A62E",
+                <= 7 => "#F3C24B",
+                _ => "#4EC3F5"
             };
 
         /// <summary>Mənbə rəngi (nişan üçün ✓).</summary>
         [NotMapped]
         public string MenbeRengi => Menbe switch
         {
-            "Kredit" => "#60A5FA",
-            "Möhlət" => "#C084FC",
-            "Cərimə" => "#FB7185",
-            _ => "#94A3B8"
+            "Kredit" => "#7EA8FF",
+            "Möhlət" => "#C69CFB",
+            "Cərimə" => "#FA8A9E",
+            _ => "#A9B8C8"
         };
 
         public override string ToString() =>
@@ -202,7 +202,7 @@ namespace EnterpriseAeroStudio.Models
 
         /// <summary>Ayın rəngi: keçmiş boz · cari yaşıl · gələcək mavi ✓.</summary>
         [NotMapped]
-        public string AyRengi => GecikmeVar ? "#FB7185" : CariAydir ? "#34D399" : KecmisAy ? "#94A3B8" : "#38BDF8";
+        public string AyRengi => GecikmeVar ? "#FA8A9E" : CariAydir ? "#41D39A" : KecmisAy ? "#A9B8C8" : "#4EC3F5";
 
         public override string ToString() => $"{AyAdi} — {CemiMetni} ({SetirSayi} ödəniş)";
     }

@@ -235,7 +235,7 @@ namespace EnterpriseAeroStudio.Views
         public decimal Menfeet => SatisQiymeti - Car.MayaDeyeri;
 
         /// <summary>🎨 Mənfəət rəngi ✓</summary>
-        public string MenfeetRengi => Menfeet >= 0m ? "#34D399" : "#F43F5E";
+        public string MenfeetRengi => Menfeet >= 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>📊 Hərəkətlərin cəmi ✓</summary>
         public decimal HereketCemi => Hereketler.Sum(t => t.Mebleg);

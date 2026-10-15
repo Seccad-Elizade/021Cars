@@ -336,7 +336,7 @@ namespace EnterpriseAeroStudio.ViewModels
         public string RangeProfitMetni => $"{(RangeProfit >= 0m ? "+" : "−")}{Math.Abs(RangeProfit):N2} ₼";
 
         /// <summary>Dövr mənfəətinin rəngi — mənfəət yaşıl, zərər qırmızı.</summary>
-        public string RangeProfitReng => RangeProfit >= 0m ? "#34D399" : "#F43F5E";
+        public string RangeProfitReng => RangeProfit >= 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>Realizə olunmuş mənfəətin rentabelliyi (%) — dövriyyə bazasına görə.</summary>
         public string RangeProfitMarginMetni
@@ -356,7 +356,7 @@ namespace EnterpriseAeroStudio.ViewModels
             $"{(RangeRealizedProfit >= 0m ? "+" : "−")}{Math.Abs(RangeRealizedProfit):N2} ₼";
 
         /// <summary>📈 Realizə olunmuş mənfəətin rəngi ✓</summary>
-        public string RangeRealizedProfitReng => RangeRealizedProfit >= 0m ? "#34D399" : "#F43F5E";
+        public string RangeRealizedProfitReng => RangeRealizedProfit >= 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>
         /// 📈 Realizə mənfəətinin DÜSTURU ✓ — kartın altında göstərilir
@@ -420,7 +420,7 @@ namespace EnterpriseAeroStudio.ViewModels
             $"Satış {RangeSalesRevenue:N2} ₼ − maya {RangeCostOfSold:N2} ₼";
 
         /// <summary>Dövr brüt satış mənfəətinin rəngi.</summary>
-        public string RangeSalesProfitReng => RangeSalesProfit >= 0m ? "#38BDF8" : "#F43F5E";
+        public string RangeSalesProfitReng => RangeSalesProfit >= 0m ? "#4EC3F5" : "#F2677F";
 
         /// <summary>Kredit faiz mənfəətinin izahı.</summary>
         public string RangeCreditProfitFormula => RangeCreditPayments <= 0m

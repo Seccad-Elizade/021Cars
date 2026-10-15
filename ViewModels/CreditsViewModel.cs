@@ -234,7 +234,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Forma üzrə möhlət xülasəsinin rəngi.</summary>
         public string IlkinMohletRengi =>
-            IlkinMohletCemi > IlkinOdenis + 0.01m ? "#FB7185" : "#FBBF24";
+            IlkinMohletCemi > IlkinOdenis + 0.01m ? "#FA8A9E" : "#F3C24B";
 
         /// <summary>Möhlət panelinin görünmə vəziyyəti (checkbox ✓).</summary>
         public bool IlkinMohletPanelGorunur => IlkinMohletVar;
@@ -4099,7 +4099,7 @@ namespace EnterpriseAeroStudio.ViewModels
             : $"⚠ Fərq: {KreditBolguFergi:N2} ₼";
 
         /// <summary>Fərq rəngi.</summary>
-        public string KreditBolguFergReng => KreditBolguFergi == 0m ? "#34D399" : "#F43F5E";
+        public string KreditBolguFergReng => KreditBolguFergi == 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>
         /// KREDİTİN BÖLGÜ BAZASI = <b>Satış Qiyməti − Maya Dəyəri</b> («xeyir»).

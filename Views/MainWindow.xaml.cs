@@ -154,7 +154,7 @@ namespace EnterpriseAeroStudio.Views
             try
             {
                 // 🖥️ YERLİ BAZA — həmişə yaşıl ✓ (proqram açıqdırsa baza işləyir ✓)
-                DaireYerli.Fill = Rəng("#22C55E");
+                DaireYerli.Fill = Rəng("#31CE71");
 
                 // 💾 DATA USB TANINDIMI? (yalnız SİZİN fləşkartınız ✓)
                 var tap = Services.DataUsbService.Tap();
@@ -162,7 +162,7 @@ namespace EnterpriseAeroStudio.Views
                 if (tap is null)
                 {
                     // 🔴 USB YOXDUR ✗ — qeydiyyat yoxdursa ayrı mətn ✓
-                    DaireUsb.Fill = Rəng("#EF4444");
+                    DaireUsb.Fill = Rəng("#F05E5E");
 
                     DaireMetni.Text = Services.DataUsbService.Qeydiyyat is null
                         ? "💾 USB: qeydiyyat yoxdur ✗"
@@ -183,12 +183,12 @@ namespace EnterpriseAeroStudio.Views
 
                 if (təzə)
                 {
-                    DaireUsb.Fill = Rəng("#22C55E");     // 🟢 SİNXRON ✓
+                    DaireUsb.Fill = Rəng("#31CE71");     // 🟢 SİNXRON ✓
                     DaireMetni.Text = "💾 USB: sinxron ✓";
                 }
                 else
                 {
-                    DaireUsb.Fill = Rəng("#F59E0B");     // 🟠 YAZILIR ✓
+                    DaireUsb.Fill = Rəng("#E5A62E");     // 🟠 YAZILIR ✓
                     DaireMetni.Text = "💾 USB: ehtiyat alınır… ✓";
                 }
             }
@@ -271,11 +271,11 @@ namespace EnterpriseAeroStudio.Views
 
                         var rəng = vəziyyət switch
                         {
-                            GuncellemeXidmeti.Vəziyyət.Yoxlanilir => "#FBBF24",
-                            GuncellemeXidmeti.Vəziyyət.EnSon => "#22C55E",
-                            GuncellemeXidmeti.Vəziyyət.Yenivar => "#F59E0B",
-                            GuncellemeXidmeti.Vəziyyət.Xeta => "#EF4444",
-                            _ => "#64748B"
+                            GuncellemeXidmeti.Vəziyyət.Yoxlanilir => "#F3C24B",
+                            GuncellemeXidmeti.Vəziyyət.EnSon => "#31CE71",
+                            GuncellemeXidmeti.Vəziyyət.Yenivar => "#E5A62E",
+                            GuncellemeXidmeti.Vəziyyət.Xeta => "#F05E5E",
+                            _ => "#8798AD"
                         };
 
                         var mətn = vəziyyət switch

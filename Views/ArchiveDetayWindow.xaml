@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="🗄️ Arxiv Detalları" Height="740" Width="1160"
-        WindowStartupLocation="CenterOwner" Background="#0B0F17" Foreground="#F8FAFC"
-        FontFamily="Segoe UI, Inter, sans-serif">
+        WindowStartupLocation="CenterOwner" Background="#0A1017" Foreground="#F3F7FB"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,27 +16,27 @@
         <!-- ==================== BAŞLIQ ==================== -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <Button DockPanel.Dock="Right" Content="✖ Bağla" Style="{StaticResource iOSButton}"
-                    Padding="16,7" Background="#374151" Foreground="#F9FAFB"
+                    Padding="16,7" Background="#2E3D4E" Foreground="#F5F8FC"
                     Click="Bagla_Click" Margin="8,0,0,0"/>
             <Button DockPanel.Dock="Right" Content="📄 PDF İXRAC ET"
                     Style="{StaticResource iOSButton}" Padding="18,7"
-                    Background="#2563EB" Foreground="#FFFFFF" FontWeight="Bold"
+                    Background="#4C7DFF" Foreground="#FFFFFF" FontWeight="Bold"
                     ToolTip="Peşəkar sənəd yaradılır — «hara yadda saxlayım?» pəncərəsi açılır ✓"
                     Click="PdfIxrac_Click"/>
             <StackPanel>
-                <TextBlock Text="{Binding Basliq}" FontSize="20" FontWeight="Bold" Foreground="#F8FAFC"/>
-                <TextBlock Text="{Binding AltBasliq}" FontSize="12" Foreground="#94A3B8" Margin="0,4,0,0"/>
+                <TextBlock Text="{Binding Basliq}" FontSize="20" FontWeight="Bold" Foreground="#F3F7FB"/>
+                <TextBlock Text="{Binding AltBasliq}" FontSize="12" Foreground="#A9B8C8" Margin="0,4,0,0"/>
             </StackPanel>
         </DockPanel>
 
         <!-- ==================== 📊 YEKUN KPI ==================== -->
-        <Border Grid.Row="1" Background="#111827" CornerRadius="12"
-                BorderBrush="#1F2937" BorderThickness="1" Padding="14,11" Margin="0,0,0,12">
+        <Border Grid.Row="1" Background="#141D28" CornerRadius="12"
+                BorderBrush="#202D3C" BorderThickness="1" Padding="14,11" Margin="0,0,0,12">
             <UniformGrid Columns="5">
                 <StackPanel>
                     <TextBlock Text="MAYA DƏYƏRİ" Style="{StaticResource StatLabel}"/>
                     <TextBlock Text="{Binding Car.MayaDeyeri, Converter={StaticResource Currency}}"
-                               FontSize="17" FontWeight="Bold" Foreground="#C084FC" Margin="0,4,0,0"/>
+                               FontSize="17" FontWeight="Bold" Foreground="#C69CFB" Margin="0,4,0,0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="ALIŞ QİYMƏTİ" Style="{StaticResource StatLabel}"/>
@@ -45,14 +46,14 @@
                 <StackPanel>
                     <TextBlock Text="XƏRCLƏR" Style="{StaticResource StatLabel}"/>
                     <TextBlock Text="{Binding XercCemi, Converter={StaticResource Currency}}"
-                               FontSize="17" FontWeight="Bold" Foreground="#F59E0B" Margin="0,4,0,0"/>
+                               FontSize="17" FontWeight="Bold" Foreground="#E5A62E" Margin="0,4,0,0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="💰 SATIŞ QİYMƏTİ (NECƏYƏ SATILIB)" Style="{StaticResource StatLabel}"/>
                     <TextBlock Text="{Binding SatisQiymeti, Converter={StaticResource Currency}}"
-                               FontSize="17" FontWeight="Bold" Foreground="#38BDF8" Margin="0,4,0,0"/>
+                               FontSize="17" FontWeight="Bold" Foreground="#4EC3F5" Margin="0,4,0,0"/>
                     <TextBlock Text="{Binding SatisAltMetni}" FontSize="9.5"
-                               Foreground="#64748B" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                               Foreground="#8798AD" TextWrapping="Wrap" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Text="MƏNFƏƏT" Style="{StaticResource StatLabel}"/>
@@ -69,8 +70,8 @@
 
                 <!-- ============ 📎 SƏNƏDLƏR (MEDIA ARXİVİ) ============ -->
                 <TextBlock Text="{Binding SenedBasligi}" FontSize="14" FontWeight="Bold"
-                           Foreground="#FBBF24" Margin="2,0,0,8" TextWrapping="Wrap"/>
-                <Border Background="#111827" CornerRadius="12" BorderBrush="#F59E0B"
+                           Foreground="#F3C24B" Margin="2,0,0,8" TextWrapping="Wrap"/>
+                <Border Background="#141D28" CornerRadius="12" BorderBrush="#E5A62E"
                         BorderThickness="1" Padding="6" Margin="0,0,0,14">
                     <StackPanel>
                         <DataGrid x:Name="SenedGrid" ItemsSource="{Binding Senedler}"
@@ -93,14 +94,14 @@
 
                         <StackPanel Orientation="Horizontal" Margin="2,8,2,2">
                             <Button Content="📂  Seçilmiş sənədi AÇ" Style="{StaticResource iOSButton}"
-                                    Height="32" Padding="14,0" Background="#B45309" Foreground="#FFF7ED"
+                                    Height="32" Padding="14,0" Background="#A9590F" Foreground="#FBF3EA"
                                     Cursor="Hand" Click="SenedAc_Click"
                                     ToolTip="Seçilmiş sənədi standart proqramla açır ✓"/>
                             <Button Content="🗂️  Sənəd qovluğunu aç" Style="{StaticResource iOSButton}"
-                                    Height="32" Padding="14,0" Margin="8,0,0,0" Background="#1F2937"
-                                    Foreground="#F8FAFC" Cursor="Hand" Click="SenedQovluguAc_Click"
+                                    Height="32" Padding="14,0" Margin="8,0,0,0" Background="#202D3C"
+                                    Foreground="#F3F7FB" Cursor="Hand" Click="SenedQovluguAc_Click"
                                     ToolTip="Bu avtomobilin bütün sənədləri olan qovluğu File Explorer-də açır ✓"/>
-                            <TextBlock Text="{Binding SenedQovlugu}" FontSize="10" Foreground="#64748B"
+                            <TextBlock Text="{Binding SenedQovlugu}" FontSize="10" Foreground="#8798AD"
                                        VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                     </StackPanel>
@@ -108,8 +109,8 @@
 
                 <!-- ============ 🚘 AVTOMOBİL ============ -->
                 <TextBlock Text="🚘 AVTOMOBİL MƏLUMATLARI" FontSize="14" FontWeight="Bold"
-                           Foreground="#93C5FD" Margin="2,0,0,8"/>
-                <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                           Foreground="#A9C4FF" Margin="2,0,0,8"/>
+                <Border Background="#141D28" CornerRadius="12" BorderBrush="#202D3C"
                         BorderThickness="1" Padding="14,11" Margin="0,0,0,14">
                     <UniformGrid Columns="4">
                         <StackPanel Margin="0,0,10,10">
@@ -127,7 +128,7 @@
                         <StackPanel Margin="0,0,0,10">
                             <TextBlock Text="Status" Style="{StaticResource StatLabel}"/>
                             <TextBlock Text="{Binding Car.Status}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#FBBF24" Margin="0,3,0,0"/>
+                                       Foreground="#F3C24B" Margin="0,3,0,0"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,10,10">
                             <TextBlock Text="İl" Style="{StaticResource StatLabel}"/>
@@ -156,7 +157,7 @@
                         <StackPanel Margin="0,0,10,0">
                             <TextBlock Text="Satış Qiyməti (necəyə satılıb)" Style="{StaticResource StatLabel}"/>
                             <TextBlock Text="{Binding SatisQiymeti, Converter={StaticResource Currency}}"
-                                       FontSize="14" FontWeight="SemiBold" Foreground="#38BDF8" Margin="0,3,0,0"/>
+                                       FontSize="14" FontWeight="SemiBold" Foreground="#4EC3F5" Margin="0,3,0,0"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Sənəd Tarixi" Style="{StaticResource StatLabel}"/>
@@ -168,8 +169,8 @@
                 <!-- ============ 🧾 XƏRCLƏR ============ -->
                 <StackPanel Visibility="{Binding XercVar, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="🧾 XƏRCLƏR (KATEQORİYA ÜZRƏ)" FontSize="14" FontWeight="Bold"
-                               Foreground="#FBBF24" Margin="2,0,0,8"/>
-                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                               Foreground="#F3C24B" Margin="2,0,0,8"/>
+                    <Border Background="#141D28" CornerRadius="12" BorderBrush="#202D3C"
                             BorderThickness="1" Padding="6" Margin="0,0,0,14">
                         <DataGrid ItemsSource="{Binding Xercler}" AutoGenerateColumns="False"
                                   CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
@@ -190,12 +191,12 @@
                 <StackPanel Visibility="{Binding HereketVar, Converter={StaticResource BoolToVis}}">
                     <DockPanel Margin="2,14,0,8">
                         <TextBlock DockPanel.Dock="Left" Text="📋 BÜTÜN HƏRƏKƏTLƏR" FontSize="14"
-                                   FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center"/>
-                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#94A3B8"
+                                   FontWeight="Bold" Foreground="#4EC3F5" VerticalAlignment="Center"/>
+                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#A9B8C8"
                                    VerticalAlignment="Center"
                                    Text="{Binding HereketCemi, StringFormat=CƏMİ: {0:N2} AZN}"/>
                     </DockPanel>
-                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                    <Border Background="#141D28" CornerRadius="12" BorderBrush="#202D3C"
                             BorderThickness="1" Padding="6" Margin="0,0,0,14">
                         <DataGrid ItemsSource="{Binding Hereketler}" AutoGenerateColumns="False"
                                   CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
@@ -220,12 +221,12 @@
                 <StackPanel Visibility="{Binding PayVar, Converter={StaticResource BoolToVis}}">
                     <DockPanel Margin="2,0,0,8">
                         <TextBlock DockPanel.Dock="Left" Text="👥 TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ" FontSize="14"
-                                   FontWeight="Bold" Foreground="#34D399" VerticalAlignment="Center"/>
-                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#94A3B8"
+                                   FontWeight="Bold" Foreground="#41D39A" VerticalAlignment="Center"/>
+                        <TextBlock HorizontalAlignment="Right" FontSize="12" Foreground="#A9B8C8"
                                    VerticalAlignment="Center"
                                    Text="{Binding PayCemi, StringFormat=CƏMİ: {0:N2} AZN}"/>
                     </DockPanel>
-                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                    <Border Background="#141D28" CornerRadius="12" BorderBrush="#202D3C"
                             BorderThickness="1" Padding="6" Margin="0,0,0,14">
                         <DataGrid ItemsSource="{Binding Paylar}" AutoGenerateColumns="False"
                                   CanUserAddRows="False" IsReadOnly="True" RowHeight="34" ColumnHeaderHeight="38">
@@ -246,8 +247,8 @@
                 <!-- ============ 💳 KREDİT ============ -->
                 <StackPanel Visibility="{Binding KreditVar, Converter={StaticResource BoolToVis}}">
                     <TextBlock Text="💳 KREDİT MÜQAVİLƏSİ" FontSize="14" FontWeight="Bold"
-                               Foreground="#C084FC" Margin="2,14,0,8"/>
-                    <Border Background="#111827" CornerRadius="12" BorderBrush="#1F2937"
+                               Foreground="#C69CFB" Margin="2,14,0,8"/>
+                    <Border Background="#141D28" CornerRadius="12" BorderBrush="#202D3C"
                             BorderThickness="1" Padding="14,11" Margin="0,0,0,14">
                         <UniformGrid Columns="4">
                             <StackPanel Margin="0,0,10,10">
@@ -261,7 +262,7 @@
                             <StackPanel Margin="0,0,10,10">
                                 <TextBlock Text="Status" Style="{StaticResource StatLabel}"/>
                                 <TextBlock Text="{Binding Credit.Status}" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="#34D399" Margin="0,3,0,0"/>
+                                           Foreground="#41D39A" Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="Başlama Tarixi" Style="{StaticResource StatLabel}"/>

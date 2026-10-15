@@ -103,7 +103,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Möhlət xülasəsinin rəngi (qiymətdən artıqdırsa qırmızı ⚠).</summary>
         public string MohletRengi =>
-            MohletCemi > NagdHisse + 0.01m ? "#FB7185" : "#FBBF24";
+            MohletCemi > NagdHisse + 0.01m ? "#FA8A9E" : "#F3C24B";
 
         /// <summary>Seçilmiş satışın möhlət xülasəsi.</summary>
         public string SelectedMohletXulase => SelectedMohletler.Count == 0
@@ -667,7 +667,7 @@ namespace EnterpriseAeroStudio.ViewModels
             : $"⚠ Fərq: {SatisBolguFergi:N2} ₼";
 
         /// <summary>Fərq rəngi.</summary>
-        public string SatisBolguFergReng => SatisBolguFergi == 0m ? "#34D399" : "#F43F5E";
+        public string SatisBolguFergReng => SatisBolguFergi == 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>
         /// SATIŞIN BÖLGÜ BAZASI = <b>Satış qiyməti − Maya dəyəri</b> («xeyir»).

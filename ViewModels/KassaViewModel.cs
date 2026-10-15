@@ -164,10 +164,10 @@ namespace EnterpriseAeroStudio.ViewModels
         [ObservableProperty] private decimal gecikmisMohlet;
 
         /// <summary>Dövr üzrə xalis axın rəngi (mənfi = qırmızı ⚠).</summary>
-        public string XalisRengi => Xalis >= 0m ? "#34D399" : "#FB7185";
+        public string XalisRengi => Xalis >= 0m ? "#41D39A" : "#FA8A9E";
 
         /// <summary>Kassa qalığının rəngi (mənfi = qırmızı ⚠).</summary>
-        public string QaliqRengi => Qaliq >= 0m ? "#38BDF8" : "#FB7185";
+        public string QaliqRengi => Qaliq >= 0m ? "#4EC3F5" : "#FA8A9E";
 
         partial void OnXalisChanged(decimal value) => OnPropertyChanged(nameof(XalisRengi));
 

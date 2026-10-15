@@ -276,7 +276,7 @@ namespace EnterpriseAeroStudio.Services
 
         public string Veziyyet => Odenilib ? "✅ Ödənilib" : "🕓 Gözlənilir";
 
-        public string VeziyyetRengi => Odenilib ? "#34D399" : "#FBBF24";
+        public string VeziyyetRengi => Odenilib ? "#41D39A" : "#F3C24B";
 
         /// <summary>Cədvəldə izahat: «100,00 ₼ · 05.09» ✓.</summary>
         public string Aciqlama => $"{MeblegMetni}" + (string.IsNullOrWhiteSpace(Tarixler) ? "" : $" · {Tarixler}");

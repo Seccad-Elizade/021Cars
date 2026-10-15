@@ -131,8 +131,8 @@ namespace EnterpriseAeroStudio.Models
         /// <summary>Vəziyyət rəngi (hex).</summary>
         [NotMapped]
         public string VeziyyetRengi => Odenilib
-            ? "#34D399"
-            : Gecikmis ? "#FB7185" : "#FBBF24";
+            ? "#41D39A"
+            : Gecikmis ? "#FA8A9E" : "#F3C24B";
 
         /// <summary>Mənbə mətni: «🏦 İlkin ödəniş — M-0007 | Rebbil | 77HH717».</summary>
         [NotMapped]

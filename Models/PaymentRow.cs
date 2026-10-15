@@ -284,12 +284,12 @@ namespace EnterpriseAeroStudio.Models
             {
                 if (OdenilmeTarixi is not DateTime t)
                 {
-                    return "#6B7280";
+                    return "#7C8CA0";
                 }
 
                 var gun = (int)(t.Date - Tarix.Date).TotalDays;
 
-                return gun > 0 ? "#FB7185" : gun < 0 ? "#4ADE80" : "#6B7280";
+                return gun > 0 ? "#FA8A9E" : gun < 0 ? "#5ADF90" : "#7C8CA0";
             }
         }
 

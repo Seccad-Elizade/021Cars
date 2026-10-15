@@ -82,7 +82,7 @@ namespace EnterpriseAeroStudio.Models
 
         /// <summary>Növ rəngi (hex).</summary>
         [NotMapped]
-        public string NovRengi => IsDaxilolma ? "#34D399" : "#FB7185";
+        public string NovRengi => IsDaxilolma ? "#41D39A" : "#FA8A9E";
 
         /// <summary>İşarəli məbləğ: daxilolma <c>+</c>, xərc <c>−</c>.</summary>
         [NotMapped]

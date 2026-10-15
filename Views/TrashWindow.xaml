@@ -4,8 +4,9 @@
         Title="🗑 Silinənlər və Geri Qaytarma"
         Height="640" Width="1120" MinHeight="420" MinWidth="820"
         WindowStartupLocation="CenterOwner"
-        Background="#0B0F17" Foreground="#F8FAFC"
-        FontFamily="Segoe UI, Inter, sans-serif">
+        Background="#0A1017" Foreground="#F3F7FB"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -16,20 +17,20 @@
         <!-- ==================================================== BAŞLIQ === -->
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="🗑 SİLİNƏNLƏR VƏ GERİ QAYTARMA"
-                       FontSize="19" FontWeight="Bold" Foreground="#F8FAFC"/>
-            <TextBlock x:Name="SubText" Foreground="#9CA3AF" FontSize="12.5" Margin="0,5,0,0"/>
-            <TextBlock Margin="0,5,0,0" FontSize="11.5" Foreground="#6B7280" TextWrapping="Wrap"
+                       FontSize="19" FontWeight="Bold" Foreground="#F3F7FB"/>
+            <TextBlock x:Name="SubText" Foreground="#A6B4C4" FontSize="12.5" Margin="0,5,0,0"/>
+            <TextBlock Margin="0,5,0,0" FontSize="11.5" Foreground="#7C8CA0" TextWrapping="Wrap"
                        Text="• «Silinmə» — qeyd silinib, bərpada yenidən yaradılır (sıra nömrəsi də əvvəlki kimi).&#10;• «Dəyişiklik» — kateqoriya/qrup və ya məlumat səhvən dəyişdirilib, bərpada ƏVVƏLKİ vəziyyətinə qaytarılır.&#10;• Ctrl+Z — ən sonuncu əməliyyatı geri qaytarır (dəfələrlə basmaqla ardıcıl olaraq əvvəlkilər də)."/>
         </StackPanel>
 
         <!-- ===================================================== CƏDVƏL === -->
-        <Border Grid.Row="1" Background="#111827" CornerRadius="12"
-                BorderBrush="#1F2937" BorderThickness="1" Padding="6">
+        <Border Grid.Row="1" Background="#141D28" CornerRadius="12"
+                BorderBrush="#202D3C" BorderThickness="1" Padding="6">
             <DataGrid x:Name="Grid" AutoGenerateColumns="False" IsReadOnly="True"
                       SelectionMode="Single" SelectionUnit="FullRow"
                       RowHeight="38" ColumnHeaderHeight="40"
-                      Background="#0B0F17" Foreground="#F8FAFC"
-                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#1F2937"
+                      Background="#0A1017" Foreground="#F3F7FB"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                       BorderThickness="0" MouseDoubleClick="Grid_MouseDoubleClick">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Əməliyyat" Binding="{Binding Action}" Width="110"/>
@@ -52,7 +53,7 @@
                         Width="160" Height="36" Margin="4,0" Click="Purge_Click"/>
                 <Button Content="✕ Bağla" Width="100" Height="36" Margin="4,0" Click="Close_Click"/>
             </StackPanel>
-            <TextBlock x:Name="StatusText" Foreground="#9CA3AF" FontSize="12"
+            <TextBlock x:Name="StatusText" Foreground="#A6B4C4" FontSize="12"
                        VerticalAlignment="Center" TextWrapping="Wrap"/>
         </DockPanel>
     </Grid>

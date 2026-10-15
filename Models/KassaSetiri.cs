@@ -62,7 +62,7 @@ namespace EnterpriseAeroStudio.Models
         public string NovMetni => IsDaxilolma ? "➕ Daxilolma" : "➖ Xərc";
 
         [NotMapped]
-        public string MeblegRengi => IsDaxilolma ? "#34D399" : "#FB7185";
+        public string MeblegRengi => IsDaxilolma ? "#41D39A" : "#FA8A9E";
 
         /// <summary>Ay mətni: «Sentyabr 2026».</summary>
         [NotMapped]
