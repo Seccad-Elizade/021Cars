@@ -89,6 +89,13 @@ namespace EnterpriseAeroStudio.Services
         public static string BuraxilisSehifesi =>
             $"https://github.com/{Sahib}/{Depo}/releases";
 
+        /// <summary>
+        /// 🌐 <b>«ƏN SON BURAXILIŞ» VEB ÜNVANI</b> ✓✓✓
+        /// <para>⚠ Bu API DEYİL ✗ → <b>limit YOXDUR</b> ✓ (əl ilə yoxlama üçün ✓)</para>
+        /// </summary>
+        private static string SonBuraxilisYolu =>
+            $"https://github.com/{Sahib}/{Depo}/releases/latest";
+
         // ══════════════════════════════════════════════════════════════════
         //  📊 GÜNCƏLLƏMƏ VƏZİYYƏTİ ✓ — 🚀 düymənin rəngi üçün ✓
         // ══════════════════════════════════════════════════════════════════
@@ -226,13 +233,49 @@ namespace EnterpriseAeroStudio.Services
 
                 SonYoxlama = DateTime.Now;
 
-                // ℹ️ 404 = hələ HEÇ BİR buraxılış yoxdur ✗ (problem deyil ✓)
+                // ══════════════════════════════════════════════════════════════
+                //  ⚠️ MÜHÜM DÜZƏLİŞ (v6.2.45) ✓✓✓
+                //  ƏVVƏL: 403 (API limiti ✗) cavabı «buraxılış yoxdur» kimi
+                //         şərh olunurdu ✗ → proqram YALANÇI «ƏN SON VERSİYADASINIZ»
+                //         göstərirdi ✗✗✗ (yeni versiyanı GÖRMÜRDÜ ✗)
+                //  İNDİ : əvvəlcə API-SİZ ehtiyat üsul sınanır ✓ (limit yoxdur ✓)
+                //         yalnız o da alınmazsa vəziyyət dürüst göstərilir ✓✓✓
+                // ══════════════════════════════════════════════════════════════
                 if (!cavab.IsSuccessStatusCode)
                 {
-                    AppLogger.Melumat(
-                        $"🚀 Güncəlləmə yoxlaması: {(int)cavab.StatusCode} ✓ (buraxılış yoxdur ✗)");
+                    var ehtiyat = await EhtiyatYoxlaAsync(ct).ConfigureAwait(false);
 
-                    VeziyyetQur(Vəziyyət.EnSon);   // 🟢 ən son versiyadadır ✓
+                    if (ehtiyat is not null)
+                    {
+                        AppLogger.Melumat(
+                            $"🚀 Güncəlləmə: API {(int)cavab.StatusCode} ✗ → ehtiyat üsul ✓ → son versiya {ehtiyat.Versiya}");
+
+                        if (!Yenidir(ehtiyat.Versiya))
+                        {
+                            Tapilan = null;
+                            VeziyyetQur(Vəziyyət.EnSon);
+                            return null;
+                        }
+
+                        Tapilan = ehtiyat;
+                        VeziyyetQur(Vəziyyət.Yenivar);
+
+                        AppLogger.Melumat(
+                            $"🎉 YENİ GÜNCƏLLƏMƏ TAPILDI ✓ (ehtiyat üsul ✓) — {CariVersiyaMetni} → {ehtiyat.Versiya} ✓");
+
+                        try { Tapildi?.Invoke(ehtiyat); } catch { }
+                        return ehtiyat;
+                    }
+
+                    AppLogger.Melumat(
+                        $"🚀 Güncəlləmə yoxlaması: {(int)cavab.StatusCode} ✗ — yoxlana bilmədi ✗");
+
+                    // ⚠ 404 = həqiqətən HEÇ BİR buraxılış yoxdur ✓ (problem deyil ✗)
+                    //   ️ digər hallar (403 · 429 · 5xx) → dürüst «xəta» vəziyyəti ✓✓✓
+                    VeziyyetQur(cavab.StatusCode == System.Net.HttpStatusCode.NotFound
+                        ? Vəziyyət.EnSon
+                        : Vəziyyət.Xeta);
+
                     return null;
                 }
 
@@ -271,12 +314,111 @@ namespace EnterpriseAeroStudio.Services
             {
                 // 🛡️ İnternet yoxdur ✗ / GitHub əlçatmaz ✗ → SƏSSİZCƏ keçir ✓
                 AppLogger.Melumat("🚀 Güncəlləmə yoxlanmadı ✓ — " + ex.Message);
+
+                // 🔁 SON CƏHD: API-siz ehtiyat üsul ✓
+                //    (bəzi şəbəkələrdə api.github.com bloklanır ✗ — github.com işləyir ✓✓✓)
+                var ehtiyat = await EhtiyatYoxlaAsync(CancellationToken.None).ConfigureAwait(false);
+
+                if (ehtiyat is not null && Yenidir(ehtiyat.Versiya))
+                {
+                    Tapilan = ehtiyat;
+                    VeziyyetQur(Vəziyyət.Yenivar);
+
+                    AppLogger.Melumat(
+                        $"🎉 YENİ GÜNCƏLLƏMƏ TAPILDI ✓ (ehtiyat üsul ✓) — {CariVersiyaMetni} → {ehtiyat.Versiya} ✓");
+
+                    try { Tapildi?.Invoke(ehtiyat); } catch { }
+                    return ehtiyat;
+                }
+
                 VeziyyetQur(Vəziyyət.Xeta);   // 🔴 yoxlana bilmədi ✗
                 return null;
             }
             finally
             {
                 _gedir = false;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  🔁 EHTİYAT YOXLAMA ✓✓✓ — API-SİZ (limitsiz ✓)
+        // ══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 🔁 <b>API-SİZ EHTİYAT YOXLAMA</b> ✓✓✓ (v6.2.45)
+        /// <para>
+        /// ⚠ <b>NİYƏ LAZIMDIR:</b> GitHub API-si autentifikasiyasız
+        /// <b>60 sorğu/saat</b> limitinə malikdir ✗. Mağazada bir neçə kompüter
+        /// (eyni İP ✗) hər 30 dəqiqədə yoxlayanda limit TEZ DOLUR ✗ →
+        /// API <c>403 Forbidden</c> qaytarırdı ✗ və əvvəlki versiya bunu
+        /// «yeni versiya YOXDUR» kimi şərh edirdi ✗✗✗ → proqram YALANÇI olaraq
+        /// «ƏN SON VERSİYADASINIZ» göstərirdi ✗ (yeni versiyanı GÖRMÜRDÜ ✗).
+        /// </para>
+        /// <para>
+        /// ✅ <b>HƏLL:</b> adi veb keçidi yoxlanılır ✓ —
+        /// <c>github.com/…/releases/latest</c> → <c>302</c> →
+        /// <c>Location</c> başlığında teq olur ✓ (məs. <c>…/releases/tag/v6.2.45</c> ✓).
+        /// Bu üsul <b>API SAYILMIR</b> ✗ → <b>limiti YOXDUR</b> ✓✓✓
+        /// </para>
+        /// <para>
+        /// ⬇️ Installer ünvanı SABİTdir ✓ — həmişə ƏN SON buraxılışın faylını verir ✓:
+        /// <c>…/releases/latest/download/021Cars_Installer.exe</c> ✓
+        /// </para>
+        /// </summary>
+        private static async Task<GuncellemeMelumati?> EhtiyatYoxlaAsync(CancellationToken ct)
+        {
+            try
+            {
+                // ⚠ AYRI HttpClient ✓ — ümumi «Http» avtomatik yönləndirməni
+                //   SÖNDÜRMƏK OLMAZ ✗ (yükləmə ondan asılıdır ✓✓✓)
+                using var keçid = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+                {
+                    Timeout = TimeSpan.FromSeconds(25)
+                };
+
+                keçid.DefaultRequestHeaders.UserAgent.ParseAdd("021Cars-Updater/1.0");
+
+                using var cavab = await keçid.GetAsync(SonBuraxilisYolu, ct).ConfigureAwait(false);
+
+                var yer = cavab.Headers.Location?.ToString() ?? "";
+
+                if (string.IsNullOrWhiteSpace(yer))
+                {
+                    return null;   // ⚠ yönləndirmə yoxdur ✗ → buraxılış da yoxdur ✓
+                }
+
+                var i = yer.IndexOf("/tag/", StringComparison.OrdinalIgnoreCase);
+
+                if (i < 0)
+                {
+                    return null;
+                }
+
+                var teq = yer[(i + 5)..].Split('?')[0].Split('#')[0].Trim('/');
+                var versiya = TəmizVersiya(teq);
+
+                if (string.IsNullOrWhiteSpace(versiya))
+                {
+                    return null;
+                }
+
+                return new GuncellemeMelumati
+                {
+                    Teq = teq,
+                    Versiya = versiya,
+                    Ad = $"021Cars {versiya}",
+                    Qeyd = "📦 Yeni versiya hazırdır ✓" + "\n\n" +
+                           "🖥️ «🚀 GÜNCƏLLƏ» basın — proqram özü yükləyib quraşdıracaq ✓" + "\n" +
+                           "🛡️ Baza · media · yedəklər QORUNUR ✓" + "\n\n" +
+                           "📋 Tam qeydlər üçün «🌐 GitHub» düyməsinə basın ✓",
+                    SehifeUrl = $"{BuraxilisSehifesi}/tag/{teq}",
+                    YuklemeUrl = $"{BuraxilisSehifesi}/latest/download/{AssetAdi}"
+                };
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Melumat("🚀 Ehtiyat yoxlama alınmadı ✗ — " + ex.Message);
+                return null;
             }
         }
 
