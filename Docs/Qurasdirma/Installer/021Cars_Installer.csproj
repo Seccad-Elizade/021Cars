@@ -20,7 +20,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 🔗 COM INTEROP DƏSTƏYİ ✓✓✓ (v6.2.21) — trimmed publish-də qısayol SİNMƏSİN ✗✓✓ -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <Version>6.2.46</Version>
+    <Version>6.2.47</Version>
 
     <!-- ======================================================================
          🖼️ QURAŞDIRICI İKONU (021 CARS ✓✓✓)
