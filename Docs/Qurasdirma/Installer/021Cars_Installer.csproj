@@ -20,7 +20,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 🔗 COM INTEROP DƏSTƏYİ ✓✓✓ (v6.2.21) — trimmed publish-də qısayol SİNMƏSİN ✗✓✓ -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <Version>6.2.42</Version>
+    <Version>6.2.43</Version>
+
+    <!-- ======================================================================
+         🖼️ QURAŞDIRICI İKONU (021 CARS ✓✓✓)
+         → əsas layihənin ikonu İSTİFADƏ OLUNUR ✓ (tək mənbə ✗→✓ təkrarlama YOX)
+         Beləliklə 021Cars_Installer.exe · UAC pəncərəsi · qısayollar ·
+         «Proqramlar və Xüsusiyyətlər» — hamısı 021 CARS logosunu göstərir ✓✓✓
+         ====================================================================== -->
+    <ApplicationIcon>..\..\..\Resources\021Cars.ico</ApplicationIcon>
     <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
     <Product>021Cars — Avtomobil Parkı</Product>
     <Company>021Cars</Company>

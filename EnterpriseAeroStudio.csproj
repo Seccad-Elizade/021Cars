@@ -9,7 +9,16 @@
     <RootNamespace>EnterpriseAeroStudio</RootNamespace>
     <AssemblyName>EnterpriseAeroStudio</AssemblyName>
     <ApplicationTitle>Avtomobil Parkı v6.2</ApplicationTitle>
-    <Version>6.2.42</Version>
+    <Version>6.2.43</Version>
+
+    <!-- ======================================================================
+         🖼️ PROQRAM İKONU (021 CARS ✓✓✓)
+         → Resources\021Cars.ico  (çoxölçülü: 16·24·32·48·64·128·256 ✓)
+         Bu ikon EnterpriseAeroStudio.exe faylının İÇİNƏ yazılır ✓ →
+         masaüstü qısayolu · tapşırıq paneli · Alt+Tab · Explorer
+         hamısı 021 CARS logosunu göstərir ✓✓✓
+         ====================================================================== -->
+    <ApplicationIcon>Resources\021Cars.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
