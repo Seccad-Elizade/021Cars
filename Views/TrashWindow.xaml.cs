@@ -27,6 +27,7 @@ namespace EnterpriseAeroStudio.Views
             _dialogs = dialogs;
 
             InitializeComponent();
+            SourceInitialized += (_, _) => EnterpriseAeroStudio.Services.PencereZineti.KoyuBasliq(new System.Windows.Interop.WindowInteropHelper(this).Handle);
             DataContext = this;
 
             Loaded += async (_, _) => await RefreshAsync();

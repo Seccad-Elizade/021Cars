@@ -78,31 +78,31 @@
                         </Grid.RowDefinitions>
 
                         <UniformGrid Grid.Row="0" Columns="5" Margin="0,0,0,16">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🚘 Ümumi Avto Sayı" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CarPark.TotalCars}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🟢 Satışda / Stokda" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CarPark.AvailableCars}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🟠 Kreditdə" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CarPark.CreditCars}" Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#4EC3F5">
+                            <Border Style="{StaticResource KartGoyAc}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="📤 Transfer" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CarPark.TransferCars}" Style="{StaticResource StatValue}" Foreground="#4EC3F5"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="💎 Toplam Maya Dəyəri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CarPark.TotalCost, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
@@ -206,7 +206,7 @@
                                 </StackPanel>
 
                                 <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
-                                    <Button Content="✨ Avtomobil Əlavə Et" Style="{StaticResource iOSButton}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
+                                    <Button Content="✨ Avtomobil Əlavə Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding CarPark.AddCarCommand}" IsEnabled="{Binding CarPark.IsBusy, Converter={StaticResource InverseBool}}"/>
                                     <Button Content="↺ Təmizlə" Style="{StaticResource iOSButton}" Background="#2E3D4E" Foreground="#F5F8FC"
                                             Command="{Binding CarPark.ClearFormCommand}"/>
@@ -386,25 +386,25 @@
                         </Grid.RowDefinitions>
 
                         <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F05E5E">
+                            <Border Style="{StaticResource KartQirmizi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Toplam Xərclər" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Expenses.TotalExpense, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F2677F"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Avtomobil Xərcləri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Expenses.CarExpense, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="İnzibati / Ofis Xərcləri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Expenses.OfficeExpense, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Cari Ay Xərcləri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Expenses.MonthExpense, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
@@ -784,25 +784,25 @@
                             </WrapPanel>
 
                             <UniformGrid Columns="4" Margin="0,24,0,0" Visibility="{Binding Calculator.Hesablanib, Converter={StaticResource BoolToVis}}">
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                                <Border Style="{StaticResource KartMavi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="Kredit Məbləği" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Calculator.KreditMeblegi, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                                <Border Style="{StaticResource KartYasil}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="Aylıq Ödəniş" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Calculator.AylıqOdenis, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                                <Border Style="{StaticResource KartQizili}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="Ümumi Ödəniş" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Calculator.UmumiOdenis, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F05E5E">
+                                <Border Style="{StaticResource KartQirmizi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="Ümumi Faiz" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Calculator.UmumiFaiz, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F2677F"/>
@@ -834,25 +834,25 @@
                         </Grid.RowDefinitions>
 
                         <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="💰 Satılan Avtomobil" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Sales.TotalSales}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="💵 Ümumi Gəlir" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Sales.TotalRevenue, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="📈 Ümumi Mənfəət" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Sales.TotalProfit, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="📅 Cari Ay Gəliri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Sales.MonthRevenue, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
@@ -1017,7 +1017,7 @@
                                     <TextBox Width="140" Text="{Binding Sales.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
                                 <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
-                                    <Button Content="+ Satışı Qeyd Et" Style="{StaticResource iOSButton}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
+                                    <Button Content="+ Satışı Qeyd Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Sales.AddSaleCommand}" IsEnabled="{Binding Sales.IsBusy, Converter={StaticResource InverseBool}}"/>
                                     <Button Content="🗑️ Sil" Style="{StaticResource iOSButton}" Background="#F05E5E" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Sales.DeleteSaleCommand}"/>
@@ -1426,7 +1426,7 @@
                                     <TextBox Width="140" Text="{Binding Credits.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
                                 <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
-                                    <Button Content="+ Kredit Əlavə Et" Style="{StaticResource iOSButton}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
+                                    <Button Content="+ Kredit Əlavə Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Credits.AddCreditCommand}"/>
                                     <Button Content="🗑️ Sil" Style="{StaticResource iOSButton}" Background="#F05E5E" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Credits.DeleteCreditCommand}"/>
@@ -2140,14 +2140,14 @@
                         <!-- Seçilmiş kredit üzrə yekun göstəricilər -->
                         <StackPanel Grid.Row="1" Margin="0,0,0,14">
                             <UniformGrid Columns="8">
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                                <Border Style="{StaticResource KartMavi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="💵 Satış Qiyməti" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedCredit.Mebleg, Converter={StaticResource Currency}}"
                                                    Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                                <Border Style="{StaticResource KartQizili}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="🏦 Kreditləşdirilən" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedCredit.Kreditlesdirilen, Converter={StaticResource Currency}}"
@@ -2157,14 +2157,14 @@
                                                    ToolTip="Faiz = Kreditləşdirilən × Faiz% ÷ 100 · Qiymət = Kreditləşdirilən + Faiz"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                                <Border Style="{StaticResource KartYasil}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="✅ Ödənilib" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedOdenilen, Converter={StaticResource Currency}}"
                                                    Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F05E5E">
+                                <Border Style="{StaticResource KartQirmizi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="⏳ Qalıq (kredit + faiz)" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedQaliq, Converter={StaticResource Currency}}"
@@ -2178,14 +2178,14 @@
                                                    ToolTip="«🏷️ Kredit Əlavə Gəlir/Xərc» tabında bu kreditə yazılan bütün «Xərc» qeydlərinin cəmi ✓ — qalıq borca ƏLAVƏ olunur ✓✓✓ (v6.2.35)"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                                <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="🔢 Ödəniş Sayı" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedOdenisSayi}"
                                                    Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#17B4CE">
+                                <Border Style="{StaticResource KartFiruzeyi}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="📆 Son Ödəniş" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedSonOdenis}"
@@ -2200,7 +2200,7 @@
                                      📌 KÖK = kreditləşdirilən (müştərinin əsas borcu) ✓
                                      📌 Altında AYLIQ KÖK də göstərilir ✓ (KÖK ÷ Müddət ✓)
                                      ==================================================== -->
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F48A3E">
+                                <Border Style="{StaticResource KartNarinci}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="🔢 KÖK (əsas borc)" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedKok, Converter={StaticResource Currency}}"
@@ -2212,7 +2212,7 @@
                                 </Border>
 
                                 <!-- ✅ ÖDƏNİLMİŞ KÖK + irəliləyiş zolağı ✓ -->
-                                <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#31CE71">
+                                <Border Style="{StaticResource KartYasilAc}" Margin="4">
                                     <StackPanel>
                                         <TextBlock Text="✅ Ödənilmiş KÖK" Style="{StaticResource StatLabel}"/>
                                         <TextBlock Text="{Binding Credits.SelectedOdenilmisKok, Converter={StaticResource Currency}}"
@@ -2360,25 +2360,25 @@
                         </Grid.RowDefinitions>
 
                         <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Ümumi Gəlir" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CreditTransactions.TotalIncome, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F05E5E">
+                            <Border Style="{StaticResource KartQirmizi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Ümumi Xərc" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CreditTransactions.TotalExpense, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#F2677F"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Xalis Nəticə" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CreditTransactions.Net, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="Əməliyyat Sayı" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding CreditTransactions.Transactions.Count}" Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
@@ -4744,25 +4744,25 @@
                         </Grid.RowDefinitions>
 
                         <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🗄️ Satılan Avtomobil" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding SalesArchive.SoldCarsCount}" Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="💵 Satış Gəliri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding SalesArchive.TotalSoldRevenue, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="📈 Satış Mənfəəti" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding SalesArchive.TotalSoldProfit, Converter={StaticResource Currency}}" Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="✅ Krediti Bitmiş" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding SalesArchive.CompletedCreditsCount}" Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
@@ -5352,7 +5352,7 @@
                                             <TextBlock Text="Qeyd" Style="{StaticResource FieldLabel}"/>
                                             <TextBox Width="110" Text="{Binding NewPartnerQeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                         </StackPanel>
-                                        <Button Content="➕ Əlavə et" Style="{StaticResource iOSButton}" Background="#22B981"
+                                        <Button Content="➕ Əlavə et" Style="{StaticResource iOSButtonEsas}" Background="#22B981"
                                                 Foreground="White" Margin="0,18,0,0" FontSize="11"
                                                 Command="{Binding AddPartnerCommand}"/>
                                     </WrapPanel>
@@ -6117,35 +6117,35 @@
                         <!-- ② NƏTİCƏ KARTLARI -->
                         <UniformGrid Grid.Row="1" Columns="5" Margin="0,10,0,0"
                                      Visibility="{Binding Skript.NeticeVar, Converter={StaticResource BoolToVis}}">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🚗 Yazılan maşın" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Skript.ElaveOlunanMasin}"
                                                Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🧾 Xərc sətri" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Skript.ElaveOlunanXerc}"
                                                Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="➕ Yeni kateqoriya" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Skript.YeniKateqoriya}"
                                                Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="⏭️ Keçilən (artıq var)" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Skript.KecirilenMasin}"
                                                Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#17B4CE">
+                            <Border Style="{StaticResource KartFiruzeyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="⛓️ ÜMUMİ MAYA" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding Skript.UmumiMaya, Converter={StaticResource Currency}}"
@@ -6260,56 +6260,56 @@
                         <!-- ② XÜLASƏ KARTLARI -->
                         <UniformGrid Grid.Row="1" Columns="8" Margin="0,10,0,0"
                                      Visibility="{Binding KreditIdxal.NeticeVar, Converter={StaticResource BoolToVis}}">
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#5C8CFF">
+                            <Border Style="{StaticResource KartMavi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="📄 Kredit sayı" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.KreditSayi}"
                                                Style="{StaticResource StatValue}" Foreground="#7EA8FF"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#A97BF5">
+                            <Border Style="{StaticResource KartBenovseyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="💰 KÖK (əsas borc)" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiKok, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#C69CFB"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#17B4CE">
+                            <Border Style="{StaticResource KartFiruzeyi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🚘 ÜMUMİ MAYA" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiMaya, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#45D2EC"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#22B981">
+                            <Border Style="{StaticResource KartYasil}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="✅ ÖDƏNİLMİŞ" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiOdenilmis, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#41D39A"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#E5A62E">
+                            <Border Style="{StaticResource KartQizili}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="🕓 QALIQ NİSYƏ" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiQaliqNisye, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#F3C24B"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#EA6BA5">
+                            <Border Style="{StaticResource KartPembe}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="👥 BÖLÜNƏN MƏNFƏƏT" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiMayaKar, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#F58CC0"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F2677F">
+                            <Border Style="{StaticResource KartCehrayi}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="⚖️ CƏRİMƏLƏR" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiCerime, Converter={StaticResource Currency}}"
                                                Style="{StaticResource StatValue}" Foreground="#FA8A9E"/>
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource GlassCard}" Margin="4" BorderBrush="#F3C24B">
+                            <Border Style="{StaticResource KartQiziliAc}" Margin="4">
                                 <StackPanel>
                                     <TextBlock Text="⏳ İLKİN MÖHLƏT" Style="{StaticResource StatLabel}"/>
                                     <TextBlock Text="{Binding KreditIdxal.UmumiMohlet, Converter={StaticResource Currency}}"

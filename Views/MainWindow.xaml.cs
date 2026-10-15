@@ -37,6 +37,7 @@ namespace EnterpriseAeroStudio.Views
         public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();
+            SourceInitialized += (_, _) => EnterpriseAeroStudio.Services.PencereZineti.KoyuBasliq(new System.Windows.Interop.WindowInteropHelper(this).Handle);
             _viewModel = viewModel;
             DataContext = viewModel;
 

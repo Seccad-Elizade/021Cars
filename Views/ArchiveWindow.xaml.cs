@@ -10,6 +10,7 @@ namespace EnterpriseAeroStudio.Views
         public ArchiveWindow()
         {
             InitializeComponent();
+            SourceInitialized += (_, _) => EnterpriseAeroStudio.Services.PencereZineti.KoyuBasliq(new System.Windows.Interop.WindowInteropHelper(this).Handle);
         }
 
         /// <summary>Fayl sətrinə iki dəfə klikləyəndə faylı əməliyyat sistemi ilə açır.</summary>

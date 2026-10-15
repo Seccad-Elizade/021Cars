@@ -43,6 +43,7 @@ namespace EnterpriseAeroStudio.Views
             _avtomatik = m is not null;
 
             InitializeComponent();
+            SourceInitialized += (_, _) => EnterpriseAeroStudio.Services.PencereZineti.KoyuBasliq(new System.Windows.Interop.WindowInteropHelper(this).Handle);
             Closing += OnClosing;
 
             if (_avtomatik)

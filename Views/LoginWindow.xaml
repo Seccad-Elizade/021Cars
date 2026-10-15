@@ -1,32 +1,33 @@
 <Window x:Class="EnterpriseAeroStudio.Views.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="🔐 Proqrama Giriş" Height="580" Width="470"
+        Title="🔐 Proqrama Giriş" Height="600" Width="480"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="Transparent" Foreground="#F3F7FB"
+        Background="Transparent" Foreground="#E8EFF7"
         FontFamily="Segoe UI Variable Text, Segoe UI"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
         WindowStyle="None" AllowsTransparency="True">
 
     <!-- ======================================================================
-         🔐 GİRİŞ PƏNCƏRƏSİ — peşəkar dizayn (v6.2.44)
+         🔐 GİRİŞ PƏNCƏRƏSİ — ZƏRİF DİZAYN v2 (v6.2.46) ✓✓✓
          ⚠ Funksiya dəyişməyib ✗ — element adları və hadisələr EYNİDİR ✓✓✓
+         ✅ Yumşaq işıq (qradiyent) · zərif fokus effekti · parıltısız düymə ✓
          ====================================================================== -->
-    <Border Margin="16" CornerRadius="20" BorderBrush="#2B3949" BorderThickness="1">
+    <Border Margin="16" CornerRadius="22" BorderBrush="#26364A" BorderThickness="1">
         <Border.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#121A26" Offset="0"/>
-                <GradientStop Color="#0C131C" Offset="0.58"/>
-                <GradientStop Color="#151E29" Offset="1"/>
+                <GradientStop Color="#131C29" Offset="0"/>
+                <GradientStop Color="#0C131C" Offset="0.55"/>
+                <GradientStop Color="#101927" Offset="1"/>
             </LinearGradientBrush>
         </Border.Background>
         <Border.Effect>
-            <DropShadowEffect BlurRadius="36" ShadowDepth="10" Direction="270" Color="#000000" Opacity="0.6"/>
+            <DropShadowEffect BlurRadius="38" ShadowDepth="10" Direction="270" Color="#000000" Opacity="0.55"/>
         </Border.Effect>
 
         <Grid>
-            <!-- Üst nazik «brend» zolağı ✓ (qızılı → göy qradiyent ✓) -->
-            <Border Height="3" VerticalAlignment="Top" CornerRadius="20,20,0,0">
+            <!-- Üst nazik «brend» zolağı ✓ -->
+            <Border Height="3" VerticalAlignment="Top" CornerRadius="22,22,0,0">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                         <GradientStop Color="#F3C24B" Offset="0"/>
@@ -36,7 +37,18 @@
                 </Border.Background>
             </Border>
 
-            <Grid Margin="34,34,34,26">
+            <!-- 🕯️ Yumşaq işıq (loqonun arxasında, göz yormayan ✓) -->
+            <Ellipse Width="320" Height="320" VerticalAlignment="Top" Margin="0,-70,0,0"
+                     HorizontalAlignment="Center" IsHitTestVisible="False">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#1E4C7DFF" Offset="0"/>
+                        <GradientStop Color="#004C7DFF" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <Grid Margin="36,36,36,26">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -49,67 +61,108 @@
 
                 <!-- ==================== ① LOQO + BREND ==================== -->
                 <StackPanel Grid.Row="0">
-                    <Border Width="86" Height="86" CornerRadius="22" HorizontalAlignment="Center"
-                            BorderBrush="#2E3D4E" BorderThickness="1">
+                    <Border Width="88" Height="88" CornerRadius="24" HorizontalAlignment="Center"
+                            BorderBrush="#2E4256" BorderThickness="1">
                         <Border.Background>
                             <ImageBrush ImageSource="/Resources/021Cars.png" Stretch="UniformToFill"/>
                         </Border.Background>
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="22" ShadowDepth="5" Direction="270"
+                            <DropShadowEffect BlurRadius="26" ShadowDepth="6" Direction="270"
                                               Color="#000000" Opacity="0.5"/>
                         </Border.Effect>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
                         <TextBlock Text="021" FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="27" FontWeight="Bold" Foreground="#F3C24B"/>
+                                   FontSize="28" FontWeight="Bold" Foreground="#F3C24B"/>
                         <TextBlock Text=" CARS" FontFamily="{StaticResource DisplayFont}"
-                                   FontSize="27" FontWeight="Bold" Foreground="#F3F7FB"/>
+                                   FontSize="28" FontWeight="Bold" Foreground="#E8EFF7"/>
                     </StackPanel>
 
                     <TextBlock Text="AVTOMOBİL PARKI  ·  İDARƏETMƏ SİSTEMİ" FontSize="10.5"
-                               Foreground="#8798AD" HorizontalAlignment="Center" Margin="0,7,0,0"/>
+                               Foreground="#8798AD" HorizontalAlignment="Center" Margin="0,8,0,0"/>
 
-                    <Border Height="1" Margin="0,22,0,0">
+                    <Border Height="1" Margin="0,24,0,0">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#202D3C" Offset="0"/>
-                                <GradientStop Color="#2E3D4E" Offset="0.5"/>
-                                <GradientStop Color="#202D3C" Offset="1"/>
+                                <GradientStop Color="#1B2634" Offset="0"/>
+                                <GradientStop Color="#2E4256" Offset="0.5"/>
+                                <GradientStop Color="#1B2634" Offset="1"/>
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>
                 </StackPanel>
+
                 <!-- ==================== ② İSTİFADƏÇİ ADI ==================== -->
                 <TextBlock Grid.Row="1" Text="👤  İSTİFADƏÇİ ADI" FontSize="11" FontWeight="Bold"
-                           Foreground="#A6B4C4" Margin="2,22,0,7"/>
-                <Border Grid.Row="2" Background="#131C26" CornerRadius="12" Padding="14,2"
-                        BorderBrush="#2B3949" BorderThickness="1">
+                           Foreground="#A6B4C4" Margin="3,24,0,8"/>
+                <Border Grid.Row="2" Background="#0E1620" CornerRadius="12" Padding="14,2"
+                        BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="#253242"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsFocused, ElementName=IstifadeciAdi}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#4C7DFF"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect BlurRadius="14" ShadowDepth="0"
+                                                              Color="#4C7DFF" Opacity="0.30"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <TextBox x:Name="IstifadeciAdi" Background="Transparent" BorderThickness="0"
-                             Foreground="#F3F7FB" CaretBrush="#5C8CFF" FontSize="15"
+                             Foreground="#E8EFF7" CaretBrush="#5C8CFF" FontSize="15"
                              VerticalContentAlignment="Center" Height="36"
                              ToolTip="Sahil · Asif · Seccad"/>
                 </Border>
 
                 <!-- ==================== ③ ŞİFRƏ ==================== -->
                 <TextBlock Grid.Row="3" Text="🔑  ŞİFRƏ" FontSize="11" FontWeight="Bold"
-                           Foreground="#A6B4C4" Margin="2,16,0,7"/>
-                <Border Grid.Row="4" Background="#131C26" CornerRadius="12" Padding="14,2"
-                        BorderBrush="#2B3949" BorderThickness="1">
+                           Foreground="#A6B4C4" Margin="3,16,0,8"/>
+                <Border Grid.Row="4" Background="#0E1620" CornerRadius="12" Padding="14,2"
+                        BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="#253242"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsFocused, ElementName=SifreQutusu}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#4C7DFF"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect BlurRadius="14" ShadowDepth="0"
+                                                              Color="#4C7DFF" Opacity="0.30"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsFocused, ElementName=SifreAciq}" Value="True">
+                                    <Setter Property="BorderBrush" Value="#4C7DFF"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect BlurRadius="14" ShadowDepth="0"
+                                                              Color="#4C7DFF" Opacity="0.30"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Grid>
                         <PasswordBox x:Name="SifreQutusu" Background="Transparent" BorderThickness="0"
-                                     Foreground="#F3F7FB" CaretBrush="#5C8CFF" FontSize="15"
+                                     Foreground="#E8EFF7" CaretBrush="#5C8CFF" FontSize="15"
                                      VerticalContentAlignment="Center" Height="36"
                                      KeyDown="Sifre_KeyDown"/>
                         <TextBox x:Name="SifreAciq" Background="Transparent" BorderThickness="0"
-                                 Foreground="#F3F7FB" CaretBrush="#5C8CFF" FontSize="15"
+                                 Foreground="#E8EFF7" CaretBrush="#5C8CFF" FontSize="15"
                                  VerticalContentAlignment="Center" Height="36"
                                  Visibility="Collapsed" KeyDown="Sifre_KeyDown"/>
                     </Grid>
                 </Border>
-
                 <!-- ==================== ④ XƏTA + GÖSTƏR ==================== -->
-                <DockPanel Grid.Row="5" Margin="0,12,0,0" VerticalAlignment="Top">
+                <DockPanel Grid.Row="5" Margin="3,14,0,0" VerticalAlignment="Top">
                     <CheckBox DockPanel.Dock="Right" x:Name="SifreGoster" Content="👁 Göstər"
                               FontSize="11.5" VerticalAlignment="Center"
                               Checked="SifreGoster_Changed" Unchecked="SifreGoster_Changed"/>
@@ -118,25 +171,29 @@
                 </DockPanel>
 
                 <!-- ==================== ⑤ DÜYMƏLƏR ==================== -->
-                <StackPanel Grid.Row="6" Margin="0,14,0,0">
+                <StackPanel Grid.Row="6" Margin="0,16,0,0">
                     <Button Content="🔓  D A X İ L   O L" Height="46" FontSize="14" FontWeight="Bold"
                             Foreground="#FFFFFF" BorderThickness="0"
                             Cursor="Hand" IsDefault="True" Click="Giris_Click">
                         <Button.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#5C8CFF" Offset="0"/>
+                                <GradientStop Color="#4C7DFF" Offset="0"/>
                                 <GradientStop Color="#3B66E8" Offset="1"/>
                             </LinearGradientBrush>
                         </Button.Background>
+                        <Button.Effect>
+                            <DropShadowEffect BlurRadius="20" ShadowDepth="2" Direction="270"
+                                              Color="#4C7DFF" Opacity="0.32"/>
+                        </Button.Effect>
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="12"/>
                             </Style>
                         </Button.Resources>
                     </Button>
-                    <Button Content="✖  Çıxış" Height="36" Margin="0,10,0,0" FontSize="12"
-                            Background="#1B2634" Foreground="#A6B4C4" BorderThickness="0"
-                            Cursor="Hand" Click="Cixis_Click">
+                    <Button Content="✖  Çıxış" Height="36" Margin="0,12,0,0" FontSize="12"
+                            Background="#161F2B" Foreground="#A6B4C4" BorderBrush="#253242"
+                            BorderThickness="1" Cursor="Hand" Click="Cixis_Click">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="12"/>
@@ -145,10 +202,11 @@
                     </Button>
                     <TextBlock Text="🔐 Giriş məlumatları yalnız proqramın içinə aiddir ✓"
                                FontSize="10" Foreground="#8798AD" HorizontalAlignment="Center"
-                               Margin="0,14,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
+                               Margin="0,16,0,0" TextWrapping="Wrap" TextAlignment="Center"/>
                 </StackPanel>
+
+
             </Grid>
         </Grid>
     </Border>
 </Window>
-

@@ -35,6 +35,179 @@
         </Setter>
     </Style>
 
+    <!-- ==================================================================== -->
+    <!--  🌿 ZƏRİF STATİSTİKA KARTLARI — v6.2.46 ✓✓✓                          -->
+    <!--  ⚠ ƏVVƏL: 46 kartın ətrafında TAM DOYĞUN rəngli haşiyə ✗             -->
+    <!--     («yol nişanı» effekti ✗ → göz yorulur ✗)                          -->
+    <!--  ✅ İNDİ: çox zəif rəngli fon tonu + yumşaq tonlu haşiyə ✓            -->
+    <!--     → rəng kimliyi QALIR ✓ (yaşıl · mavi · qızılı · bənövşəyi ✓)      -->
+    <!--     → sakit, dərin, peşəkar görünüş ✓✓✓                               -->
+    <!-- ==================================================================== -->
+    <Style x:Key="KartYasil" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#1E4634"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#12251C" Offset="0"/>
+                    <GradientStop Color="#101B19" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartMavi" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#24406F"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#141F33" Offset="0"/>
+                    <GradientStop Color="#101823" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartQizili" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#4A3A16"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#241E10" Offset="0"/>
+                    <GradientStop Color="#1A1712" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartQiziliAc" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#4A3F16"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#241F10" Offset="0"/>
+                    <GradientStop Color="#1A1812" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartFiruzeyi" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#1B4451"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#10232A" Offset="0"/>
+                    <GradientStop Color="#0F1A20" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartGoyAc" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#1F4459"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#12202A" Offset="0"/>
+                    <GradientStop Color="#101A20" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ==================================================================== -->
+    <!--  🌿 CƏDVƏL KƏNAR ZOLAĞI + SCROLLBAR — v6.2.46 ✓✓✓                    -->
+    <!--  ⚠ ƏVVƏL: sətir başlığı zolağı və scrollbar AÇIQ RƏNGLİ idi ✗        -->
+    <!--     (qaranlıq interfeysdə ağ zolaq ✗ → gözü yorur ✗)                  -->
+    <!--  ✅ İNDİ: tünd, nazik, temaya uyğun ✓✓✓                               -->
+    <!-- ==================================================================== -->
+    <Style TargetType="DataGridRowHeader">
+        <Setter Property="Background" Value="#141D28"/>
+        <Setter Property="Foreground" Value="#8798AD"/>
+        <Setter Property="BorderBrush" Value="#2B3949"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="thumb" CornerRadius="4" Background="#33455A" Margin="3,2"/>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="thumb" Property="Background" Value="#46607D"/>
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="thumb" Property="Background" Value="#5C8CFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="12"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ==================================================================== -->
+    <!--  🚀 ƏSAS DÜYMƏ («primary») — v6.2.46 ✓✓✓                             -->
+    <!--  Əsas əməliyyat (əlavə et · yarat) bir az DAHA GÖRÜNƏN olur ✓        -->
+    <!--  → istifadəçi hara basacağını dərhal anlayır ✓ (yenə də parlaq deyil ✓) -->
+    <!-- ==================================================================== -->
+    <Style x:Key="iOSButtonEsas" TargetType="Button" BasedOn="{StaticResource iOSButton}">
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="btnBorder" Background="#12251C" CornerRadius="10"
+                                BorderBrush="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="14" ShadowDepth="0" Color="#22B981" Opacity="0.22"/>
+                            </Border.Effect>
+                        </Border>
+                        <Border Background="{TemplateBinding Background}" Opacity="0.34" CornerRadius="10"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="btnBorder" Property="Background" Value="#16301F"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="btnBorder" Property="Opacity" Value="0.75"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.40"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ==================== İPUCU (TOOLTIP) ==================== -->
     <Style TargetType="ToolTip">
         <Setter Property="Background" Value="#1B2634"/>
@@ -45,6 +218,73 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="HasDropShadow" Value="False"/>
         <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
+    </Style>
+
+    <Style x:Key="KartBenovseyi" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#382A5C"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#1D1730" Offset="0"/>
+                    <GradientStop Color="#15121F" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartQirmizi" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#4C2226"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#261314" Offset="0"/>
+                    <GradientStop Color="#1B1113" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartCehrayi" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#48222B"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#241318" Offset="0"/>
+                    <GradientStop Color="#1A1114" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartPembe" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#4E2140"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#26131E" Offset="0"/>
+                    <GradientStop Color="#1B1116" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartNarinci" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#4A3018"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#241A10" Offset="0"/>
+                    <GradientStop Color="#1A1512" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="KartYasilAc" TargetType="Border" BasedOn="{StaticResource GlassCard}">
+        <Setter Property="BorderBrush" Value="#1E4631"/>
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#12251A" Offset="0"/>
+                    <GradientStop Color="#101B17" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ==================== SEÇİM QUTUSU (CHECKBOX) ==================== -->
@@ -212,11 +452,32 @@
     </Style>
 
     <!-- ==================== DATEPICKER ==================== -->
+    <!-- ==================================================================== -->
+    <!--  📅 TARİX SAHƏSİ — v6.2.46 ✓✓✓                                      -->
+    <!--  ⚠ ƏVVƏL: DatePicker-in İÇİNDƏKİ qutu AÇIQ RƏNGLİ haşiyə çəkirdi ✗   -->
+    <!--     (qaranlıq interfeysdə ağ çərçivə ✗ → çox gözə batır ✗)            -->
+    <!--  ✅ İNDİ: öz şablonu ✓ — tam şəffaf, haşiyəsiz, temaya uyğun ✓✓✓      -->
+    <!-- ==================================================================== -->
     <Style TargetType="DatePickerTextBox">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="#F3F7FB"/>
+        <Setter Property="CaretBrush" Value="#5C8CFF"/>
         <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DatePickerTextBox">
+                    <Grid Background="Transparent">
+                        <ScrollViewer x:Name="PART_ContentHost" Background="Transparent"
+                                      BorderThickness="0" VerticalAlignment="Center"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
     <Style TargetType="DatePicker">
         <Setter Property="Height" Value="38"/>
@@ -238,21 +499,40 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <!-- Standart fon/mətn ✓ — Background yazılmayan düymələr də temaya uyğun olsun ✓ -->
+        <Setter Property="Background" Value="#1B2634"/>
+        <Setter Property="Foreground" Value="#DFE7F0"/>
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="btnBorder" Background="{TemplateBinding Background}" CornerRadius="10">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                    </Border>
+                    <!-- ============================================================
+                         🌿 YUMŞAQ DÜYMƏ («soft») — v6.2.46 ✓✓✓
+                         ⚠ ƏVVƏL: rəng TAM gücdə doldurulurdu ✗
+                            → ekranda 5-6 neon rəngli düymə yan-yana ✗
+                            → göz yorulurdu ✗ və «yol nişanı» effekti yaranırdı ✗
+                         ✅ İNDİ: tünd baza + rəngin ~20% tonu + həmin rəngdə 1px haşiyə ✓
+                            → rəng kimliyi QALIR ✓ (yaşıl = əlavə et · qırmızı = sil ✓)
+                            → parıltı YOX ✗ → sakit, peşəkar görünüş ✓✓✓
+                         ============================================================ -->
+                    <Grid>
+                        <Border x:Name="btnBorder" Background="#141E29" CornerRadius="10"
+                                BorderBrush="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                        <Border x:Name="tint" Background="{TemplateBinding Background}"
+                                Opacity="0.20" CornerRadius="10"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="btnBorder" Property="Opacity" Value="0.9"/>
+                            <Setter TargetName="tint" Property="Opacity" Value="0.34"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="btnBorder" Property="Opacity" Value="0.72"/>
+                            <Setter TargetName="tint" Property="Opacity" Value="0.46"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="btnBorder" Property="Opacity" Value="0.45"/>
+                            <Setter Property="Opacity" Value="0.40"/>
                             <Setter Property="Cursor" Value="Arrow"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
