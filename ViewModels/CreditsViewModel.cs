@@ -1153,6 +1153,133 @@ namespace EnterpriseAeroStudio.ViewModels
         public int SelectedOdenisSayi { get; private set; }
 
         // ====================================================================
+        //  🏷️ MAYA ÖDƏNİŞİ (v6.2.48) ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Kreditlər tabında ödəniş vəziyyətində MAYA-nın
+        //    da ödənişi görünməlidir — adı "Maya ödəniş" olmalıdır» ✓✓✓
+        //
+        //  📌 MƏNTİQ:
+        //    Maya            = avtomobilin maya dəyəri (₼) ✓
+        //    Maya ödəniş     = ödənişlərdən mayanı qarşılayan hissə ✓
+        //                      (ödənilib − maya → mənfi olarsa 0 ✓)
+        //    Maya qalığı     = maya − maya ödənişi ✓
+        // ====================================================================
+
+        /// <summary>🏷️ Avtomobilin <b>MAYA</b> dəyəri (₼) ✓</summary>
+        public decimal SelectedMaya { get; private set; }
+
+        /// <summary>💵 <b>MAYA ÖDƏNİŞ</b> — ödənişlərlə qarşılanmış maya hissəsi (₼) ✓</summary>
+        public decimal SelectedMayaOdenis { get; private set; }
+
+        /// <summary>⏳ <b>Maya qalığı</b> = maya − maya ödənişi (₼) ✓</summary>
+        public decimal SelectedMayaQaliq { get; private set; }
+
+        /// <summary>💵 <b>MAYA ÖDƏNİLMİŞ</b> — bölgülərdəki maya hissələrinin cəmi (₼) ✓ (v6.2.51)</summary>
+        public decimal SelectedMayaOdenen { get; private set; }
+
+        /// <summary>
+        /// 📊 <b>MAYA BAR-ININ FAİZİ</b> (0–1) ✓
+        /// <para>🆕 v6.2.51: yalnız <b>maya hissələri</b> hesablanır ✓ —
+        /// bütün ödəniş YOX ✗ (əvvəl 450 ₼-nin hamısı mayadan çıxırdı ✗)</para>
+        /// </summary>
+        public double SelectedMayaFaizi =>
+            SelectedMayaOdenis <= 0m
+                ? 0d
+                : (double)Math.Clamp(SelectedMayaOdenen / SelectedMayaOdenis, 0m, 1m);
+
+        /// <summary>📄 İzah sətri — MAYA-ya aid ✓ (v6.2.51)</summary>
+        public string SelectedMayaXulase =>
+            SelectedMayaOdenis <= 0m
+                ? "🏷️ Maya ödənişi hesablanmadı ✗"
+                : $"🏷️ Maya ödəniş {SelectedMayaOdenis:N2} ₼   ·   Maya ödənilib {SelectedMayaOdenen:N2} ₼   ·   Maya qalıq {SelectedMayaQaliq:N2} ₼";
+
+        /// <summary>
+        /// 🔄 <b>MAYA ÖDƏNİŞİ — YENİ DÜSTUR</b> (v6.2.49) ✓✓✓
+        /// <para>
+        /// ★ İstifadəçi tələbi:
+        /// <c>Maya ödəniş = Satış qiyməti − İlkin ödəniş + İlkin ödəniş möhləti (varsa)</c> ✓
+        /// və <b>gecikmələr</b> bu məbləğin <b>ÜSTÜNƏ</b> gəlir ✓✓✓
+        /// </para>
+        /// <para>⚠ ƏVVƏLKİ səhv: <c>min(ödənilib, maya)</c> hesablanırdı ✗ → istifadəçi
+        /// «bu, ödənilməli məbləğdir» dedi ✓</para>
+        /// <para>📌 <c>Qalıq = Maya ödəniş − Ödənilib</c> ✓ (mənfi olarsa 0 ✓)</para>
+        /// </summary>
+        private void MayaOdenisiniHesabla()
+        {
+            try
+            {
+                var c = SelectedCredit;
+
+                if (c is null)
+                {
+                    SelectedMaya = 0m;
+                    SelectedMayaOdenis = 0m;
+                    SelectedMayaQaliq = 0m;
+                    SelectedMayaOdenen = 0m;
+                    return;
+                }
+
+                SelectedMaya = c.Car?.MayaDeyeri ?? 0m;
+
+                // ⏳ İlkin ödəniş möhlətlərinin CƏMİ (varsa ✓)
+                var mohletCemi = 0m;
+
+                if (c.IlkinMohletleri is not null)
+                {
+                    foreach (var m in c.IlkinMohletleri)
+                    {
+                        mohletCemi += m.Mebleg;
+                    }
+                }
+
+                // ⚠ GECİKMƏ cərimələri — maya ödənişinin ÜSTÜNƏ gəlir ✓
+                var gecikmeCemi = _creditTransactions
+                    .Where(t => t.CreditId == c.Id && t.Nov == "Gecikmə")
+                    .Sum(t => t.Mebleg);
+
+                // 💵 MAYA ÖDƏNİŞ (ödənilməli) = Satış − İlkin + Möhlət + Gecikmə ✓
+                SelectedMayaOdenis = Math.Max(0m, c.Mebleg - c.IlkinOdenis + mohletCemi + gecikmeCemi);
+
+                // ════════════════════════════════════════════════════════════════
+                //  🆕 v6.2.51 — MAYA HİSSƏSİ (istifadəçi tələbi ✓✓✓)
+                // -----------------------------------------------------------------
+                //  ★ Misal: ödəniş 450 ₼ · maya 32 ₼ · Asif 209 ₼ · Musa 209 ₼
+                //    → bölgü bazası = 418 ₼ · MAYA HİSSƏSİ = 450 − 418 = 32 ₼ ✓
+                //
+                //  ⚠ 450 ₼ YALNIZ «Ödəniş qalığı»ndan çıxır ✓
+                //     MAYA qalığından YALNIZ 32 ₼ çıxır ✓✓✓ (əvvəl hamısı çıxırdı ✗)
+                // ════════════════════════════════════════════════════════════════
+                var mayaHissesi = 0m;
+
+                foreach (var t in _creditTransactions)
+                {
+                    if (t.CreditId != c.Id) continue;
+                    if (t.Nov != "Gəlir") continue;
+                    if (!t.TerefdasBolguTetbiqOlunub) continue;
+                    if (t.BolguBazasi is null) continue;
+
+                    mayaHissesi += Math.Max(0m, t.Mebleg - t.BolguBazasi.Value);
+                }
+
+                SelectedMayaOdenen = Math.Round(mayaHissesi, 2);
+
+                // ⏳ Maya qalığı = maya ödənişi − MAYA HİSSƏLƏRİ ✓ (bütün ödəniş YOX ✗)
+                SelectedMayaQaliq = Math.Max(0m, SelectedMayaOdenis - SelectedMayaOdenen);
+
+                OnPropertyChanged(nameof(SelectedMayaOdenen));
+            }
+            catch
+            {
+                SelectedMaya = 0m;
+                SelectedMayaOdenis = 0m;
+                SelectedMayaQaliq = 0m;
+                SelectedMayaOdenen = 0m;
+            }
+        }
+
+
+
+        // ====================================================================
         //  🔢 KÖK (ƏSAS BORC) GÖSTƏRİCİLƏRİ ✓✓✓ (v6.2.17)
         // --------------------------------------------------------------------
         //  ★ İstifadəçi tələbi: «Kreditlər tabında müqaviləni seçəndə orda
@@ -1409,6 +1536,17 @@ namespace EnterpriseAeroStudio.ViewModels
                     ? "—"
                     : payments.Max(t => t.Tarix).ToString("dd.MM.yyyy");
             }
+
+            // 🏷️ v6.2.50 — MAYA ÖDƏNİŞİ hesablanır ✓ + UI-ya BİLDİRİLİR ✓✓✓
+            // ⚠ ƏVVƏLKI SƏHV: hesablanırdı, amma PropertyChanged YOX idi ✗ →
+            //    kartda «0,00» qalırdı ✗ (istifadəçi: «avtomatik hesablanmadı») ✗✓✓
+            MayaOdenisiniHesabla();
+
+            OnPropertyChanged(nameof(SelectedMaya));
+            OnPropertyChanged(nameof(SelectedMayaOdenis));
+            OnPropertyChanged(nameof(SelectedMayaQaliq));
+            OnPropertyChanged(nameof(SelectedMayaFaizi));
+            OnPropertyChanged(nameof(SelectedMayaXulase));
 
             OnPropertyChanged(nameof(SelectedOdenilen));
             // 💸 v6.2.35 — kreditə yazılan əlavə xərc cəmi (qalığa əlavə olunur ✓)
@@ -4075,6 +4213,56 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Seçilmiş avtomobilin MAYA DƏYƏRİ (₼).</summary>
         [ObservableProperty] private decimal kreditMaya;
 
+        // ====================================================================
+        //  ✍️ MANUAL BÖLGÜ REJİMİ (v6.2.48) ✓✓✓
+        // --------------------------------------------------------------------
+        //  ⚠ ƏVVƏL: «Hesabla» HƏMİŞƏ avtomatik bölürdü ✗ →
+        //    istifadəçinin əl ilə yazdığı məbləğlər ÜZƏRİNƏ YAZILIRDI ✗✓✓
+        //
+        //  ✅ İNDİ: bu rejim açıqdırsa —
+        //    ① hər tərəfdaşın payını ÖZÜNÜZ yazırsınız ✓
+        //    ② MAYA da əl ilə yazılır ✓ (avtomobilin mayası avtomatik
+        //       götürülmür ✗ — çünki bölgü tam əl ilədir ✓)
+        //    ③ «Hesabla» yalnız CƏMİ və FƏRQİ yeniləyir ✓ → heç nə silinmir ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 🗓️ <b>SATILMA TARİXİ</b> (v6.2.50) ✓
+        /// <para>Kredit formasında «Başlama Tarixi»-nin SOLUNDA göstərilir ✓
+        /// (avtomobilin satıldığı tarix ✓)</para>
+        /// </summary>
+        [ObservableProperty] private DateTime? satilmaTarixi = DateTime.Today;
+
+        /// <summary>✍️ <b>Manual bölgü rejimi</b> — məbləğlər əl ilə yazılır ✓</summary>
+        [ObservableProperty] private bool kreditBolguManual;
+
+        /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
+        public string KreditBolguRejimMetni =>
+            KreditBolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
+
+        /// <summary>Manual rejim dəyişdikdə — yalnız BAZA yenilənir ✓ (paylar TOXUNULMUR ✗)</summary>
+        partial void OnKreditBolguManualChanged(bool value)
+        {
+            OnPropertyChanged(nameof(KreditBolguRejimMetni));
+            KreditBolguBazasiniYenile();
+        }
+
+        /// <summary>Maya əl ilə dəyişdikdə — baza yenidən hesablanır ✓</summary>
+        partial void OnKreditMayaChanged(decimal value)
+        {
+            KreditBolguBazasiniYenile();
+        }
+
+        /// <summary>Baza = Satış qiyməti − Maya ✓ (paylara TOXUNULMUR ✗)</summary>
+        private void KreditBolguBazasiniYenile()
+        {
+            var baza = Mebleg - KreditMaya;
+
+            KreditBolguBazasi = baza > 0m ? Math.Round(baza, 2) : 0m;
+
+            KreditBolguYenile();
+        }
+
         /// <summary>Payların cəmi (₼).</summary>
         public decimal KreditBolguCemi => KreditTerefdaslari.Sum(r => r.Mebleg);
 
@@ -4164,11 +4352,26 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
             }
 
-            // Maya: seçilmiş avtomobilin maya dəyəri (yoxdursa 0).
-            KreditMaya = SelectedCar?.MayaDeyeri ?? KreditMaya;
+            // Maya: YALNIZ avtomatik rejimdə avtomobilin mayası götürülür ✓
+            // ✍️ MANUAL rejimdə istifadəçinin əl ilə yazdığı maya QORUNUR ✓✓✓
+            if (!KreditBolguManual)
+            {
+                KreditMaya = SelectedCar?.MayaDeyeri ?? KreditMaya;
+            }
 
             var baza = Mebleg - KreditMaya;
             KreditBolguBazasi = baza > 0m ? Math.Round(baza, 2) : 0m;
+
+            // ================================================================
+            //  ✍️ MANUAL REJİM: paylar ƏL İLƏDİR ✓ →
+            //  avtomatik bölgü İŞLƏMİR ✗, heç bir məbləğ ÜZƏRİNƏ YAZILMIR ✗✓✓
+            //  (yalnız cəm · fərq · xülasə yenilənir ✓)
+            // ================================================================
+            if (KreditBolguManual)
+            {
+                KreditBolguYenile();
+                return;
+            }
 
             var modeller = new List<PartnerShare>();
             var sira = 0;

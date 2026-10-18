@@ -962,16 +962,17 @@ namespace EnterpriseAeroStudio.ViewModels
                     TerefdasBolguTetbiqOlunub =
                         Nov == "Gecikmə"
                             ? false                        // ✅ ödənilməmiş → bölgü yox ✓
-                            : BolguTetbiqOlunub && Nov == "Gəlir",
+                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir",
                     // 💰 «Vaxtından tez bağlama» → BolguBazasi = MƏBLƏĞ ✓✓✓
                     //  ⚠ ƏVVƏL burada GÜZƏŞT yazılırdı ✗ → yadda saxlanan baza
                     //    ekrandakından fərqli olurdu ✗ («eksik» fərq yaranırdı ✓)
                     //  ✅ İNDİ ekranda göstərilən baza ilə BİR-BİRDİR ✓✓✓
+                    //  ✍️ v6.2.51: MANUAL rejimdə də baza YAZILIR ✓ (boş qalmır ✗)
                     BolguBazasi = IsErkenBaglama
                         ? Mebleg
                         : Nov == "Gecikmə"
                             ? Mebleg
-                            : BolguTetbiqOlunub && Nov == "Gəlir" ? BolguBazasi : null,
+                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir" ? BolguBazasi : null,
                     // ================================================================
                     //  ✅ GECİKMƏ YARADILARKEN PAYLAR BOŞDUR ✓✓✓
                     // ----------------------------------------------------------------
@@ -1712,6 +1713,64 @@ namespace EnterpriseAeroStudio.ViewModels
         // ====================================================================
 
         /// <summary>
+        /// ✍️ <b>MANUAL BÖLGÜ</b> — «Kredit Əlavə Gəlir/Xərc» tabı (v6.2.51) ✓✓✓
+        /// <para>★ İstifadəçi tələbi: «BÜTÜN tərəfdaş bölgülərində manual bölgü olsun» ✓</para>
+        /// <para>Açıqdırsa paylar <b>ƏL İLƏ</b> yazılır ✓ — hesablama məbləğlərin üzərinə YAZMIR ✗ ✓</para>
+        /// </summary>
+        [ObservableProperty] private bool bolguManual;
+
+        /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
+        public string BolguRejimMetni => BolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
+
+        /// <summary>
+        /// ✍️ Manual rejim dəyişdikdə ✓ (v6.2.51)
+        /// <para>★ İstifadəçi tələbi: «manual edəndə faizlər avtomatik silinsin —
+        /// biz özümüz istədiyimizi yazırıq» ✓✓✓</para>
+        /// </summary>
+        partial void OnBolguManualChanged(bool value)
+        {
+            OnPropertyChanged(nameof(BolguRejimMetni));
+
+            // ✍️ Manual → FAİZLƏR sıfırlanır ✓ (məbləğlər əl ilə yazılır ✓)
+            try
+            {
+                if (value)
+                {
+                    foreach (var r in TerefdasPaylari)
+                    {
+                        r.Faiz = 0m;
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
+        }
+
+        /// <summary>
+        /// 🏷️ <b>BÖLGÜ MAYA-SI</b> (v6.2.51) ✓✓✓
+        /// <para>★ İstifadəçi tələbi: «Kredit Əlavə Gəlir/Xərc» bölgüsündə də
+        /// <b>MAYA soruşulsun</b> ✓ — Kreditlər tabındakı kimi ✓✓✓</para>
+        /// <para>📌 Manual rejimdə: <c>Baza = Əməliyyat məbləği − Maya</c> ✓ (mənfi olarsa 0 ✓)</para>
+        /// </summary>
+        [ObservableProperty] private decimal bolguMaya;
+
+        /// <summary>Maya dəyişdikdə — manual rejimdə BAZA avtomatik yenilənir ✓</summary>
+        partial void OnBolguMayaChanged(decimal value)
+        {
+            // ⚠ Yalnız MANUAL rejimdə ✓ — avtomatik rejimdə əl ilə yazılmış bazaya TOXUNULMUR ✗
+            if (!BolguManual)
+            {
+                return;
+            }
+
+            var baza = Mebleg - value;
+
+            BolguBazasi = baza > 0m ? Math.Round(baza, 2) : 0m;
+        }
+
+        /// <summary>
         /// Bölgünü yenidən hesablayır: faiz payları hesablanır, qalan məbləğ
         /// qalıq payçıları (Asif &amp; Musa) arasında YARI-YARIYA bölünür.
         /// </summary>
@@ -1724,6 +1783,16 @@ namespace EnterpriseAeroStudio.ViewModels
             foreach (var row in TerefdasPaylari)
             {
                 modeller.Add(row.ToModel(sira++));
+            }
+
+            // ================================================================
+            //  ✍️ MANUAL REJİM (v6.2.51) ✓✓✓ — paylar ƏL İLƏDİR ✓
+            //  Avtomatik bölgü İŞLƏMİR ✗ — heç bir məbləğ üzərinə YAZILMIR ✗ ✓
+            // ================================================================
+            if (BolguManual)
+            {
+                BolguYenile();
+                return;
             }
 
             PartnerMath.Distribute(BolguBazasi, modeller);
@@ -1953,7 +2022,14 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         private List<PartnerShare> BolguModelleri()
         {
-            if (!BolguTetbiqOlunub || Nov != "Gəlir")
+            // ================================================================
+            //  ✍️ v6.2.51 — MANUAL REJİM AVTOMATİK TƏTBİQ OLUNUR ✓✓✓
+            //  ⚠ ƏVVƏL: yalnız «✅ Tətbiq olunub» işarəsi ilə paylar yazılırdı ✗
+            //     → manual-da istifadəçi işarəni qoysa da, faizlər 0 olduğu üçün
+            //       paylar görünmürdü ✗ (Tərəfdaşlar tab-ı boş qalırdı ✗✓✓)
+            //  ✅ İNDİ: manual rejimdə paylar BİRBAŞA yazılır ✓ (faiz lazım DEYİL ✗)
+            // ================================================================
+            if ((!BolguTetbiqOlunub && !BolguManual) || Nov != "Gəlir")
             {
                 // ================================================================
                 //  ⚠️ GECİKMƏ (cərimə) → TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓ (v6.2.28)

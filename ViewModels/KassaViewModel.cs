@@ -359,6 +359,147 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Heç gözlənilən möhlət yoxdurmu? (boş panel yazısı üçün ✓)</summary>
         public bool MohletYoxdur => GozlenilenMohletler.Count == 0;
 
+        /// <summary>
+        /// 🗓️ Tarixi istifadəçidən soruşur ✓
+        /// <para>⛔ «Ləğv» / boş cavab → <b>null</b> qaytarır ✓ → çağıran əməliyyat DAYANIR ✓✓✓</para>
+        /// <para>⚠ Səhv format → xəbərdarlıq + YENİDƏN soruşulur ✓ (səssizcə bu gün yazılmır ✗)</para>
+        /// </summary>
+        private DateTime? TarixSor(string basliq, string mesaj, DateTime? defaultTarix = null)
+        {
+            var esas = defaultTarix ?? DateTime.Today;
+
+            var formatlar = new[] { "dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd" };
+
+            while (true)
+            {
+                var cavab = _dialogs.ShowInputDialog(mesaj, basliq, esas.ToString("dd.MM.yyyy"));
+
+                // ⛔ v6.2.52 — «✖ Ləğv» basıldı → ƏMƏLİYYAT LƏĞV EDİLİR ✓✓✓
+                // ⚠ ƏVVƏL: burada `esas` (bu gün) qaytarılırdı ✗ → ödəniş yenə yazılırdı ✗✓✓
+                if (string.IsNullOrWhiteSpace(cavab))
+                {
+                    return null;
+                }
+
+                if (DateTime.TryParseExact(cavab.Trim(), formatlar,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var t))
+                {
+                    return t.Date;
+                }
+
+                if (DateTime.TryParse(cavab.Trim(), out t))
+                {
+                    return t.Date;
+                }
+
+                _dialogs.ShowWarning(
+                    $"⚠ «{cavab}» düzgün tarix deyil ✗\n\n" +
+                    $"Format: gg.aa.yyyy  (məsələn: {esas:dd.MM.yyyy}) ✓\n" +
+                    "Yenidən yazın ✓");
+            }
+        }
+
+        /// <summary>
+        /// ⏳ <b>TAM ÖDƏNİLMƏDİ</b> — qismən ödəniş (v6.2.51) ✓✓✓
+        /// <para>① Nə qədər ödənildi ② Ödəniş tarixi ③ Qalan nə vaxt ödəniləcək ✓</para>
+        /// <para>📌 Ödənilən hissə dərhal KASSAYA daxil olur ✓ · qalan hissə yeni tarixlə qalır ✓</para>
+        /// </summary>
+        [RelayCommand]
+        private async Task MohletQismenOdeAsync(OdenisMohlet? mohlet)
+        {
+            if (mohlet is null || mohlet.Id <= 0 || mohlet.Mebleg <= 0m)
+            {
+                return;
+            }
+
+            var meblegMetni = _dialogs.ShowInputDialog(
+                $"📌 {mohlet.MenbeMetni}\nÜmumi möhlət: {mohlet.Mebleg:N2} ₼\n\n① ÖDƏNİLƏN MƏBLƏĞ (₼):",
+                "⏳ Tam ödənilmədi",
+                mohlet.Mebleg.ToString("N2"));
+
+            if (string.IsNullOrWhiteSpace(meblegMetni))
+            {
+                return;
+            }
+
+            var temiz = meblegMetni.Trim().Replace(" ", string.Empty).Replace(',', '.');
+
+            if (!decimal.TryParse(temiz, System.Globalization.NumberStyles.Any,
+                                  System.Globalization.CultureInfo.InvariantCulture, out var odenilen))
+            {
+                _dialogs.ShowWarning("⚠ Məbləğ düzgün deyil ✗ — yalnız rəqəm yazın ✓");
+                return;
+            }
+
+            if (odenilen <= 0m || odenilen >= mohlet.Mebleg)
+            {
+                _dialogs.ShowWarning(
+                    $"⚠ Məbləğ 0-dan BÖYÜK və {mohlet.Mebleg:N2} ₼-dən KİÇİK olmalıdır ✓\n\n" +
+                    "Hamısı ödənildisə «✅ TAM ÖDƏNİLDİ» düyməsini basın ✓");
+                return;
+            }
+
+            // ⛔ «Ləğv» basılıbsa → heç nə yazılmır ✓✓✓
+            var odenisTarixiSor = TarixSor("⏳ Qismən ödəniş",
+                $"Ödənilən: {odenilen:N2} ₼\n\n② ÖDƏNİŞ TARİXİ (gg.aa.yyyy):");
+
+            if (odenisTarixiSor is null)
+            {
+                return;
+            }
+
+            var odenisTarixi = odenisTarixiSor.Value;
+
+            var qaliq = Math.Round(mohlet.Mebleg - odenilen, 2);
+
+            var qalanTarixSor = TarixSor("⏳ Qalan məbləğ",
+                $"Qalan: {qaliq:N2} ₼\n\n③ QALAN NƏ VAXT ÖDƏNİLƏCƏK? (gg.aa.yyyy):",
+                mohlet.Tarix > DateTime.Today ? mohlet.Tarix : DateTime.Today.AddDays(7));
+
+            if (qalanTarixSor is null)
+            {
+                return;
+            }
+
+            var qalanTarix = qalanTarixSor.Value;
+
+            try
+            {
+                var odenilmis = await _mohletler.AddAsync(new OdenisMohlet
+                {
+                    Menbe = mohlet.Menbe,
+                    CreditId = mohlet.CreditId,
+                    SaleId = mohlet.SaleId,
+                    Tarix = odenisTarixi,
+                    Mebleg = odenilen,
+                    Sira = mohlet.Sira,
+                    Qeyd = "⏳ Qismən ödəniş ✓"
+                });
+
+                await _mohletler.SetOdenildiAsync(odenilmis.Id, true, odenisTarixi);
+
+                mohlet.Mebleg = qaliq;
+                mohlet.Tarix = qalanTarix;
+                await _mohletler.UpdateAsync(mohlet);
+
+                await LoadAsync();
+
+                _dialogs.ShowInfo(
+                    "⏳ QİSMƏN ÖDƏNİŞ YAZILDI ✓✓✓\n\n" +
+                    $"📌 {mohlet.MenbeMetni}\n\n" +
+                    $"💵 Ödənildi : {odenilen:N2} ₼   ({odenisTarixi:dd.MM.yyyy})\n" +
+                    $"⏳ Qalıq    : {qaliq:N2} ₼   ({qalanTarix:dd.MM.yyyy})\n\n" +
+                    "✅ Ödənilən hissə KASSAYA daxil edildi ✓\n" +
+                    "✅ Qalan hissə yeni tarixlə möhlətlərdə qaldı ✓");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Qismən ödəniş yazıla bilmədi");
+                _dialogs.ShowError("Qismən ödəniş yazıla bilmədi: " + ex.Message);
+            }
+        }
+
         /// <summary>✅ Möhləti ÖDƏNİLDİ işarələyir → pul DƏRHAL kassaya daxil olur ✓✓✓</summary>
         [RelayCommand]
         private async Task MohletOdenildiAsync(OdenisMohlet? mohlet)
@@ -368,7 +509,17 @@ namespace EnterpriseAeroStudio.ViewModels
                 return;
             }
 
-            var tarix = DateTime.Today;
+            // 🗓️ v6.2.51 — TARİX MÜTLƏQ SORUŞULUR ✓✓✓ (istifadəçi tələbi ✓)
+            var tarixSor = TarixSor("✅ Tam ödəniş",
+                $"📌 {mohlet.MenbeMetni}\nMəbləğ: {mohlet.Mebleg:N2} ₼\n\nÖDƏNİŞ TARİXİ (gg.aa.yyyy):");
+
+            // ⛔ v6.2.52 — «✖ Ləğv» → ÖDƏNİŞ YAZILMIR ✓✓✓ (əvvəl bu gün yazılırdı ✗)
+            if (tarixSor is null)
+            {
+                return;
+            }
+
+            var tarix = tarixSor.Value;
 
             try
             {
@@ -415,8 +566,30 @@ namespace EnterpriseAeroStudio.ViewModels
 
             try
             {
-                await _mohletler.SetOdenildiAsync(mohlet.Id, false, null);
+                // ================================================================
+                //  ✅ v6.2.51 — LƏĞV: BİRBAŞA UpdateAsync ilə yazılır ✓✓✓
+                //  ⚠ ƏVVƏL: SetOdenildiAsync(...) nəticəsi YOXLANILMIRDI ✗ →
+                //     uğursuz olsa belə proqram «ləğv olundu» deyirdi ✗ (səssiz ✗)
+                //  ✅ İNDİ: entity-nin özü yenilənir ✓ + nəticə yoxlanılır ✓
+                // ================================================================
+                mohlet.Odenilib = false;
+                mohlet.OdenilmeTarixi = null;
+
+                await _mohletler.UpdateAsync(mohlet);
+
+                OdenilmisMohletler.Remove(mohlet);
+
+                OnPropertyChanged(nameof(HasOdenilmis));
+                OnPropertyChanged(nameof(OdenilmisCem));
+
                 await LoadAsync();
+
+                _dialogs.ShowInfo(
+                    "↩️ GERİ ALINDI ✓✓✓\n\n" +
+                    $"📌 {mohlet.MenbeMetni}\n" +
+                    $"Məbləğ: {mohlet.Mebleg:N2} ₼\n\n" +
+                    "✅ Möhlət yenidən «GÖZLƏNİLƏN MÖHLƏTLƏR» siyahısındadır ✓\n" +
+                    "⚠ Pul kassadan ÇIXARILDI ✓ (jurnal yeniləndi ✓)");
 
                 _logger.LogInformation("↩ Möhlətin ödəniş işarəsi geri alındı: {Id}", mohlet.Id);
             }
@@ -559,10 +732,19 @@ namespace EnterpriseAeroStudio.ViewModels
                     .OrderBy(m => m.Tarix)
                     .ToList();
 
+                // ================================================================
+                //  📅 v6.2.51 — ÖDƏNİLMİŞ MÖHLƏTLƏR **DÖVR ÜZRƏ** ✓✓✓
+                //  ★ İstifadəçi tələbi: «hansı ayı seçsək O AYIN ödənilmiş
+                //    möhlətləri görünməlidir» ✓
+                //  → yalnız seçilmiş dövrün ödəniş tarixi olanlar ✓
+                // ================================================================
                 var odenilmis = butunMohletler
-                    .Where(m => m.Odenilib)
+                    .Where(m => m.Odenilib
+                                && m.OdenilmeTarixi.HasValue
+                                && m.OdenilmeTarixi.Value >= from.Date
+                                && m.OdenilmeTarixi.Value <= to.Date)
                     .OrderByDescending(m => m.OdenilmeTarixi ?? m.Tarix)
-                    .Take(100)
+                    .Take(300)
                     .ToList();
 
                 GozlenilenMohletler.Clear();

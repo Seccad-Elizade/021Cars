@@ -653,6 +653,19 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
+        /// <summary>
+        /// ✍️ <b>MANUAL SATIŞ BÖLGÜSÜ</b> (v6.2.51) ✓✓✓
+        /// <para>★ İstifadəçi tələbi: «manual bölgü BÜTÜN tərəfdaş bölgülərində olmalıdır» ✓</para>
+        /// <para>Açıqdırsa: tərəfdaş payları <b>ƏL İLƏ</b> yazılır ✓ — «Hesabla» heç bir məbləğin üzərinə YAZMIR ✗ ✓</para>
+        /// </summary>
+        [ObservableProperty] private bool satisBolguManual;
+
+        /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
+        public string SatisBolguRejimMetni => SatisBolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
+
+        partial void OnSatisBolguManualChanged(bool value) =>
+            OnPropertyChanged(nameof(SatisBolguRejimMetni));
+
         /// <summary>Vəziyyət mətni.</summary>
         public string SatisBolguVeziyyet => SatisBolguTetbiq ? "✅ Tətbiq olunub" : "⬜ Tətbiq olunmayıb";
 
@@ -692,6 +705,17 @@ namespace EnterpriseAeroStudio.ViewModels
             foreach (var row in SatisTerefdaslari)
             {
                 modeller.Add(row.ToModel(sira++));
+            }
+
+            // ================================================================
+            //  ✍️ MANUAL REJİM (v6.2.51) ✓✓✓
+            //  Açıqdırsa avtomatik bölgü İŞLƏMİR ✗ — məbləğlər ƏL İLƏ qalır ✓
+            //  (yalnız cəm · fərq · xülasə yenilənir ✓)
+            // ================================================================
+            if (SatisBolguManual)
+            {
+                SatisBolguYenile();
+                return;
             }
 
             PartnerMath.Distribute(SatisBolguBazasi, modeller);

@@ -65,7 +65,7 @@
                          BİRLİKDƏ sürüşür ✓ (cədvəl `MaxHeight` ilə məhduddur ✓ → virtualizasiya İŞLƏYİR ✓✓✓)
                          ⚠ `MaxHeight` bağlantısında `FallbackValue=700` VACİBDİR ✓ — TAM İZAH: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -239,27 +239,27 @@
                         <Border Grid.Row="3" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
                             <DataGrid x:Name="CarGrid" ItemsSource="{Binding CarPark.Cars}" SelectedItem="{Binding CarPark.SelectedCar}"
                                       AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="False"
-                                      SelectionMode="Single" SelectionUnit="FullRow" RowHeight="40" ColumnHeaderHeight="42"
+                                      SelectionMode="Single" SelectionUnit="FullRow"
                                       MinHeight="380"
                                       MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}"
                                       RowEditEnding="CarGrid_RowEditEnding">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi, UpdateSourceTrigger=PropertyChanged}" SortMemberPath="SiraNomresi" Width="55" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                    <DataGridTextColumn Header="Marka / Model" Binding="{Binding Marka, UpdateSourceTrigger=PropertyChanged}" Width="150" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                    <DataGridTextColumn Header="Dövlət Nömrəsi" Binding="{Binding QeydiyyatNisani, UpdateSourceTrigger=PropertyChanged}" Width="130" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                    <DataGridTextColumn Header="VIN Kod" Binding="{Binding Vin, UpdateSourceTrigger=PropertyChanged}" Width="130" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                    <DataGridTextColumn Header="İl" Binding="{Binding Il, UpdateSourceTrigger=PropertyChanged}" Width="70" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                    <DataGridTextColumn Header="Yürüş (km)" Binding="{Binding Yurus, UpdateSourceTrigger=PropertyChanged}" Width="90" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi, UpdateSourceTrigger=PropertyChanged}" SortMemberPath="SiraNomresi" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="Marka / Model" Binding="{Binding Marka, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="Dövlət Nömrəsi" Binding="{Binding QeydiyyatNisani, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="VIN Kod" Binding="{Binding Vin, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="İl" Binding="{Binding Il, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="Yürüş (km)" Binding="{Binding Yurus, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
                                     <!-- 🗓️ ALIŞ TARİXİ — forma daxil edir, cədvəldə də görünməlidir -->
                                     <DataGridTextColumn Header="🗓️ Alış Tarixi" Binding="{Binding AlisTarixiMetni}"
-                                                        SortMemberPath="AlisTarixi" Width="115" IsReadOnly="True"
+                                                        SortMemberPath="AlisTarixi" Width="Auto" IsReadOnly="True"
                                                         ToolTipService.ToolTip="Avtomobilin alındığı tarix (formada «Alış Tarixi» xanası)"
                                                         ElementStyle="{StaticResource GridCellText}"/>
                                     <DataGridTextColumn Header="🕐 Saat" Binding="{Binding AlisSaati}"
-                                                        Width="70" IsReadOnly="True"
+                                                        Width="Auto" IsReadOnly="True"
                                                         ToolTipService.ToolTip="Alış saatı"
                                                         ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTemplateColumn Header="Yanacaq" Width="150">
+                                    <DataGridTemplateColumn Header="Yanacaq" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Yanacaq}" Style="{StaticResource GridCellText}"/>
@@ -274,7 +274,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Alış Qiyməti (AZN)" Width="150">
+                                    <DataGridTemplateColumn Header="Alış Qiyməti (AZN)" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding AlisQiymeti, Converter={StaticResource Currency}}" Style="{StaticResource GridCellText}"/>
@@ -286,7 +286,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Satış Qiyməti (AZN)" Width="150">
+                                    <DataGridTemplateColumn Header="Satış Qiyməti (AZN)" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding SatisQiymeti, Converter={StaticResource Currency}}" Style="{StaticResource GridCellText}"/>
@@ -298,11 +298,11 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Xərclər" Binding="{Binding Xercler, Converter={StaticResource Currency}}" Width="130" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="140" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="📎 Sənəd" Binding="{Binding SenedMetni}" Width="85" IsReadOnly="True"
+                                    <DataGridTextColumn Header="Xərclər" Binding="{Binding Xercler, Converter={StaticResource Currency}}" Width="Auto" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="Auto" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="📎 Sənəd" Binding="{Binding SenedMetni}" Width="Auto" IsReadOnly="True"
                                                         SortMemberPath="SenedSayi" ElementStyle="{StaticResource SenedCellText}"/>
-                                    <DataGridTemplateColumn Header="Status" Width="130">
+                                    <DataGridTemplateColumn Header="Status" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Status}" Style="{StaticResource GridCellText}"/>
@@ -317,10 +317,10 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Kredit №" Binding="{Binding KreditNomresi, UpdateSourceTrigger=PropertyChanged}" Width="110" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                            <DataGridTextColumn Header="Alış Üsulu" Binding="{Binding AlisUsuluMetni}" Width="100" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="🔄 Barter Əvəzi" Binding="{Binding BarterCarInfo}" Width="190" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTemplateColumn Header="" Width="54" CanUserSort="False">
+                                    <DataGridTextColumn Header="Kredit №" Binding="{Binding KreditNomresi, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                            <DataGridTextColumn Header="Alış Üsulu" Binding="{Binding AlisUsuluMetni}" Width="Auto" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="🔄 Barter Əvəzi" Binding="{Binding BarterCarInfo}" Width="Auto" IsReadOnly="True" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTemplateColumn Header="" Width="Auto" CanUserSort="False">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Button Content="ℹ"
@@ -372,7 +372,7 @@
                          ============================================================ -->
                     <ScrollViewer x:Name="XercSehifeScroll"
                                   VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
                     <Grid Margin="0,16,0,0">
@@ -512,7 +512,7 @@
                         <Border Grid.Row="3" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
                             <DataGrid x:Name="ExpenseGrid" ItemsSource="{Binding Expenses.Expenses}" SelectedItem="{Binding Expenses.SelectedExpense}"
                                       AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="False"
-                                      SelectionMode="Single" SelectionUnit="FullRow" RowHeight="42" ColumnHeaderHeight="42"
+                                      SelectionMode="Single" SelectionUnit="FullRow"
                                       EnableRowVirtualization="True"
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Recycling"
@@ -524,7 +524,7 @@
                                       Sorting="ExpenseGrid_Sorting"
                                       RowEditEnding="ExpenseGrid_RowEditEnding">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Header="Tarix" Width="120">
+                                    <DataGridTemplateColumn Header="Tarix" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Tarix, StringFormat=dd.MM.yyyy}" Style="{StaticResource GridCellText}"/>
@@ -536,7 +536,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Təyinat" Width="165">
+                                    <DataGridTemplateColumn Header="Təyinat" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Teyinat}" Style="{StaticResource GridCellText}"/>
@@ -551,7 +551,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Qrup" Width="*">
+                                    <DataGridTemplateColumn Header="Qrup" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Qrup}" Style="{StaticResource GridCellText}"/>
@@ -566,7 +566,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Kateqoriya" Width="*">
+                                    <DataGridTemplateColumn Header="Kateqoriya" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Kategoriya}" Style="{StaticResource GridCellText}"/>
@@ -581,7 +581,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Avtomobil" Width="*">
+                                    <DataGridTemplateColumn Header="Avtomobil" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding CarInfo}" Style="{StaticResource GridCellText}"/>
@@ -604,7 +604,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Məbləğ" Width="150" CanUserSort="False">
+                                    <DataGridTemplateColumn Header="Məbləğ" Width="Auto" CanUserSort="False">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Mebleg, Converter={StaticResource Currency}}" Style="{StaticResource GridCellText}"/>
@@ -616,7 +616,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Ödəniş Üsulu" Width="140">
+                                    <DataGridTemplateColumn Header="Ödəniş Üsulu" Width="Auto">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding OdenisUsulu}" Style="{StaticResource GridCellText}"/>
@@ -631,7 +631,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd, UpdateSourceTrigger=PropertyChanged}" Width="*" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
+                                    <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd, UpdateSourceTrigger=PropertyChanged}" Width="Auto" ElementStyle="{StaticResource GridCellText}" EditingElementStyle="{StaticResource GridCellTextBox}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -672,7 +672,7 @@
                 <TabItem Header="🧮 Kredit Kalkulyatoru">
                     <!-- 🌊 UZUN FORMADIR → ÖZ SCROLL-U ✓ (xarici ScrollViewer silindi ✓) -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False">
                         <Border Style="{StaticResource GlassCard}" Margin="0,16,0,0" Padding="30">
                         <StackPanel>
@@ -822,7 +822,7 @@
                          (cədvəl `MaxHeight` ilə pəncərə hündürlüyünə məhduddur ✓ → virtualizasiya ✓✓✓)
                          ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -1048,6 +1048,27 @@
                                             </DockPanel>
                                         </Border>
 
+                                        <!-- ============================================================ -->
+                                        <!-- ✍️ MANUAL BÖLGÜ — «Kreditlər» ilə EYNİ üslub (v6.2.51) ✓✓✓   -->
+                                        <!-- ============================================================ -->
+                                        <Border Background="#131C26" CornerRadius="8" Margin="11,8,11,0" Padding="10,8"
+                                                BorderBrush="#24406F" BorderThickness="1">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Sales.SatisBolguRejimMetni}"
+                                                               FontSize="10" FontWeight="Bold" Foreground="#7EA8FF"
+                                                               VerticalAlignment="Center"/>
+                                                    <CheckBox Content="✍️ Manual bölgü" FontSize="11.5" FontWeight="SemiBold"
+                                                              IsChecked="{Binding Sales.SatisBolguManual}"
+                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
+                                                </DockPanel>
+
+                                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                           Visibility="{Binding Sales.SatisBolguManual, Converter={StaticResource BoolToVis}}"
+                                                           Text="① Maya dəyərini və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓　② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓"/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- ===== XEYİR (baza) ===== -->
                                         <TextBlock Margin="11,9,11,4" FontSize="11" Foreground="#F3C24B"
                                                    TextWrapping="Wrap"
@@ -1073,21 +1094,21 @@
                                                 Background="#141D28" BorderBrush="#202D3C" BorderThickness="1">
                                             <DataGrid ItemsSource="{Binding Sales.SatisTerefdaslari}"
                                                       AutoGenerateColumns="False" CanUserAddRows="False"
-                                                      HeadersVisibility="Column" RowHeight="31" ColumnHeaderHeight="31"
+                                                      HeadersVisibility="Column"
                                                       Background="Transparent" BorderThickness="0"
                                                       GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                                       Foreground="#DCE5EF" FontSize="11.5" RowBackground="#141D28"
                                                       AlternatingRowBackground="#101823">
                                                 <DataGrid.Columns>
-                                                    <DataGridCheckBoxColumn Header="TƏTBİQ" Width="66"
+                                                    <DataGridCheckBoxColumn Header="TƏTBİQ" Width="Auto"
                                                                             Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <DataGridTextColumn Header="TƏRƏFDAŞ" Width="*" IsReadOnly="True"
+                                                    <DataGridTextColumn Header="TƏRƏFDAŞ" Width="Auto" IsReadOnly="True"
                                                                         Binding="{Binding Terefdas}"/>
-                                                    <DataGridTextColumn Header="FAİZ %" Width="62"
+                                                    <DataGridTextColumn Header="FAİZ %" Width="Auto"
                                                                         Binding="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <DataGridTextColumn Header="MƏBLƏĞ (₼)" Width="94" IsReadOnly="True"
+                                                    <DataGridTextColumn Header="MƏBLƏĞ (₼)" Width="Auto" IsReadOnly="True"
                                                                         Binding="{Binding Mebleg, StringFormat=N2}"/>
-                                                    <DataGridTextColumn Header="QALIQ" Width="48" IsReadOnly="True"
+                                                    <DataGridTextColumn Header="QALIQ" Width="Auto" IsReadOnly="True"
                                                                         Binding="{Binding QaligPayi}"/>
                                                 </DataGrid.Columns>
                                             </DataGrid>
@@ -1111,19 +1132,19 @@
                         <Border Grid.Row="2" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
                             <DataGrid ItemsSource="{Binding Sales.Sales}" SelectedItem="{Binding Sales.SelectedSale}"
                                       AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                      SelectionMode="Single" RowHeight="40" ColumnHeaderHeight="42"
+                                      SelectionMode="Single"
                                       MinHeight="380"
                                       MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Avtomobil" Binding="{Binding CarInfo}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Alıcı" Binding="{Binding Mustəri}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding SatisQiymeti, Converter={StaticResource Currency}}" Width="150" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="150" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Mənfəət" Binding="{Binding Menfeet, Converter={StaticResource Currency}}" Width="140" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Tarix" Binding="{Binding SatisTarixi, StringFormat=dd.MM.yyyy}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Ödəniş Üsulu" Binding="{Binding OdenisMetni}" Width="200" ElementStyle="{StaticResource GridCellText}"/>
-                                    <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Avtomobil" Binding="{Binding CarInfo}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Alıcı" Binding="{Binding Mustəri}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding SatisQiymeti, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Mənfəət" Binding="{Binding Menfeet, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Tarix" Binding="{Binding SatisTarixi, StringFormat=dd.MM.yyyy}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Ödəniş Üsulu" Binding="{Binding OdenisMetni}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -1159,21 +1180,22 @@
                          + daxili şaquli scroll var ✓ (kiçik ekranda cədvəl yerini İTMİR ✓)
                          ================================================================ -->
                     <ScrollViewer VerticalScrollBarVisibility="Disabled"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
                     <Grid Margin="0,16,0,0">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*" MinHeight="140"/>
+                            <RowDefinition Height="9"/>
+                            <RowDefinition Height="2*" MinHeight="170"/>
                         </Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,12">
+                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,4">
                             <!-- ⚠ MaxHeight=215 → kredit forması nə qədər uzun olsa da cədvəlin yerini ALMIR ✓
                                  (kiçik ekranda forma öz daxilində sürüşür ✓✓✓) -->
-                            <ScrollViewer MaxHeight="215" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto" Focusable="False">
                             <WrapPanel Orientation="Horizontal" VerticalAlignment="Top">
                                 <StackPanel Margin="4">
                                     <TextBlock Text="Müqavilə № (boş = avtomatik)" Style="{StaticResource FieldLabel}"/>
@@ -1240,6 +1262,44 @@
                                         <Border Background="#141D28" Padding="10,7" Margin="11,9,11,0" CornerRadius="6">
                                             <TextBlock Text="{Binding Credits.KreditXeyirMetni}" FontSize="11"
                                                        Foreground="#41D39A" TextWrapping="Wrap"/>
+                                        </Border>
+
+                                        <!-- ============================================================ -->
+                                        <!-- ✍️ v6.2.48 — MANUAL BÖLGÜ REJİMİ ✓✓✓                          -->
+                                        <!-- Açıqdırsa: paylar və MAYA əl ilə yazılır ✓ — avtomatik        -->
+                                        <!-- hesablama məbləğlərin ÜZƏRİNƏ YAZMIR ✗✓✓                      -->
+                                        <!-- ============================================================ -->
+                                        <Border Background="#131C26" CornerRadius="8" Margin="11,8,11,0" Padding="10,8"
+                                                BorderBrush="#24406F" BorderThickness="1">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Credits.KreditBolguRejimMetni}"
+                                                               FontSize="10" FontWeight="Bold" Foreground="#7EA8FF"
+                                                               VerticalAlignment="Center"/>
+                                                    <CheckBox Content="✍️ Manual bölgü" FontSize="11.5" FontWeight="SemiBold"
+                                                              IsChecked="{Binding Credits.KreditBolguManual}"
+                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını və MAYANI özünüz əl ilə yazırsınız ✓ — «Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
+                                                </DockPanel>
+
+                                                <Grid Margin="0,7,0,0"
+                                                      Visibility="{Binding Credits.KreditBolguManual, Converter={StaticResource BoolToVis}}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="MAYA (₼)" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
+                                                             FontWeight="SemiBold" Foreground="#7EA8FF"
+                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                             Text="{Binding Credits.KreditMaya, UpdateSourceTrigger=PropertyChanged}"
+                                                             ToolTip="MAYA əl ilə yazılır ✓ — Xeyir = Satış qiyməti − Maya ✓"/>
+                                                </Grid>
+
+                                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                           Visibility="{Binding Credits.KreditBolguManual, Converter={StaticResource BoolToVis}}"
+                                                           Text="① Hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓　② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓"/>
+                                            </StackPanel>
                                         </Border>
 
                                         <UniformGrid Columns="2" Margin="11,8,11,8">
@@ -1414,6 +1474,11 @@
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditMuddet}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
                                 <StackPanel Margin="4">
+                                    <TextBlock Text="Satılma Tarixi" Style="{StaticResource FieldLabel}"/>
+                                    <DatePicker Width="130" SelectedDate="{Binding Credits.SatilmaTarixi}"
+                                                ToolTip="Avtomobilin satıldığı tarix ✓ (başlama tarixindən əvvəl ✓)"/>
+                                </StackPanel>
+                                <StackPanel Margin="4">
                                     <TextBlock Text="Başlama Tarixi" Style="{StaticResource FieldLabel}"/>
                                     <DatePicker Width="130" SelectedDate="{Binding Credits.BaslamaTarixi}"/>
                                 </StackPanel>
@@ -1437,7 +1502,26 @@
                             </ScrollViewer>
                         </Border>
 
-                        <Grid Grid.Row="1">
+                        <!-- ============================================================ -->
+                        <!-- 🔀 SÜRÜŞDÜRÜLƏ BİLƏN AYIRICI — v6.2.50 ✓✓✓                    -->
+                        <!-- Siçanı yuxarı/aşağı çəkin → kredit forması böyüyür/kiçilir ✓ -->
+                        <!-- ============================================================ -->
+                        <GridSplitter Grid.Row="1" Height="9" HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center" Background="Transparent"
+                                      ResizeBehavior="PreviousAndNext" ResizeDirection="Rows"
+                                      Cursor="SizeNS" Margin="0,2"
+                                      ToolTip="Yuxarı-aşağı sürüşdürün ✓ — kredit formasının hündürlüyünü dəyişin ✓">
+                            <GridSplitter.Template>
+                                <ControlTemplate TargetType="GridSplitter">
+                                    <Border Background="Transparent">
+                                        <Border Height="3" CornerRadius="2" Background="#3A4A5C"
+                                                VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </GridSplitter.Template>
+                        </GridSplitter>
+
+                        <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="360"/>
@@ -1488,22 +1572,22 @@
 
                                     <DataGrid ItemsSource="{Binding Credits.FilteredContracts}" SelectedItem="{Binding Credits.SelectedCredit}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              SelectionMode="Single" RowHeight="38" ColumnHeaderHeight="40"
+                                              SelectionMode="Single"
                                               MinHeight="200">
                                         <!-- ⚠ `MaxHeight` (ScrollViewer-ə bağlı) SİLİNDİ ✓ →
                                              hündürlük artıq `Grid.Row="*"` ilə MƏHDUDDUR ✓
                                              (MaxHeight + Stretch → WPF cədvəli sahənin ORTASINA qoyurdu ✗ →
                                               axtarış sətri ilə cədvəl arasında böyük BOŞLUQ ✗) -->
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="45" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="150" MinWidth="105" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
                                             <!-- 🚘 Avtomobil adları ƏN UZUNDUR → bütün boş yer BURAYA verilir ✓
                                                  (əvvəl Müştəri də «*» idi → qısa adlardan sonra böyük boşluq ✗) -->
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="*" MinWidth="190" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="135" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="85" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </DockPanel>
@@ -1513,7 +1597,7 @@
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="📄 Seçilmiş Kredit Məlumatı" FontSize="13" FontWeight="Bold" Margin="6,4,6,8"/>
 
-                                    <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="2,0,2,0">
+                                    <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="2,0,2,0">
                                         <Border Background="#121A26" CornerRadius="10" BorderBrush="#202D3C" BorderThickness="1" Padding="14,12">
                                             <StackPanel>
                                                 <!-- Başlıq: müqavilə nömrəsi + status nişanı -->
@@ -1543,6 +1627,7 @@
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Müştəri" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
@@ -1553,8 +1638,14 @@
                                                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Credits.SelectedCredit.Car.DisplayName}"
                                                                Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
 
-                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Başlama tarixi" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
-                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Credits.SelectedCredit.BaslamaTarixi, StringFormat=dd.MM.yyyy}"
+                                                    <!-- 🗓️ v6.2.49 — ALINMA TARİXİ (başlama tarixindən ƏVVƏL ✓) -->
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Alınma tarixi" Style="{StaticResource CardLabel}" Margin="0,0,10,0"
+                                                               ToolTip="Avtomobilin alındığı tarix ✓ (başlama tarixindən əvvəl ✓)"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Credits.SelectedCredit.Car.AlisTarixiMetni}"
+                                                               Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+
+                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Başlama tarixi" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Credits.SelectedCredit.BaslamaTarixi, StringFormat=dd.MM.yyyy}"
                                                                Style="{StaticResource CardValue}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
                                                 </Grid>
                                                 <Border Height="1" Background="#202D3C" Margin="0,6,0,10"/>
@@ -1609,35 +1700,96 @@
                                                 <Border Height="1" Background="#202D3C" Margin="0,6,0,10"/>
 
                                                 <TextBlock Text="ÖDƏNİŞ VƏZİYYƏTİ" Style="{StaticResource CardSectionHeader}"/>
+                                                <!-- 🏷️ v6.2.48 — ÖDƏNİŞ VƏZİYYƏTİ (2×2) + «MAYA ÖDƏNİŞ» ✓✓✓ -->
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödənilib" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
                                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="Qalıq" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Son ödəniş" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
 
                                                     <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#41D39A" FontWeight="Bold" FontSize="12.5"
                                                                Text="{Binding Credits.SelectedOdenilen, Converter={StaticResource Currency}}"/>
                                                     <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#FF9090" FontWeight="Bold" FontSize="12.5"
                                                                Text="{Binding Credits.SelectedQaliq, Converter={StaticResource Currency}}"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="2" Foreground="#DFE7F0" FontWeight="Bold" FontSize="12.5"
-                                                               Text="{Binding Credits.SelectedSonOdenis}"/>
+
+                                                    <!-- 💵 ① ÖDƏNİLƏCƏKLƏR BAR-I — Ödənilib/Qalıq-ın DƏRHAL ALTINDA ✓ -->
+                                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                        <TextBlock Text="💵 Ödəniləcəklər" FontSize="10" FontWeight="Bold"
+                                                                   Foreground="#A9B8C8" Margin="0,0,0,4"/>
+                                                        <ProgressBar Height="7" Margin="0,0,0,3"
+                                                                     Value="{Binding Credits.SelectedOdenisFaizi, Mode=OneWay}"
+                                                                     Style="{StaticResource CreditProgressBar}"
+                                                                     ToolTip="Ödənilib ÷ Ödəniləcək ✓"/>
+                                                        <TextBlock Text="{Binding Credits.SelectedOdenisYekunu}" FontSize="10"
+                                                                   Foreground="#8798AD" TextWrapping="Wrap" Margin="0,0,0,0"/>
+                                                    </StackPanel>
+
+                                                    <!-- 🏷️ v6.2.51 — MAYA SƏTRİ: Maya ödəniş · MAYA ÖDƏNİLİB (32) · Maya qalıq ✓✓✓ -->
+                                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Maya ödəniş" Style="{StaticResource CardLabel}"
+                                                                       Margin="0,0,8,0"
+                                                                       ToolTip="Ödənilməli MAYA = Satış qiyməti − İlkin ödəniş + möhlət + gecikmə ✓"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Maya ödənilib" Style="{StaticResource CardLabel}"
+                                                                       Margin="0,0,8,0"
+                                                                       ToolTip="Bölgülərdəki MAYA hissələrinin cəmi ✓ (məs. 32 ₼)"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Maya qalıq" Style="{StaticResource CardLabel}"
+                                                                       ToolTip="Maya ödəniş − Maya ödənilib ✓"/>
+
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#7EA8FF" FontWeight="Bold" FontSize="12.5"
+                                                                       Text="{Binding Credits.SelectedMayaOdenis, Converter={StaticResource Currency}}"
+                                                                       ToolTip="Maya ödəniş (ödənilməli) ✓"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#41D39A" FontWeight="Bold" FontSize="12.5"
+                                                                       Text="{Binding Credits.SelectedMayaOdenen, Converter={StaticResource Currency}}"
+                                                                       ToolTip="Maya ödənilib ✓ (yalnız maya hissələri ✓ — bütün ödəniş YOX ✗)"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="2" Foreground="#F3C24B" FontWeight="Bold" FontSize="12.5"
+                                                                       Text="{Binding Credits.SelectedMayaQaliq, Converter={StaticResource Currency}}"
+                                                                       ToolTip="Maya qalıq ✓"/>
+                                                        </Grid>
+
+                                                        <TextBlock FontSize="10" Foreground="#8798AD" Margin="0,5,0,0">
+                                                            <Run Text="Son ödəniş:"/>
+                                                            <Run Text="{Binding Credits.SelectedSonOdenis, Mode=OneWay}" Foreground="#A9B8C8" FontWeight="SemiBold"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
                                                 </Grid>
 
-                                                <ProgressBar Margin="0,8,0,4"
-                                                             Value="{Binding Credits.SelectedOdenisFaizi, Mode=OneWay}"
-                                                             Style="{StaticResource CreditProgressBar}"/>
+                                                <TextBlock Text="{Binding Credits.SelectedMayaXulase}" FontSize="10"
+                                                           Foreground="#8798AD" TextWrapping="Wrap" Margin="0,7,0,0"
+                                                           ToolTip="Maya ödəniş · ödənilib · qalıq ✓"/>
 
-                                                <TextBlock Text="{Binding Credits.SelectedOdenisYekunu}" FontSize="11"
-                                                           Foreground="#A6B4C4" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                <!-- ══════════════════════════════════════════════════ -->
+                                                <!-- 🏷️ ② MAYA BAR-I — AVTOMATİK hesablanır ✓✓✓          -->
+                                                <!-- ══════════════════════════════════════════════════ -->
+                                                <TextBlock Text="🏷️ Maya ödəniş (avtomatik)" FontSize="10" FontWeight="Bold"
+                                                           Foreground="#8FB2FF" Margin="0,9,0,3"
+                                                           ToolTip="Satış qiyməti − İlkin ödəniş + möhlət + gecikmə ✓"/>
+                                                <ProgressBar Height="7" Margin="0,0,0,0"
+                                                             Foreground="#7EA8FF" Background="#202D3C"
+                                                             Value="{Binding Credits.SelectedMayaFaizi, Mode=OneWay}"
+                                                             Style="{StaticResource CreditProgressBar}"
+                                                             ToolTip="Ödənilib ÷ Maya ödəniş ✓"/>
 
                                                 <!-- ================================================ -->
                                                 <!-- ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT (seçilmiş kredit ✓✓✓)     -->
@@ -2108,7 +2260,7 @@
                          (cədvəl `MaxHeight` ilə pəncərə hündürlüyünə məhduddur ✓ → virtualizasiya ✓✓✓)
                          ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -2264,7 +2416,7 @@
                                 <TextBlock DockPanel.Dock="Top" Text="📅 Ödəniş Qrafiki — hər ayı işarələyin; hissə-hissə ödənişlər avtomatik cəmlənir.  🔴 qırmızı = az ödəniş / aktiv gecikmə,  🟢 yaşıl = artıq ödəniş,  🔵 mavi = artıq ödənişin son aylardan çıxılan hissəsi,  🟠 narıncı = müddətdən kənar,  🟡 sarı = möhlət (rəsmi gecikdirmə),  ⚠️ çəhrayı = gecikmə (cərimə ilə).  Sətir fonu da vəziyyətə uyğun rənglənir." FontSize="13" FontWeight="Bold" Margin="6,4,6,2" TextWrapping="Wrap"/>
                                 <TextBlock DockPanel.Dock="Top" Text="{Binding Credits.ScheduleInfo}" FontSize="11" Foreground="#4EC3F5" Margin="6,0,6,8"/>
                                 <DataGrid ItemsSource="{Binding Credits.Schedule}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          ColumnHeaderHeight="46" RowStyle="{StaticResource ScheduleRowStyle}"
+                                          RowStyle="{StaticResource ScheduleRowStyle}"
                                           ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           RowBackground="#121A26" AlternatingRowBackground="#141D28"
@@ -2275,21 +2427,21 @@
                                           MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}"
                                           IsManipulationEnabled="True">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="№" Binding="{Binding NoText}" SortMemberPath="No" Width="50" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Vəziyyət" Binding="{Binding Novu}" Width="130" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="🟡 Möhlət" Binding="{Binding MohletMetni}" Width="150" ElementStyle="{StaticResource MohletCellText}"/>
-                                        <DataGridTextColumn Header="⚠️ Gecikmə" Binding="{Binding GecikmeMetni}" Width="165" ElementStyle="{StaticResource GecikmeCellText}"/>
+                                        <DataGridTextColumn Header="№" Binding="{Binding NoText}" SortMemberPath="No" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="Vəziyyət" Binding="{Binding Novu}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="🟡 Möhlət" Binding="{Binding MohletMetni}" Width="Auto" ElementStyle="{StaticResource MohletCellText}"/>
+                                        <DataGridTextColumn Header="⚠️ Gecikmə" Binding="{Binding GecikmeMetni}" Width="Auto" ElementStyle="{StaticResource GecikmeCellText}"/>
                                         <!-- 🆕 AZ / ARTIQ ÖDƏNİŞ + SON AYLARDAN ÇIXILAN (rəngli) -->
-                                        <DataGridTextColumn Header="🔴 Az ödəniş" Binding="{Binding AzOdenisMetni}" Width="150"
+                                        <DataGridTextColumn Header="🔴 Az ödəniş" Binding="{Binding AzOdenisMetni}" Width="Auto"
                                                             ToolTipService.ToolTip="Plan məbləğindən az ödənilib — çatışmayan məbləğ"
                                                             ElementStyle="{StaticResource AzOdenisCellText}"/>
-                                        <DataGridTextColumn Header="🟢 Artıq ödəniş" Binding="{Binding ArtiqOdenisMetni}" Width="160"
+                                        <DataGridTextColumn Header="🟢 Artıq ödəniş" Binding="{Binding ArtiqOdenisMetni}" Width="Auto"
                                                             ToolTipService.ToolTip="Plan məbləğindən çox ödənilib"
                                                             ElementStyle="{StaticResource ArtiqOdenisCellText}"/>
-                                        <DataGridTextColumn Header="🔵 Son aylardan" Binding="{Binding ArtiqKecenMetni}" Width="160"
+                                        <DataGridTextColumn Header="🔵 Son aylardan" Binding="{Binding ArtiqKecenMetni}" Width="Auto"
                                                             ToolTipService.ToolTip="Artıq ödənişin SONUNCU aylardan çıxılan hissəsi"
                                                             ElementStyle="{StaticResource ArtiqKecenCellText}"/>
-                                    <DataGridTextColumn Header="👥 Tərəfdaş bölgüsü" Binding="{Binding TerefdasMetni}" Width="195"
+                                    <DataGridTextColumn Header="👥 Tərəfdaş bölgüsü" Binding="{Binding TerefdasMetni}" Width="Auto"
                                                         Visibility="{Binding DataContext.Credits.AnyBolgu, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Converter={StaticResource BoolToVis}}">
                                         <DataGridTextColumn.ElementStyle>
                                             <Style TargetType="TextBlock">
@@ -2300,14 +2452,14 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                        <DataGridTextColumn Header="📅 PLAN TARİXİ" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="125"
+                                        <DataGridTextColumn Header="📅 PLAN TARİXİ" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="Auto"
                                                             ToolTipService.ToolTip="Kredit qrafikinə görə ödənişin EDİLMƏLİ OLDUĞU tarix (başlama tarixi + taksit ayı)"
                                                             ElementStyle="{StaticResource OutOfRangeDateText}"/>
-                                        <DataGridTextColumn Header="💰 Aylıq Ödəniş (plan)" Binding="{Binding NetOdenis, Converter={StaticResource Currency}}" Width="150" ElementStyle="{StaticResource PaymentAmountCellText}"/>
-                                        <DataGridTextColumn Header="Əsas Borc" Binding="{Binding EsasBorclu, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Faiz" Binding="{Binding Faiz, Converter={StaticResource Currency}}" Width="115" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Qalıq" Binding="{Binding Qaliq, Converter={StaticResource Currency}}" Width="130" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTemplateColumn Header="Ödənilib?" Width="90">
+                                        <DataGridTextColumn Header="💰 Aylıq Ödəniş (plan)" Binding="{Binding NetOdenis, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource PaymentAmountCellText}"/>
+                                        <DataGridTextColumn Header="Əsas Borc" Binding="{Binding EsasBorclu, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="Faiz" Binding="{Binding Faiz, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="Qalıq" Binding="{Binding Qaliq, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTemplateColumn Header="Ödənilib?" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <CheckBox IsChecked="{Binding Odenilib, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
@@ -2315,9 +2467,9 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Ödəniş sayı" Binding="{Binding OdenisSayi}" Width="90" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Ödənilən (AZN)" Binding="{Binding OdenilenMebleg, Converter={StaticResource Currency}}" Width="135" ElementStyle="{StaticResource OutOfRangeAmountText}"/>
-                                        <DataGridTemplateColumn Header="✅ ÖDƏNİŞ EDİLDİYİ TARİX" Width="215">
+                                        <DataGridTextColumn Header="Ödəniş sayı" Binding="{Binding OdenisSayi}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="Ödənilən (AZN)" Binding="{Binding OdenilenMebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeAmountText}"/>
+                                        <DataGridTemplateColumn Header="✅ ÖDƏNİŞ EDİLDİYİ TARİX" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel VerticalAlignment="Center" ToolTip="{Binding OdenisDetali}">
@@ -2348,7 +2500,7 @@
                          (cədvəllər `MaxHeight` ilə pəncərə hündürlüyünə məhduddur ✓ → virtualizasiya ✓✓✓)
                          ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -2600,6 +2752,43 @@
                                                      Text="{Binding CreditTransactions.BolguBazasi, UpdateSourceTrigger=PropertyChanged}"/>
                                         </Grid>
 
+                                        <!-- ============================================================ -->
+                                        <!-- ✍️ MANUAL BÖLGÜ — «Kreditlər» ilə EYNİ üslub (v6.2.51) ✓✓✓   -->
+                                        <!-- ============================================================ -->
+                                        <Border Background="#131C26" CornerRadius="8" Margin="11,0,11,8" Padding="10,8"
+                                                BorderBrush="#24406F" BorderThickness="1">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding CreditTransactions.BolguRejimMetni}"
+                                                               FontSize="10" FontWeight="Bold" Foreground="#7EA8FF"
+                                                               VerticalAlignment="Center"/>
+                                                    <CheckBox Content="✍️ Manual bölgü" FontSize="11.5" FontWeight="SemiBold"
+                                                              IsChecked="{Binding CreditTransactions.BolguManual}"
+                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «🔄 Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
+                                                </DockPanel>
+
+                                                <!-- 🏷️ MAYA (₼) — «Kreditlər» tabındakı kimi ✓ (v6.2.51) ✓✓✓ -->
+                                                <Grid Margin="0,7,0,0"
+                                                      Visibility="{Binding CreditTransactions.BolguManual, Converter={StaticResource BoolToVis}}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="MAYA (₼)" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
+                                                             FontWeight="SemiBold" Foreground="#7EA8FF"
+                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                             Text="{Binding CreditTransactions.BolguMaya, UpdateSourceTrigger=PropertyChanged}"
+                                                             ToolTip="MAYA əl ilə yazılır ✓ — Baza = Məbləğ − Maya ✓"/>
+                                                </Grid>
+
+                                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                           Visibility="{Binding CreditTransactions.BolguManual, Converter={StaticResource BoolToVis}}"
+                                                           Text="① Bölgü bazasını və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓　② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓"/>
+                                            </StackPanel>
+                                        </Border>
+
                                         <!-- ====================================================
                                              🔢 KÖK İZAHI ✓✓✓ (v6.2.17)
                                              ★ İstifadəçi tələbi: «Ödənişdən KÖK QİYMƏTİ
@@ -2745,7 +2934,7 @@
                                 <DataGrid ItemsSource="{Binding CreditTransactions.FilteredTransactions}" SelectedItem="{Binding CreditTransactions.SelectedTransaction}"
                                           bhv:MultiSelectBehavior.SelectedItems="{Binding CreditTransactions.SelectedTransactions}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          SelectionMode="Extended" SelectionUnit="FullRow" RowHeight="38" ColumnHeaderHeight="46"
+                                          SelectionMode="Extended" SelectionUnit="FullRow"
                                           ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           HeadersVisibility="Column" RowBackground="#121A26" AlternatingRowBackground="#141D28"
@@ -2780,11 +2969,11 @@
                                     <!-- 💳 KREDİT — uzun mətn sətrə sığır, üst-üstə düşmür -->
                                     <DataGridTextColumn Header="💳 KREDİT · MÜŞTƏRİ · AVTOMOBİL"
                                                         Binding="{Binding CreditInfo}"
-                                                        Width="*" MinWidth="230"
+                                                        Width="Auto" MinWidth="60"
                                                         ElementStyle="{StaticResource GridCellText}"/>
                                     <DataGridTextColumn Header="🎯 PLAN TARİXİ"
                                                         Binding="{Binding GosterilenTarixMetni}"
-                                                        Width="105" ElementStyle="{StaticResource GridCellText}"/>
+                                                        Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                     <!-- ============================================================
                                          📅 ÖDƏNİLƏN TARİX ✓✓✓ (v6.2.23)
                                          ★ İstifadəçi tələbi: «03.03.2024 tarixli taksiti
@@ -2794,18 +2983,18 @@
                                          ============================================================ -->
                                     <DataGridTextColumn Header="📅 ÖDƏNİLƏN TARİX"
                                                         Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}"
-                                                        Width="120" ElementStyle="{StaticResource GridCellText}"/>
+                                                        Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                     <DataGridTextColumn Header="🏷️ NÖV"
                                                         Binding="{Binding Nov}"
-                                                        Width="95" ElementStyle="{StaticResource NovCellText}"/>
+                                                        Width="Auto" ElementStyle="{StaticResource NovCellText}"/>
                                     <DataGridTextColumn Header="⏸ MÖHLƏT — SON TARİX"
                                                         Binding="{Binding MohletTarixi, StringFormat=dd.MM.yyyy}"
-                                                        Width="135" ElementStyle="{StaticResource MohletCellText}"/>
+                                                        Width="Auto" ElementStyle="{StaticResource MohletCellText}"/>
                                     <DataGridTextColumn Header="⚠ GECİKMƏ — TARİX"
                                                         Binding="{Binding GecikmeTarixi, StringFormat=dd.MM.yyyy}"
-                                                        Width="130" ElementStyle="{StaticResource GecikmeCellText}"/>
-                                    <DataGridTextColumn Header="💰 MƏBLƏĞ / CƏRİMƏ" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="140" ElementStyle="{StaticResource GecikmeAmountText}"/>
-                                    <DataGridTemplateColumn Header="✅ ÖDƏNİLİB?" Width="100" HeaderStyle="{StaticResource ProfessionalHeaderCenter}">
+                                                        Width="Auto" ElementStyle="{StaticResource GecikmeCellText}"/>
+                                    <DataGridTextColumn Header="💰 MƏBLƏĞ / CƏRİMƏ" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GecikmeAmountText}"/>
+                                    <DataGridTemplateColumn Header="✅ ÖDƏNİLİB?" Width="Auto" HeaderStyle="{StaticResource ProfessionalHeaderCenter}">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -2817,7 +3006,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="📝 TƏSVİR" Binding="{Binding Tesvir}" Width="*" MinWidth="170" ElementStyle="{StaticResource GridCellText}"/>
+                                    <DataGridTextColumn Header="📝 TƏSVİR" Binding="{Binding Tesvir}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
                                 </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>
@@ -2855,7 +3044,7 @@
                                     <DataGrid ItemsSource="{Binding CreditTransactions.Attachments}"
                                               SelectedItem="{Binding CreditTransactions.SelectedAttachment}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              RowHeight="32" ColumnHeaderHeight="44"
+                                             
                                               ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                               RowBackground="#121A26" AlternatingRowBackground="#141D28"
@@ -2867,11 +3056,11 @@
                                               MouseDoubleClick="TxAttachmentGrid_MouseDoubleClick">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="📎 FAYL ADI" Binding="{Binding DisplayText}"
-                                                                Width="*" MinWidth="120" ElementStyle="{StaticResource GridCellText}"/>
+                                                                Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
                                             <DataGridTextColumn Header="NÖV" Binding="{Binding Extension}"
-                                                                Width="60" ElementStyle="{StaticResource GridCellText}"/>
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                             <DataGridTextColumn Header="ÖLÇÜ" Binding="{Binding SizeText}"
-                                                                Width="75" ElementStyle="{StaticResource GridCellText}"/>
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </DockPanel>
@@ -2886,7 +3075,7 @@
                 <!-- TAB 7: MALİYYƏ PANELİ                                        -->
                 <!-- ============================================================ -->
                 <TabItem Header="📊 Maliyyə Paneli">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,16,0,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="0,16,0,0">
                         <StackPanel>
 
                         <!-- ===================== DÖVR FİLTRİ ===================== -->
@@ -3597,7 +3786,7 @@
                 <!-- ============================================================ -->
                 <TabItem Header="💵 Kassa">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
                         <StackPanel Margin="0,16,0,0">
@@ -4021,14 +4210,14 @@
 
                                 <DataGrid ItemsSource="{Binding Kassa.GozlenilenMohletler}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False"
-                                          HeadersVisibility="Column" RowHeight="36" ColumnHeaderHeight="34"
+                                          HeadersVisibility="Column"
                                           MaxHeight="330" Margin="0,12,0,0"
                                           Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           RowBackground="#121A26" AlternatingRowBackground="#141D28"
                                           Foreground="#DCE5EF">
                                     <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="📅 TARİX" Width="128">
+                                        <DataGridTemplateColumn Header="📅 TARİX" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <DatePicker Height="26" FontSize="11.5" BorderThickness="0"
@@ -4039,7 +4228,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="💰 MƏBLƏĞ" Width="118">
+                                        <DataGridTemplateColumn Header="💰 MƏBLƏĞ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBox Height="26" FontSize="12" BorderThickness="0"
@@ -4051,7 +4240,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="📌 MƏNBƏ (haradan gələcək)" Width="*">
+                                        <DataGridTemplateColumn Header="📌 MƏNBƏ (haradan gələcək)" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding MenbeMetni}" FontSize="11.5"
@@ -4062,7 +4251,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="🕓 VAXT" Width="122">
+                                        <DataGridTemplateColumn Header="🕓 VAXT" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding QalanGunMetni}" FontSize="11.5"
@@ -4073,7 +4262,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="🎯 VƏZİYYƏT" Width="112">
+                                        <DataGridTemplateColumn Header="🎯 VƏZİYYƏT" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Veziyyet}" FontSize="11.5"
@@ -4083,14 +4272,21 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="⚙️ ƏMƏLİYYAT" Width="172">
+                                        <DataGridTemplateColumn Header="⚙️ ƏMƏLİYYAT" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Button Content="✅ ÖDƏNİLDİ" Height="26" Padding="8,0" FontSize="10.5"
+                                                        <!-- ⏳ v6.2.51 — QİSMƏN ÖDƏNİŞ (istifadəçi tələbi ✓✓✓) -->
+                                                        <Button Content="⏳ TAM ÖDƏNİLMƏDİ" Height="26" Padding="7,0" FontSize="10"
+                                                                FontWeight="SemiBold" Background="#C98A12" Foreground="White"
+                                                                BorderThickness="0" Cursor="Hand" Margin="0,0,5,0"
+                                                                ToolTip="Qismən ödəniş ✓ — nə qədər ödənildi · nə vaxt · qalan nə vaxt ödəniləcək ✓"
+                                                                Command="{Binding DataContext.Kassa.MohletQismenOdeCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Content="✅ TAM ÖDƏNİLDİ" Height="26" Padding="7,0" FontSize="10"
                                                                 FontWeight="SemiBold" Background="#17A379" Foreground="White"
                                                                 BorderThickness="0" Cursor="Hand" Margin="0,0,5,0"
-                                                                ToolTip="Pul gəldi ✓ → məbləğ dərhal kassaya DAXİL olur ✓✓✓"
+                                                                ToolTip="Tam ödəniş ✓ — ÖDƏNİŞ TARİXİ soruşulur ✓ → məbləğ kassaya DAXİL olur ✓"
                                                                 Command="{Binding DataContext.Kassa.MohletOdenildiCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                                 CommandParameter="{Binding}"/>
                                                         <Button Content="💾" Height="26" Width="28" FontSize="11"
@@ -4128,14 +4324,14 @@
 
                                 <DataGrid ItemsSource="{Binding Kassa.OdenilmisMohletler}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          HeadersVisibility="Column" RowHeight="32" ColumnHeaderHeight="34"
+                                          HeadersVisibility="Column"
                                           MaxHeight="280" Margin="0,12,0,0"
                                           Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           RowBackground="#121A26" AlternatingRowBackground="#141D28"
                                           Foreground="#DCE5EF">
                                     <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="✅ ÖDƏNİLMƏ TARİXİ" Width="142">
+                                        <DataGridTemplateColumn Header="✅ ÖDƏNİLMƏ TARİXİ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding OdenilmeTarixiMetni}" FontSize="11.5"
@@ -4145,7 +4341,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="📅 SÖZ VERİLƏN TARİX" Width="142">
+                                        <DataGridTemplateColumn Header="📅 SÖZ VERİLƏN TARİX" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding TarixMetni}" FontSize="11.5"
@@ -4155,7 +4351,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="💰 MƏBLƏĞ" Width="120">
+                                        <DataGridTemplateColumn Header="💰 MƏBLƏĞ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding MeblegMetni}" FontSize="12.5"
@@ -4165,7 +4361,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="📌 MƏNBƏ" Width="*">
+                                        <DataGridTemplateColumn Header="📌 MƏNBƏ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding MenbeMetni}" FontSize="11.5"
@@ -4176,7 +4372,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="⚙️" Width="128">
+                                        <DataGridTemplateColumn Header="⚙️" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Button Content="↩ GERİ AL" Height="26" Padding="8,0" FontSize="10.5"
@@ -4208,14 +4404,14 @@
 
                                 <DataGrid ItemsSource="{Binding Kassa.Setirler}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          HeadersVisibility="Column" RowHeight="30" ColumnHeaderHeight="32"
+                                          HeadersVisibility="Column"
                                           MaxHeight="420" Margin="0,12,0,0"
                                           Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           RowBackground="#121A26" AlternatingRowBackground="#141D28"
                                           Foreground="#DCE5EF">
                                     <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="📅 TARİX" Width="95">
+                                        <DataGridTemplateColumn Header="📅 TARİX" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding TarixMetni}" FontSize="11.5"
@@ -4225,7 +4421,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="NÖV" Width="112">
+                                        <DataGridTemplateColumn Header="NÖV" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding NovMetni}" FontSize="11.5" FontWeight="SemiBold"
@@ -4235,7 +4431,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="BÖLMƏ" Width="105">
+                                        <DataGridTemplateColumn Header="BÖLMƏ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Qrup}" FontSize="11.5" Foreground="#A9B8C8"
@@ -4244,7 +4440,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="KATEQORİYA" Width="190">
+                                        <DataGridTemplateColumn Header="KATEQORİYA" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Kateqoriya}" FontSize="11.5"
@@ -4254,7 +4450,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="İZAHAT" Width="*">
+                                        <DataGridTemplateColumn Header="İZAHAT" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Aciqlama}" FontSize="11.5"
@@ -4265,7 +4461,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="ÜSUL" Width="120">
+                                        <DataGridTemplateColumn Header="ÜSUL" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding OdenisUsulu}" FontSize="11"
@@ -4274,7 +4470,7 @@
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
 
-                                        <DataGridTemplateColumn Header="MƏBLƏĞ" Width="130">
+                                        <DataGridTemplateColumn Header="MƏBLƏĞ" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding MeblegMetni}" FontSize="12.5"
@@ -4398,7 +4594,7 @@
                 <!-- ============================================================ -->
                 <TabItem Header="🔔 Bildirişlər">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
                         <StackPanel Margin="0,16,0,0">
@@ -4528,24 +4724,24 @@
 
                                     <DataGrid ItemsSource="{Binding Bildirisler.Bildirisler}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              SelectionMode="Single" RowHeight="32" ColumnHeaderHeight="34"
+                                              SelectionMode="Single"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="180"
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="175"
+                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="120"
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="150"
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="100"
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="115"
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="140"
+                                            <DataGridTextColumn Header="Qeyd" Binding="{Binding Qeyd}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -4565,7 +4761,7 @@
                 <!-- ============================================================ -->
                 <TabItem Header="🗓️ Ödəniş Təqvimi">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
                         <StackPanel Margin="0,16,0,0">
@@ -4615,18 +4811,18 @@
                                                    FontWeight="Bold" Foreground="#F5F8FC" Margin="4,2,4,8"/>
                                         <DataGrid ItemsSource="{Binding Tevim.Aylar}" SelectedItem="{Binding Tevim.SecilmisAy}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                                  SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                                  SelectionMode="Single"
                                                   MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=430, TargetNullValue=430}">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="🗓 AY" Binding="{Binding AyAdi}" Width="*" MinWidth="115"
+                                                <DataGridTextColumn Header="🗓 AY" Binding="{Binding AyAdi}" Width="Auto" MinWidth="60"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="Ödəniş" Binding="{Binding SetirSayi}" Width="60"
+                                                <DataGridTextColumn Header="Ödəniş" Binding="{Binding SetirSayi}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="CƏMİ" Binding="{Binding CemiMetni}" Width="100"
+                                                <DataGridTextColumn Header="CƏMİ" Binding="{Binding CemiMetni}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="✅ Ödənilib" Binding="{Binding OdenilmisMetni}" Width="100"
+                                                <DataGridTextColumn Header="✅ Ödənilib" Binding="{Binding OdenilmisMetni}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="⚠ QALIQ" Binding="{Binding QaliqMetni}" Width="100"
+                                                <DataGridTextColumn Header="⚠ QALIQ" Binding="{Binding QaliqMetni}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -4643,16 +4839,16 @@
                                                    FontSize="10.5" Foreground="#A9B8C8" Margin="4,0,4,8" TextWrapping="Wrap"/>
                                         <DataGrid ItemsSource="{Binding Tevim.AyAvtomobilleri}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                                  SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                                  SelectionMode="Single"
                                                   MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=330, TargetNullValue=330}">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="🚘 Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="125"
+                                                <DataGridTextColumn Header="🚘 Avtomobil" Binding="{Binding Avtomobil}" Width="Auto" MinWidth="60"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="95"
+                                                <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="Auto" MinWidth="60"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="100"
+                                                <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
-                                                <DataGridTextColumn Header="Günlər" Binding="{Binding Tarixler}" Width="95"
+                                                <DataGridTextColumn Header="Günlər" Binding="{Binding Tarixler}" Width="Auto"
                                                                     ElementStyle="{StaticResource GridCellText}"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -4670,22 +4866,22 @@
                                                FontSize="12" FontWeight="Bold" Foreground="#F5F8FC" Margin="4,2,4,8"/>
                                     <DataGrid ItemsSource="{Binding Tevim.AySetirleri}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                              SelectionMode="Single"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=430, TargetNullValue=430}">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="175"
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="175"
+                                            <DataGridTextColumn Header="Növ" Binding="{Binding Nov}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="110"
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="140"
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="95"
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding Muqavile}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="110"
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -4700,18 +4896,18 @@
                                                FontWeight="Bold" Foreground="#F3C24B" Margin="4,2,4,8"/>
                                     <DataGrid ItemsSource="{Binding Tevim.AxtarisSetirleri}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              SelectionMode="Single" RowHeight="30" ColumnHeaderHeight="32"
+                                              SelectionMode="Single"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=330, TargetNullValue=330}">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="95"
+                                            <DataGridTextColumn Header="📅 Tarix" Binding="{Binding TarixMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="175"
+                                            <DataGridTextColumn Header="⏱️ NƏ VAXTDIR?" Binding="{Binding VaxtMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="*" MinWidth="110"
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustar}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="*" MinWidth="140"
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Avtomobil}" Width="Auto" MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="110"
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding MeblegMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -4732,7 +4928,7 @@
                          BİRLİKDƏ sürüşür ✓ (cədvəllər `MaxHeight` ilə məhduddur ✓ → virtualizasiya ✓✓✓)
                          ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -4818,7 +5014,7 @@
                                     <TextBlock DockPanel.Dock="Top" Text="🔍 Axtar: marka / model, dövlət nömrəsi, VIN"
                                                FontSize="10" Foreground="#7C8CA0" Margin="4,0,4,6" TextWrapping="Wrap"/>
                                     <DataGrid ItemsSource="{Binding SalesArchive.FilteredSoldCars}" SelectedItem="{Binding SalesArchive.SelectedSoldCar}"
-                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" RowHeight="40" ColumnHeaderHeight="42"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                               MinHeight="380"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}"
                                               ToolTip="🖱️ Sətirə İKİ DƏFƏ KLİK → avtomobilin BÜTÜN məlumatı (xərclər · kredit · paylar) + 📄 PDF ixracı ✓">
@@ -4827,12 +5023,12 @@
                                                           Command="{Binding SalesArchive.AvtomobilDetayAcCommand}"/>
                                         </DataGrid.InputBindings>
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="50" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Marka / Model" Binding="{Binding Marka}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Dövlət Nömrəsi" Binding="{Binding QeydiyyatNisani}" Width="130" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="150" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="📎 Sənəd" Binding="{Binding SenedMetni}" Width="85" SortMemberPath="SenedSayi" ElementStyle="{StaticResource SenedCellText}"/>
-                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Marka / Model" Binding="{Binding Marka}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Dövlət Nömrəsi" Binding="{Binding QeydiyyatNisani}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Maya Dəyəri" Binding="{Binding MayaDeyeri, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="📎 Sənəd" Binding="{Binding SenedMetni}" Width="Auto" SortMemberPath="SenedSayi" ElementStyle="{StaticResource SenedCellText}"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </DockPanel>
@@ -4862,7 +5058,7 @@
                                                FontSize="10" Foreground="#7C8CA0" Margin="4,0,4,6" TextWrapping="Wrap"/>
                                     <DataGrid ItemsSource="{Binding SalesArchive.FilteredCompletedCredits}"
                                               SelectedItem="{Binding SalesArchive.SelectedCompletedCredit}"
-                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" RowHeight="40" ColumnHeaderHeight="42"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                               MinHeight="380"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}"
                                               ToolTip="🖱️ Sətirə İKİ DƏFƏ KLİK → kreditin BÜTÜN məlumatı (avtomobil · xərclər · hərəkətlər · paylar) + 📄 PDF ixracı ✓">
@@ -4871,12 +5067,12 @@
                                                           Command="{Binding SalesArchive.KreditDetayAcCommand}"/>
                                         </DataGrid.InputBindings>
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Müqavilə" Binding="{Binding MuqavileNomresi}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="*" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="140" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müddət" Binding="{Binding MuddetAy}" Width="80" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müqavilə" Binding="{Binding MuqavileNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Məbləğ" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Müddət" Binding="{Binding MuddetAy}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </DockPanel>
@@ -5185,7 +5381,7 @@
                          (cədvəllər `MaxHeight` ilə pəncərə hündürlüyünə məhdudlaşdırılır ✓ → virtualizasiya İŞLƏYİR ✓✓✓)
                          ⚠ `FallbackValue=700` vacibdir ✓ — izah: «💳 Ümumi Xərclər» tabı ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   Padding="0,0,6,0">
 
@@ -5361,22 +5557,22 @@
                                             Background="#141D28" BorderBrush="#202D3C" BorderThickness="1">
                                         <DataGrid ItemsSource="{Binding Partners}" SelectedItem="{Binding SelectedPartner}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False"
-                                                  HeadersVisibility="Column" RowHeight="30" ColumnHeaderHeight="30"
+                                                  HeadersVisibility="Column"
                                                   Background="Transparent" BorderThickness="0"
                                                   GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                                   Foreground="#DCE5EF" FontSize="11.5" RowBackground="#141D28"
                                                   AlternatingRowBackground="#101823"
                                                   MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                             <DataGrid.Columns>
-                                                <DataGridCheckBoxColumn Header="AKTİV" Width="58"
+                                                <DataGridCheckBoxColumn Header="AKTİV" Width="Auto"
                                                                         Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <DataGridTextColumn Header="AD" Width="*"
+                                                <DataGridTextColumn Header="AD" Width="Auto"
                                                                     Binding="{Binding Ad, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <DataGridTextColumn Header="FAİZ %" Width="66"
+                                                <DataGridTextColumn Header="FAİZ %" Width="Auto"
                                                                     Binding="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <DataGridCheckBoxColumn Header="QALIQ" Width="60"
+                                                <DataGridCheckBoxColumn Header="QALIQ" Width="Auto"
                                                                         Binding="{Binding QaligPayi, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <DataGridTextColumn Header="QEYD" Width="1.2*"
+                                                <DataGridTextColumn Header="QEYD" Width="Auto"
                                                                     Binding="{Binding Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -5458,22 +5654,22 @@
                                             Background="#141D28" BorderBrush="#202D3C" BorderThickness="1">
                                         <DataGrid ItemsSource="{Binding Payments}" SelectedItem="{Binding SelectedPayment}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False"
-                                                  HeadersVisibility="Column" RowHeight="28" ColumnHeaderHeight="28"
+                                                  HeadersVisibility="Column"
                                                   Background="Transparent" BorderThickness="0"
                                                   GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                                   Foreground="#DCE5EF" FontSize="11" RowBackground="#141D28"
                                                   AlternatingRowBackground="#101823"
                                                   MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="TARİX" Width="82" IsReadOnly="True"
+                                                <DataGridTextColumn Header="TARİX" Width="Auto" IsReadOnly="True"
                                                                     Binding="{Binding TarixMetni}"/>
-                                                <DataGridTextColumn Header="TƏRƏFDAŞ" Width="*" IsReadOnly="True"
+                                                <DataGridTextColumn Header="TƏRƏFDAŞ" Width="Auto" IsReadOnly="True"
                                                                     Binding="{Binding Terefdas}"/>
-                                                <DataGridTextColumn Header="MƏBLƏĞ (₼)" Width="100" IsReadOnly="True"
+                                                <DataGridTextColumn Header="MƏBLƏĞ (₼)" Width="Auto" IsReadOnly="True"
                                                                     Binding="{Binding Mebleg, StringFormat=N2}"/>
-                                                <DataGridTextColumn Header="ÜSUL" Width="110" IsReadOnly="True"
+                                                <DataGridTextColumn Header="ÜSUL" Width="Auto" IsReadOnly="True"
                                                                     Binding="{Binding OdenisUsulu}"/>
-                                                <DataGridTextColumn Header="QEYD" Width="*" IsReadOnly="True"
+                                                <DataGridTextColumn Header="QEYD" Width="Auto" IsReadOnly="True"
                                                                     Binding="{Binding Qeyd}"/>
                                             </DataGrid.Columns>
                                         </DataGrid>
@@ -5505,7 +5701,7 @@
 
                                     <DataGrid ItemsSource="{Binding Cards}" SelectedItem="{Binding SelectedCard}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              HeadersVisibility="Column" RowHeight="52" ColumnHeaderHeight="44"
+                                              HeadersVisibility="Column"
                                               ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                               Background="Transparent" BorderThickness="0" Margin="6"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
@@ -5517,7 +5713,7 @@
                                               IsManipulationEnabled="True">
                                         <DataGrid.Columns>
                                             <!-- 🥇 Sıra / medal -->
-                                            <DataGridTemplateColumn Header="#" Width="42"
+                                            <DataGridTemplateColumn Header="#" Width="Auto"
                                                                     HeaderStyle="{StaticResource ProfessionalHeaderCenter}">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
@@ -5528,7 +5724,7 @@
                                             </DataGridTemplateColumn>
 
                                             <!-- 👤 Ad + irəliləyiş zolağı (ən vacib sütun) -->
-                                            <DataGridTemplateColumn Header="👤 TƏRƏFDAŞ  ·  ÖDƏNİŞ VƏZİYYƏTİ" Width="2*" MinWidth="185">
+                                            <DataGridTemplateColumn Header="👤 TƏRƏFDAŞ  ·  ÖDƏNİŞ VƏZİYYƏTİ" Width="Auto" MinWidth="60">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel VerticalAlignment="Center" Margin="0,3">
@@ -5552,7 +5748,7 @@
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <!-- 💰 Qazanılmış -->
-                                            <DataGridTemplateColumn Header="💰 QAZANILMIŞ" Width="1.05*" MinWidth="105">
+                                            <DataGridTemplateColumn Header="💰 QAZANILMIŞ" Width="Auto" MinWidth="60">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0">
@@ -5567,7 +5763,7 @@
                                             </DataGridTemplateColumn>
 
                                             <!-- 💸 Verilmiş -->
-                                            <DataGridTemplateColumn Header="💸 VERİLMİŞ" Width="1.05*" MinWidth="105">
+                                            <DataGridTemplateColumn Header="💸 VERİLMİŞ" Width="Auto" MinWidth="60">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0">
@@ -5582,7 +5778,7 @@
                                             </DataGridTemplateColumn>
 
                                             <!-- 🏦 Ümumi balans (nişan ilə) -->
-                                            <DataGridTemplateColumn Header="🏦 ÜMUMİ BALANS" Width="1.15*" MinWidth="125">
+                                            <DataGridTemplateColumn Header="🏦 ÜMUMİ BALANS" Width="Auto" MinWidth="60">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0"
@@ -5600,7 +5796,7 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="📅 ÜMUMİ DÖVRİYYƏ" Width="2.2*">
+                                            <DataGridTemplateColumn Header="📅 ÜMUMİ DÖVRİYYƏ" Width="Auto">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel VerticalAlignment="Center">
@@ -5638,21 +5834,21 @@
 
                                     <DataGrid ItemsSource="{Binding Monthly}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                              HeadersVisibility="Column" RowHeight="28" ColumnHeaderHeight="28"
+                                              HeadersVisibility="Column"
                                               Background="Transparent" BorderThickness="0" Margin="6"
                                               GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                               Foreground="#DCE5EF" FontSize="11" RowBackground="#141D28"
                                               AlternatingRowBackground="#101823"
                                               MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="DÖVR" Width="96" Binding="{Binding AyMetni}"/>
-                                            <DataGridTextColumn Header="TƏRƏFDAŞ" Width="*" Binding="{Binding Terefdas}"/>
-                                            <DataGridTextColumn Header="BÖLGÜ" Width="55" Binding="{Binding BolguSayi}"/>
-                                            <DataGridTextColumn Header="QAZANILMIŞ" Width="105"
+                                            <DataGridTextColumn Header="DÖVR" Width="Auto" Binding="{Binding AyMetni}"/>
+                                            <DataGridTextColumn Header="TƏRƏFDAŞ" Width="Auto" Binding="{Binding Terefdas}"/>
+                                            <DataGridTextColumn Header="BÖLGÜ" Width="Auto" Binding="{Binding BolguSayi}"/>
+                                            <DataGridTextColumn Header="QAZANILMIŞ" Width="Auto"
                                                                 Binding="{Binding Qazanilmis, StringFormat=N2}"/>
-                                            <DataGridTextColumn Header="VERİLMİŞ" Width="100"
+                                            <DataGridTextColumn Header="VERİLMİŞ" Width="Auto"
                                                                 Binding="{Binding Odenilmis, StringFormat=N2}"/>
-                                            <DataGridTextColumn Header="QALIQ" Width="95"
+                                            <DataGridTextColumn Header="QALIQ" Width="Auto"
                                                                 Binding="{Binding Qaliq, StringFormat=N2}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -5676,7 +5872,7 @@
 
                                 <DataGrid ItemsSource="{Binding Ledger}" SelectedItem="{Binding SelectedLedgerRow}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          HeadersVisibility="Column" RowHeight="29" ColumnHeaderHeight="30"
+                                          HeadersVisibility="Column"
                                           Background="Transparent" BorderThickness="0" Margin="6"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           Foreground="#DCE5EF" FontSize="11.5" RowBackground="#141D28"
@@ -5684,16 +5880,16 @@
                                           MinHeight="260"
                                           MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="TARİX" Width="88" Binding="{Binding TarixMetni}"/>
-                                        <DataGridTextColumn Header="DÖVR" Width="105" Binding="{Binding AyMetni}"/>
-                                        <DataGridTextColumn Header="MƏNBƏ" Width="135" Binding="{Binding MenbeNisani}"/>
-                                        <DataGridTextColumn Header="AVTOMOBİL" Width="1.5*" Binding="{Binding Avtomobil}"/>
-                                        <DataGridTextColumn Header="MÜQAVİLƏ / MÜŞTƏRİ" Width="1.2*" Binding="{Binding SenedMetni}"/>
-                                        <DataGridTextColumn Header="TƏRƏFDAŞ" Width="1*" Binding="{Binding Terefdas}"/>
-                                        <DataGridTextColumn Header="FAİZ" Width="62" Binding="{Binding FaizMetni}"/>
-                                        <DataGridTextColumn Header="XEYİR (BAZA)" Width="115"
+                                        <DataGridTextColumn Header="TARİX" Width="Auto" Binding="{Binding TarixMetni}"/>
+                                        <DataGridTextColumn Header="DÖVR" Width="Auto" Binding="{Binding AyMetni}"/>
+                                        <DataGridTextColumn Header="MƏNBƏ" Width="Auto" Binding="{Binding MenbeNisani}"/>
+                                        <DataGridTextColumn Header="AVTOMOBİL" Width="Auto" Binding="{Binding Avtomobil}"/>
+                                        <DataGridTextColumn Header="MÜQAVİLƏ / MÜŞTƏRİ" Width="Auto" Binding="{Binding SenedMetni}"/>
+                                        <DataGridTextColumn Header="TƏRƏFDAŞ" Width="Auto" Binding="{Binding Terefdas}"/>
+                                        <DataGridTextColumn Header="FAİZ" Width="Auto" Binding="{Binding FaizMetni}"/>
+                                        <DataGridTextColumn Header="XEYİR (BAZA)" Width="Auto"
                                                             Binding="{Binding Baza, StringFormat=N2}"/>
-                                        <DataGridTextColumn Header="PAY (₼)" Width="110"
+                                        <DataGridTextColumn Header="PAY (₼)" Width="Auto"
                                                             Binding="{Binding Mebleg, StringFormat=N2}"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
@@ -5860,23 +6056,23 @@
                                                 <DataGrid ItemsSource="{Binding IstifadeciSiyahisi}"
                                                           SelectedItem="{Binding SecilmisIstifadeci}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False"
-                                                          IsReadOnly="False" RowHeight="36" ColumnHeaderHeight="40"
+                                                          IsReadOnly="False"
                                                           Height="216"
                                                           ToolTip="✏️ Hüceyrəni dəyişin → «💾 Yadda saxla» basın ✓">
                                                     <DataGrid.Columns>
-                                                        <DataGridTextColumn Header="Adı" Width="1.1*" MinWidth="120"
+                                                        <DataGridTextColumn Header="Adı" Width="Auto" MinWidth="60"
                                                                             Binding="{Binding Ad, UpdateSourceTrigger=PropertyChanged}"
                                                                             ElementStyle="{StaticResource GridCellText}"
                                                                             EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                                        <DataGridTextColumn Header="Giriş adı (login)" Width="1.3*" MinWidth="140"
+                                                        <DataGridTextColumn Header="Giriş adı (login)" Width="Auto" MinWidth="60"
                                                                             Binding="{Binding IstifadeciAdi, UpdateSourceTrigger=PropertyChanged}"
                                                                             ElementStyle="{StaticResource GridCellText}"
                                                                             EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                                        <DataGridTextColumn Header="🔑 KOD" Width="1.2*" MinWidth="130"
+                                                        <DataGridTextColumn Header="🔑 KOD" Width="Auto" MinWidth="60"
                                                                             Binding="{Binding Sifre, UpdateSourceTrigger=PropertyChanged}"
                                                                             ElementStyle="{StaticResource GridCellText}"
                                                                             EditingElementStyle="{StaticResource GridCellTextBox}"/>
-                                                        <DataGridTemplateColumn Header="Rol (icazələr)" Width="1.7*" MinWidth="185">
+                                                        <DataGridTemplateColumn Header="Rol (icazələr)" Width="Auto" MinWidth="60">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
                                                                     <ComboBox ItemsSource="{Binding DataContext.Rollar, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -6366,20 +6562,20 @@
                                     <DataGrid ItemsSource="{Binding KreditIdxal.Setirler}"
                                               AutoGenerateColumns="False" CanUserAddRows="False"
                                               IsReadOnly="True" SelectionMode="Single"
-                                              RowHeight="30" ColumnHeaderHeight="38" MinHeight="200">
+                                              MinHeight="200">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="№" Binding="{Binding AyMetni}" Width="45"
+                                            <DataGridTextColumn Header="№" Binding="{Binding AyMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="TARİX" Binding="{Binding TarixMetni}" Width="92"
+                                            <DataGridTextColumn Header="TARİX" Binding="{Binding TarixMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="ÖDƏNİŞ" Binding="{Binding OdenisMetni}" Width="110"
+                                            <DataGridTextColumn Header="ÖDƏNİŞ" Binding="{Binding OdenisMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="MAYA (kök)" Binding="{Binding MayaMetni}" Width="110"
+                                            <DataGridTextColumn Header="MAYA (kök)" Binding="{Binding MayaMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="MƏNFƏƏT" Binding="{Binding MenfeetMetni}" Width="110"
+                                            <DataGridTextColumn Header="MƏNFƏƏT" Binding="{Binding MenfeetMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
                                             <!-- 👥 TƏRƏFDAŞ PAYLARI — başlıq AVTOMATİK (ad ilə ✓✓✓) -->
-                                            <DataGridTextColumn Binding="{Binding Kar1Metni}" Width="118"
+                                            <DataGridTextColumn Binding="{Binding Kar1Metni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}">
                                                 <DataGridTextColumn.HeaderTemplate>
                                                     <DataTemplate>
@@ -6388,7 +6584,7 @@
                                                     </DataTemplate>
                                                 </DataGridTextColumn.HeaderTemplate>
                                             </DataGridTextColumn>
-                                            <DataGridTextColumn Binding="{Binding Kar2Metni}" Width="118"
+                                            <DataGridTextColumn Binding="{Binding Kar2Metni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}">
                                                 <DataGridTextColumn.HeaderTemplate>
                                                     <DataTemplate>
@@ -6397,7 +6593,7 @@
                                                     </DataTemplate>
                                                 </DataGridTextColumn.HeaderTemplate>
                                             </DataGridTextColumn>
-                                            <DataGridTextColumn Binding="{Binding Kar3Metni}" Width="112"
+                                            <DataGridTextColumn Binding="{Binding Kar3Metni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}">
                                                 <DataGridTextColumn.HeaderTemplate>
                                                     <DataTemplate>
@@ -6406,7 +6602,7 @@
                                                     </DataTemplate>
                                                 </DataGridTextColumn.HeaderTemplate>
                                             </DataGridTextColumn>
-                                            <DataGridTextColumn Binding="{Binding Kar4Metni}" Width="112"
+                                            <DataGridTextColumn Binding="{Binding Kar4Metni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}">
                                                 <DataGridTextColumn.HeaderTemplate>
                                                     <DataTemplate>
@@ -6415,12 +6611,12 @@
                                                     </DataTemplate>
                                                 </DataGridTextColumn.HeaderTemplate>
                                             </DataGridTextColumn>
-                                            <DataGridTextColumn Header="QALIQ KÖK" Binding="{Binding QaliqKokMetni}" Width="115"
+                                            <DataGridTextColumn Header="QALIQ KÖK" Binding="{Binding QaliqKokMetni}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="BÖLGÜ (bütün paylar)" Binding="{Binding Bolgu}" Width="*"
-                                                                MinWidth="180"
+                                            <DataGridTextColumn Header="BÖLGÜ (bütün paylar)" Binding="{Binding Bolgu}" Width="Auto"
+                                                                MinWidth="60"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="VƏZİYYƏT" Binding="{Binding Veziyyet}" Width="105"
+                                            <DataGridTextColumn Header="VƏZİYYƏT" Binding="{Binding Veziyyet}" Width="Auto"
                                                                 ElementStyle="{StaticResource GridCellText}"/>
                                         </DataGrid.Columns>
                                     </DataGrid>

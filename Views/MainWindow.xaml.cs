@@ -38,6 +38,43 @@ namespace EnterpriseAeroStudio.Views
         {
             InitializeComponent();
             SourceInitialized += (_, _) => EnterpriseAeroStudio.Services.PencereZineti.KoyuBasliq(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+
+            // ================================================================
+            //  🖱️ v6.2.51 — Ctrl + Siçan TƏKƏRİ → ÜFÜQİ SÜRÜŞMƏ ✓✓✓
+            //  ★ İstifadəçi tələbi: «proqramda hər yerdə Ctrl+scroll olmalıdır» ✓
+            //  → sağda gizlənən düymələrə çatmaq üçün ✓ (bütün ScrollViewer-lər ✓)
+            // ================================================================
+            try
+            {
+                System.Windows.EventManager.RegisterClassHandler(
+                    typeof(System.Windows.Controls.ScrollViewer),
+                    System.Windows.Controls.ScrollViewer.PreviewMouseWheelEvent,
+                    new System.Windows.Input.MouseWheelEventHandler((gonderen, hadise) =>
+                    {
+                        if (System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.Control)
+                        {
+                            return;
+                        }
+
+                        if (gonderen is not System.Windows.Controls.ScrollViewer sv)
+                        {
+                            return;
+                        }
+
+                        if (sv.ScrollableWidth <= 0)
+                        {
+                            return;   // üfüqi sürüşmə yoxdursa → default davranış ✓
+                        }
+
+                        sv.ScrollToHorizontalOffset(sv.HorizontalOffset - hadise.Delta);
+                        hadise.Handled = true;
+
+                    }));
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
             _viewModel = viewModel;
             DataContext = viewModel;
 
