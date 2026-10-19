@@ -205,7 +205,7 @@
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CarKredit}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
 
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                     <Button Content="✨ Avtomobil Əlavə Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding CarPark.AddCarCommand}" IsEnabled="{Binding CarPark.IsBusy, Converter={StaticResource InverseBool}}"/>
                                     <Button Content="↺ Təmizlə" Style="{StaticResource iOSButton}" Background="#2E3D4E" Foreground="#F5F8FC"
@@ -487,7 +487,7 @@
                                     <TextBox Width="160" Text="{Binding Expenses.Editor.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
 
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                     <Button Content="+ Xərc Əlavə Et" Style="{StaticResource iOSButton}" Background="#4C7DFF" Foreground="White"
                                             Command="{Binding Expenses.AddExpenseCommand}" IsEnabled="{Binding Expenses.IsBusy, Converter={StaticResource InverseBool}}"/>
                                     <Button Content="↺ Təmizlə" Style="{StaticResource iOSButton}" Background="#2E3D4E" Foreground="#F5F8FC" Margin="6,0,0,0"
@@ -707,7 +707,7 @@
                                                      ToolTip="Müddətə görə avtomatik yazılır (6→1.2 · 12→1.4 · 24→1.8 · 36→2.2 · 42→2.4 · 48→2.6 · 60→3.0 ✓) — ƏL İLƏ də dəyişdirə bilərsiniz"
                                                      Text="{Binding Calculator.Emsal, UpdateSourceTrigger=PropertyChanged}"/>
                                         </StackPanel>
-                                        <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                             <Button Content="🔄 Hesabla" Style="{StaticResource iOSButton}" Background="#2AA8E2" Foreground="White" Margin="0,0,6,0"
                                                     Command="{Binding Calculator.TersHesablaCommand}"/>
                                             <Button Content="⬅️ Kalkulyatora köçür" Style="{StaticResource iOSButton}" Background="#4C7DFF" Foreground="White"
@@ -775,7 +775,7 @@
                                     <TextBox x:Name="CalcMuddet" Width="100" Text="{Binding Calculator.MuddetAy, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CalcMuddet}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                     <Button Content="🧮 Hesabla" Style="{StaticResource iOSButton}" Background="#4C7DFF" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Calculator.HesablaCommand}"/>
                                     <Button Content="↺ Sıfırla" Style="{StaticResource iOSButton}" Background="#2E3D4E" Foreground="#F5F8FC"
@@ -1016,7 +1016,7 @@
                                     <TextBlock Text="Qeyd" Style="{StaticResource FieldLabel}"/>
                                     <TextBox Width="140" Text="{Binding Sales.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                     <Button Content="+ Satışı Qeyd Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Sales.AddSaleCommand}" IsEnabled="{Binding Sales.IsBusy, Converter={StaticResource InverseBool}}"/>
                                     <Button Content="🗑️ Sil" Style="{StaticResource iOSButton}" Background="#F05E5E" Foreground="White" Margin="0,0,6,0"
@@ -1186,29 +1186,51 @@
 
                     <Grid Margin="0,16,0,0">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="*" MinHeight="140"/>
+                            <!-- ✅ v6.2.49 — forma kartı MƏZMUNA GÖRƏ uzanır ✓✓✓
+                                 ⚠ ƏVVƏL: Height="*" → forma yalnız 1/3 yer alırdı ✗
+                                 → tərəfdaş paneli KƏSİLİRDİ ✗, alt sıra sahələr
+                                 (İlkin ödəniş, Faiz, Müddət, tarixlər, Status, Qeyd)
+                                 GİZLƏNİRDİ ✗ → boş görünürdü ✗✓✓
+                                 ✅ İNDİ: Auto → bütün sahələr görünür ✓ -->
+                            <RowDefinition Height="Auto" MinHeight="140"/>
                             <RowDefinition Height="9"/>
-                            <RowDefinition Height="2*" MinHeight="170"/>
+                            <RowDefinition Height="*" MinHeight="170"/>
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,4">
                             <!-- ⚠ MaxHeight=215 → kredit forması nə qədər uzun olsa da cədvəlin yerini ALMIR ✓
                                  (kiçik ekranda forma öz daxilində sürüşür ✓✓✓) -->
+                            <!-- ================================================================ -->
+                            <!-- ⚠ v6.2.49 — ÜFÜQİ SCROLL SÖNDÜRÜLDÜ ✗✗✗                          -->
+                            <!-- ƏVVƏL: HorizontalScrollBarVisibility="Auto" → WrapPanel-in eni   -->
+                            <!--        SONSUZ olurdu ✗ → heç vaxt sətirə keçmirdi ✗ → sahələr    -->
+                            <!--        sağa qaçırdı ✗, aşağıda böyük BOŞ sahə qalırdı ✗✓✓        -->
+                            <!-- ✅ İNDİ: Disabled → WrapPanel kartın eninə sığır ✓ və            -->
+                            <!--    sətirə keçir ✓ → səliqəli 2-3 sıra ✓✓✓                        -->
+                            <!-- ================================================================ -->
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Auto" Focusable="False">
-                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Top">
-                                <StackPanel Margin="4">
+                                          HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                                    <Grid Margin="2,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Müqavilə № (boş = avtomatik)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Width="120" Text="{Binding Credits.MuqavileNomresi, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox Text="{Binding Credits.MuqavileNomresi, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Müştəri" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditMusteri" Width="150" Text="{Binding Credits.Musteri, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditMusteri" Text="{Binding Credits.Musteri, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditMusteri}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Avtomobil" Style="{StaticResource FieldLabel}"/>
-                                    <ComboBox Width="250" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                                    <ComboBox IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
                                               ItemsSource="{Binding Credits.FilteredCars}" SelectedItem="{Binding Credits.SelectedCar}"
                                               Text="{Binding Credits.CarSearchText, UpdateSourceTrigger=PropertyChanged}">
                                         <ComboBox.ItemTemplate>
@@ -1219,32 +1241,32 @@
                                     </ComboBox>
                                 </StackPanel>
                                 <!-- 🔄 SATICI DEYİR → SATIŞ QİYMƏTİ AVTOMATİK YAZILIR -->
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="0" Grid.Column="3" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="🔄 Aylıq Ödəniş (AZN)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Width="120" FontWeight="SemiBold" Foreground="#41D39A"
+                                    <TextBox FontWeight="SemiBold" Foreground="#41D39A"
                                              ToolTip="Satıcının dediyi AYLIQ ödəniş — yazdıqda Satış Qiyməti avtomatik hesablanır"
                                              Text="{Binding Credits.SatisAylıq, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Text="↑ yazın → qiymət avtomatik" FontSize="10" Foreground="#41D39A" Margin="2,3,0,0"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="0" Grid.Column="4" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Qrafik bölgüsü (əmsal)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Width="100" FontWeight="SemiBold" Foreground="#EFC93F"
+                                    <TextBox FontWeight="SemiBold" Foreground="#EFC93F"
                                              ToolTip="Müddətə görə AVTOMATİK yazılır (6→1.2 · 12→1.4 · 24→1.8 · 36→2.2 · 42→2.4 · 48→2.6 · 60→3.0 ✓). Əl ilə də dəyişə bilərsiniz."
                                              Text="{Binding Credits.SatisEmsal, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                <StackPanel Grid.Row="2" Grid.Column="4" Margin="6,22" Orientation="Horizontal" VerticalAlignment="Top">
                                     <Button Content="📐 Qiyməti hesabla" Style="{StaticResource iOSButton}" Background="#2AA8E2" Foreground="White"
                                             ToolTip="(Aylıq × Ay) ÷ Əmsal + İlkin ödəniş = MAŞININ QİYMƏTİ"
                                             Command="{Binding Credits.SatisQiymetiHesablaCommand}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Əmsal cədvəli" Style="{StaticResource FieldLabel}"/>
                                     <TextBlock Text="{Binding Credits.SatisEmsalCedveli}" FontSize="10" Foreground="#8798AD"
                                                Margin="2,4,0,0" MaxWidth="240" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- 👥 KREDİTİN TƏRƏFDAŞ BÖLGÜSÜ -->
-                                <Border Margin="4" Width="400" CornerRadius="10" Background="#0C131C"
+                                <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="5" Margin="6,5" Width="400" CornerRadius="10" Background="#0C131C"
                                         BorderBrush="#2B3949" BorderThickness="1">
                                     <StackPanel>
                                         <Border Background="#1B2634" CornerRadius="9,9,0,0" Padding="11,8">
@@ -1378,14 +1400,14 @@
                                     </StackPanel>
                                 </Border>
 
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Satış Qiyməti (AZN)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditMebleg" Width="110" Text="{Binding Credits.Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditMebleg" Text="{Binding Credits.Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditMebleg}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="İlkin Ödəniş (AZN)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditIlkin" Width="110" Text="{Binding Credits.IlkinOdenis, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditIlkin" Text="{Binding Credits.IlkinOdenis, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditIlkin}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
                                 <!-- ==================================================== -->
@@ -1394,7 +1416,7 @@
                                 <!--   verəcəm» → checkbox ✓ nə vaxt ✓ nə qədər ✓ ➕ ilə  -->
                                 <!--   BİRDƏN ÇOX möhlət ✓✓✓                              -->
                                 <!-- ==================================================== -->
-                                <Border Margin="4" Width="368" CornerRadius="10" Background="#0C131C"
+                                <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="6" Margin="6,5" Width="368" CornerRadius="10" Background="#0C131C"
                                         BorderBrush="#E5A62E" BorderThickness="1">
                                     <StackPanel>
                                         <Border Background="#1B2634" CornerRadius="9,9,0,0" Padding="11,8">
@@ -1463,34 +1485,34 @@
                                     </StackPanel>
                                 </Border>
 
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="1" Grid.Column="3" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Faiz (%)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditFaiz" Width="80" Text="{Binding Credits.FaizDerecesi, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditFaiz" Text="{Binding Credits.FaizDerecesi, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditFaiz}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="1" Grid.Column="4" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Müddət (ay)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditMuddet" Width="80" Text="{Binding Credits.MuddetAy, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditMuddet" Text="{Binding Credits.MuddetAy, UpdateSourceTrigger=PropertyChanged}"/>
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditMuddet}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Satılma Tarixi" Style="{StaticResource FieldLabel}"/>
                                     <DatePicker Width="130" SelectedDate="{Binding Credits.SatilmaTarixi}"
                                                 ToolTip="Avtomobilin satıldığı tarix ✓ (başlama tarixindən əvvəl ✓)"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Başlama Tarixi" Style="{StaticResource FieldLabel}"/>
                                     <DatePicker Width="130" SelectedDate="{Binding Credits.BaslamaTarixi}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="2" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Status" Style="{StaticResource FieldLabel}"/>
-                                    <ComboBox Width="110" ItemsSource="{Binding Credits.Statuses}" SelectedItem="{Binding Credits.Status}"/>
+                                    <ComboBox ItemsSource="{Binding Credits.Statuses}" SelectedItem="{Binding Credits.Status}"/>
                                 </StackPanel>
-                                <StackPanel Margin="4">
+                                    <StackPanel Grid.Row="2" Grid.Column="3" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="Qeyd" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Width="140" Text="{Binding Credits.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox Text="{Binding Credits.Qeyd, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="7" Margin="2,16,0,4" Orientation="Horizontal">
                                     <Button Content="+ Kredit Əlavə Et" Style="{StaticResource iOSButtonEsas}" Background="#22B981" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding Credits.AddCreditCommand}"/>
                                     <Button Content="🗑️ Sil" Style="{StaticResource iOSButton}" Background="#F05E5E" Foreground="White" Margin="0,0,6,0"
@@ -1498,7 +1520,7 @@
                                     <Button Content="↺ Təmizlə" Style="{StaticResource iOSButton}" Background="#2E3D4E" Foreground="#F5F8FC"
                                             Command="{Binding Credits.ClearFormCommand}"/>
                                 </StackPanel>
-                            </WrapPanel>
+</Grid>
                             </ScrollViewer>
                         </Border>
 
@@ -2911,7 +2933,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
+                                    <StackPanel Margin="10,18,4,0" Orientation="Horizontal">
                                     <Button Content="+ Əlavə Et" Style="{StaticResource iOSButton}" Background="#4C7DFF" Foreground="White" Margin="0,0,6,0"
                                             Command="{Binding CreditTransactions.AddTransactionCommand}"/>
                                     <Button Content="🗑️ Sil" Style="{StaticResource iOSButton}" Background="#F05E5E" Foreground="White"
