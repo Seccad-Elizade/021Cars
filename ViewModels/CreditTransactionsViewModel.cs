@@ -718,6 +718,38 @@ namespace EnterpriseAeroStudio.ViewModels
                 Transactions.ReplaceAll(sətirlər);
 
                 // ================================================================
+                //  🔧 v6.2.56 — BİR DƏFƏLİK MAYA DÜZƏLİŞİ ✓✓✓
+                //  395 ₼ → maya TAM ₼ (179,00 ✓), Baza = Məbləğ − Maya (216,00 ✓)
+                //  → 35 ay × 179 = 6 265,00 ₼ ✓ (əvvəl 6 283,70 ✗)
+                // ================================================================
+                try
+                {
+                    var bayraq = System.IO.Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory, "maya_duzelis_6_2_56.flag");
+
+                    if (!System.IO.File.Exists(bayraq))
+                    {
+                        foreach (var t in sətirlər.Where(x => x.Nov == "Gəlir" && x.BolguBazasi.HasValue))
+                        {
+                            var tamMaya = Math.Round(t.Mebleg - t.BolguBazasi!.Value, 0, MidpointRounding.AwayFromZero);
+                            var yeniBaza = Math.Round(t.Mebleg - tamMaya, 2);
+
+                            if (Math.Abs(yeniBaza - t.BolguBazasi!.Value) > 0.004m)
+                            {
+                                t.BolguBazasi = yeniBaza;
+                                await _creditService.UpdateTransactionAsync(t);
+                            }
+                        }
+
+                        System.IO.File.WriteAllText(bayraq, DateTime.Now.ToString("s"));
+                    }
+                }
+                catch
+                {
+                    // 🛡️ düzəliş alınmasa → proqram dayanmır ✓
+                }
+
+                // ================================================================
                 //  ✅ v6.2.54 — SÜZGƏC DƏRHAL YENİDƏN İŞLƏYİR ✓✓✓
                 //  ⚠ ƏVVƏL: sətirlər yüklənirdi ✓ amma `FilteredTransactions`
                 //     BOŞ qalırdı ✗ → «kredit tarixçəsi görünmür» ✗✓✓
