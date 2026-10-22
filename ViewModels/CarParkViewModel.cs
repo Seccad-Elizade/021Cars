@@ -551,20 +551,49 @@ namespace EnterpriseAeroStudio.ViewModels
                     c.QeydiyyatNisani.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     c.Vin.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
+            // ================================================================
+            //  🛡️ v6.2.50 — «Index was out of range» XƏTASI DÜZƏLDİLDİ ✓✓✓
+            //  ⚠ SƏBƏB: cədvəl redaktə olunandır ✗ + seçilmiş sətir var idi ✗
+            //     → siyahı Reset olunanda ✗ WPF köhnə seçimi/redaktəni bərpa
+            //     etməyə çalışırdı ✗ → «Parameter 'index'» xətası ✗✓✓
+            //  ✅ HƏLL: Reset-dən ƏVVƏL seçimi TƏMİZLƏ ✓, sonra bərpa et ✓
+            // ================================================================
+            var secilmis = SelectedCar;
+
+            if (secilmis is not null)
+            {
+                SelectedCar = null;
+            }
+
             // ⚡ TƏK bildirişlə yazılır ✓✓✓ (minlərlə avtomobildə cədvəl
             //    min dəfə yenidən qurulmur ✗ → donma yoxdur ✓)
             Cars.ReplaceAll(filtered);
+
+            // 🔁 Seçim hələ də siyahıda varsa → geri qaytar ✓ (yoxdursa null qalır ✓)
+            if (secilmis is not null && filtered.Contains(secilmis))
+            {
+                SelectedCar = secilmis;
+            }
         }
 
         private void UpdateStats(IEnumerable<CarItem> cars)
         {
-            var stats = _carService.BuildStats(cars);
+            // ================================================================
+            //  🔒 v6.2.50 — «Biz tərəfdən bağlandı» maşınlar
+            //  «Satışda / Stokda» sayğacına DAXİL DEYİL ✗✓✓
+            //  (istifadəçi: «kreditdə 187 idi → bağladım, hələ də 187» ✗)
+            // ================================================================
+            var siyahi = cars
+                .Where(c => !string.Equals(c.Status, Catalog.BizBaglamaCarStatus, StringComparison.Ordinal))
+                .ToList();
+
+            var stats = _carService.BuildStats(siyahi);
             TotalCars = stats.TotalCars;
             AvailableCars = stats.AvailableCars;
             CreditCars = stats.CreditCars;
 
             // 📤 TRANSFER edilmiş avtomobillər ✓✓✓ (parkdan çıxıb ✓)
-            TransferCars = cars.Count(c => string.Equals(c.Status, Catalog.TransferStatus, StringComparison.Ordinal));
+            TransferCars = siyahi.Count(c => string.Equals(c.Status, Catalog.TransferStatus, StringComparison.Ordinal));
             TotalCost = stats.TotalCost;
         }
     }

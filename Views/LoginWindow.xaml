@@ -55,7 +55,11 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <!-- ✅ v6.2.50 — XƏTA SƏTRİ: «*» → «Auto» ✓✓✓
+                         ⚠ ƏVVƏL: Height="*" idi ✗ → pəncərə SizeToContent="Height"
+                            olduğu üçün bu sətir 0px alırdı ✗ → qırmızı xəbərdarlıq
+                            GÖRÜNMÜRDÜ ✗✓✓ -->
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
@@ -166,8 +170,15 @@
                     <CheckBox DockPanel.Dock="Right" x:Name="SifreGoster" Content="👁 Göstər"
                               FontSize="11.5" VerticalAlignment="Center"
                               Checked="SifreGoster_Changed" Unchecked="SifreGoster_Changed"/>
-                    <TextBlock x:Name="XetaMetni" Foreground="#FF9090" FontSize="12"
-                               FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    <!-- ❌ XƏTA — kodla idarə olunur ✓✓✓ (konvertor YOX ✗) -->
+                    <Border x:Name="XetaPanel" DockPanel.Dock="Left" Background="#33FF5C5C" BorderBrush="#FF6B6B"
+                            BorderThickness="1" CornerRadius="7" Padding="9,4" Margin="0,0,8,0"
+                            VerticalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock x:Name="XetaMetni" Foreground="#FF9B9B" FontSize="12.5"
+                                   FontWeight="Bold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </Border>
+                    <!-- ⬜ Görünməz ehtiyat (layout sıçramasın ✓) -->
+                    <TextBlock x:Name="XetaYerTutucu" Text="" MinHeight="1" VerticalAlignment="Center"/>
                 </DockPanel>
 
                 <!-- ==================== ⑤ DÜYMƏLƏR ==================== -->

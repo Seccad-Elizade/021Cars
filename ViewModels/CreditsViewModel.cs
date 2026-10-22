@@ -652,14 +652,18 @@ namespace EnterpriseAeroStudio.ViewModels
                     //  ✅ İNDİ İSTİSNASIZ süzülür ✓ → bağlanan kredit siyahıdan
                     //    DƏRHAL çıxır ✓ və «🗄️ Satılan & Krediti Bitmiş» tabının
                     //    «✅ Krediti Bitmiş» bölməsində görünür ✓✓✓
-                    .Where(c => !string.Equals(c.Status, "Bağlı", StringComparison.Ordinal))
+                    .Where(c => !string.Equals(c.Status, "Bağlı", StringComparison.Ordinal)
+                                // 🔒 v6.2.50 — «Biz tərəfdən bağlanmış» kredit də siyahıdan ÇIXIR ✓✓✓
+                                //  (o, «🗄️ Satılan & Krediti Bitmiş» tabında görünür ✓)
+                                && !string.Equals(c.Status, Catalog.BizBaglamaStatus, StringComparison.Ordinal))
                     .ToList();
 
                 // ✅ Seçilmiş kredit «Bağlı» oldusa → seçim SIFIRLANIR ✓✓✓
                 //  (detallar / ödəniş cədvəli paneli köhnə BAĞLI krediti
                 //   göstərməyə davam etməsin ✗✓✓)
                 if (SelectedCredit is not null
-                    && string.Equals(SelectedCredit.Status, "Bağlı", StringComparison.Ordinal))
+                    && (string.Equals(SelectedCredit.Status, "Bağlı", StringComparison.Ordinal)
+                        || string.Equals(SelectedCredit.Status, Catalog.BizBaglamaStatus, StringComparison.Ordinal)))
                 {
                     SelectedCredit = null;
                 }
@@ -690,12 +694,57 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 _applyingContractFilter = false;
             }
+
+            // 🔒 Biz tərəfdən bağlanmış cədvəli də yenilənir ✓
+            ApplyBizBaglamaFilter();
         }
 
         /// <summary>Cədvəl başlığında göstərilən say: "5 müqavilə" və ya "2 / 5 müqavilə".</summary>
         public string ContractCountText => string.IsNullOrWhiteSpace(ContractSearchText)
             ? $"{Credits.Count} müqavilə"
             : $"{FilteredContracts.Count} / {Credits.Count} müqavilə";
+
+        // ====================================================================
+        //  🔒 v6.2.50 — «BİZ TƏRƏFDƏN BAĞLANMIŞ» KREDİTLƏR ✓✓✓
+        //  Ayrıca cədvəl + AXTARIŞ sətri ✓ (müştəri · müqavilə № · avtomobil ✓)
+        // ====================================================================
+
+        /// <summary>🔒 Biz tərəfdən bağlanmış kreditlər (axtarışla süzülmüş ✓).</summary>
+        public ObservableCollection<Credit> BizBaglanmisKreditler { get; } = new();
+
+        /// <summary>🔒 Axtarış mətni — dəyişdikcə siyahı süzülür ✓.</summary>
+        [ObservableProperty] private string bizBaglamaAxtaris = string.Empty;
+
+        partial void OnBizBaglamaAxtarisChanged(string value) => ApplyBizBaglamaFilter();
+
+        /// <summary>Cədvəl başlığındaki say ✓.</summary>
+        public string BizBaglamaCountText => string.IsNullOrWhiteSpace(BizBaglamaAxtaris)
+            ? $"{BizBaglanmisKreditler.Count} bağlanmış"
+            : $"{BizBaglanmisKreditler.Count} nəticə";
+
+        private void ApplyBizBaglamaFilter()
+        {
+            var a = BizBaglamaAxtaris?.Trim() ?? string.Empty;
+
+            var siyahi = Credits
+                .Where(c => string.Equals(c.Status, Catalog.BizBaglamaStatus, StringComparison.Ordinal))
+                .Where(c => a.Length == 0
+                            || (c.Mustəri ?? string.Empty).Contains(a, StringComparison.OrdinalIgnoreCase)
+                            || (c.MuqavileNomresi ?? string.Empty).Contains(a, StringComparison.OrdinalIgnoreCase)
+                            || (c.Car?.DisplayName ?? string.Empty).Contains(a, StringComparison.OrdinalIgnoreCase)
+                            || (c.Qeyd ?? string.Empty).Contains(a, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(c => c.Id)
+                .ToList();
+
+            BizBaglanmisKreditler.Clear();
+
+            foreach (var c in siyahi)
+            {
+                BizBaglanmisKreditler.Add(c);
+            }
+
+            OnPropertyChanged(nameof(BizBaglamaCountText));
+        }
 
         /// <summary>Axtarış mətnini təmizləyir və bütün müqavilələri göstərir.</summary>
         // ====================================================================

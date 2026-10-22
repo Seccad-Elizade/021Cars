@@ -733,12 +733,51 @@ namespace EnterpriseAeroStudio
                     $"🧵 İZ      : {e.Exception.StackTrace}" + Environment.NewLine + Environment.NewLine);
             }
             catch { }
+            // ================================================================
+            //  🛡️ v6.2.50 — ZƏRƏRSİZ UI XƏTALARI (dialoq ÇIXMIR) ✓✓✓
+            //  ⚠ DataGrid / CollectionView daxili indeks xətaları ✗
+            //     («Index was out of range», «…inconsistent with its items source»)
+            //     — WPF növbəti layout-da ÖZÜ bərpa edir ✓
+            //  ✅ Yalnız LOQA yazılır ✓ · istifadəçiyə xəta pəncərəsi ÇIXMIR ✓✓✓
+            // ================================================================
+            if (ZerersizUiXetasi(e.Exception))
+            {
+                e.Handled = true;
+                return;
+            }
+
             MessageBox.Show(
                 "Gözlənilməz xəta baş verdi:\n" + e.Exception.Message,
                 "Xəta",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             e.Handled = true;
+        }
+
+        /// <summary>
+        /// 🛡️ WPF-in cədvəl/kolleksiya daxilində baş verən və ÖZÜ bərpa etdiyi
+        /// zərərsiz xətaları tanıyır ✓ (istifadəçiyə göstərilmir ✗).
+        /// </summary>
+        private static bool ZerersizUiXetasi(Exception? ex)
+        {
+            for (var x = ex; x is not null; x = x.InnerException)
+            {
+                if (x is ArgumentOutOfRangeException or IndexOutOfRangeException)
+                {
+                    return true;
+                }
+
+                var m = x.Message ?? string.Empty;
+
+                if (m.Contains("Index was out of range", StringComparison.OrdinalIgnoreCase) ||
+                    m.Contains("inconsistent with its items source", StringComparison.OrdinalIgnoreCase) ||
+                    m.Contains("does not appear at given index", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)

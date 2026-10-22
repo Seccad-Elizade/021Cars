@@ -21,6 +21,12 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         private readonly IOdenisMohletRepository _mohletler;
 
+        /// <summary>💵 Kassa hərəkətləri — «🔒 biz tərəfdən bağlama» XƏRC sətri üçün ✓.</summary>
+        private readonly IKassaHereketRepository _kassaHareketler;
+
+        /// <summary>🧾 Xərclər — bağlama məbləği avtomobilin XƏRCLƏRİNƏ yazılır ✓✓✓.</summary>
+        private readonly IRepository<ExpenseItem> _expenses;
+
         private readonly ITrashService _trash;
         private readonly ILogger<CreditService> _logger;
 
@@ -31,6 +37,8 @@ namespace EnterpriseAeroStudio.Services
             ICarRepository cars,
             ISaleRepository sales,
             IOdenisMohletRepository mohletler,
+            IKassaHereketRepository kassaHareketler,
+            IRepository<ExpenseItem> expenses,
             ITrashService trash,
             ILogger<CreditService> logger)
         {
@@ -40,6 +48,8 @@ namespace EnterpriseAeroStudio.Services
             _cars = cars;
             _sales = sales;
             _mohletler = mohletler;
+            _kassaHareketler = kassaHareketler;
+            _expenses = expenses;
             _trash = trash;
             _logger = logger;
         }
@@ -983,6 +993,113 @@ namespace EnterpriseAeroStudio.Services
             }
 
             return baglanan;
+        }
+
+        /// <inheritdoc />
+        public async Task<BizTerefdenBaglamaNeticesi> BizTerefdenBaglaAsync(
+            int creditId,
+            decimal odenilenMebleg,
+            DateTime tarix,
+            string? qeyd = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (odenilenMebleg <= 0m)
+            {
+                return BizTerefdenBaglamaNeticesi.Xeta("Məbləğ 0-dan BÖYÜK olmalıdır ✓");
+            }
+
+            var credit = await _credits.GetByIdAsync(creditId, cancellationToken);
+
+            if (credit is null)
+            {
+                return BizTerefdenBaglamaNeticesi.Xeta("Kredit tapılmadı ✗");
+            }
+
+            try
+            {
+                var kohneMasin = credit.CarId is int carId
+                    ? await _cars.GetByIdAsync(carId, cancellationToken)
+                    : null;
+
+                // ⓪ 🧹 KÖHNƏ XƏRCLƏR SİLİNİR ✓✓✓ (istifadəçi tələbi ✓)
+                //    + Alış qiyməti SIFIRLANIR ✓ → yalnız YENİ bağlama xərci qalır ✓
+                if (kohneMasin is not null)
+                {
+                    var kohneXercler = await _expenses.FindAsync(
+                        e => e.CarId == kohneMasin.Id, cancellationToken);
+
+                    foreach (var x in kohneXercler)
+                    {
+                        _expenses.Remove(x);
+                    }
+
+                    kohneMasin.AlisQiymeti = 0m;
+                    kohneMasin.SatisQiymeti = 0m;
+                    _cars.Update(kohneMasin);
+
+                    await _expenses.SaveChangesAsync(cancellationToken);
+                    await _cars.SaveChangesAsync(cancellationToken);
+                }
+
+                // ① 🧾 XƏRC → avtomobilin XƏRCLƏRİNƏ yazılır ✓✓✓
+                //  ★ İstifadəçi tələbi: 2000 ₼ «Alış qiyməti» YOX ✗ — XƏRC olmalıdır ✓
+                //  → Maya = Alış + Xərclər ✓ · «Ümumi Xərclər» ✓ ·
+                //    Kassa xərci ✓ · Maliyyə Paneli ✓ (hamısı avtomatik ✓)
+                await _expenses.AddAsync(new ExpenseItem
+                {
+                    Tarix = tarix.Date,
+                    Teyinat = Catalog.CarDestination,
+                    Qrup = Catalog.BizBaglamaKateqoriya,
+                    Kategoriya = Catalog.BizBaglamaKateqoriya,
+                    CarId = kohneMasin?.Id,
+                    Mebleg = odenilenMebleg,
+                    OdenisUsulu = Catalog.PaymentMethods[0],
+                    Qeyd = string.IsNullOrWhiteSpace(qeyd)
+                        ? $"🔒 Biz tərəfdən bağlama — {credit.Mustəri} · {credit.MuqavileNomresi}"
+                        : qeyd.Trim()
+                }, cancellationToken);
+
+                await _expenses.SaveChangesAsync(cancellationToken);
+
+                // ② 📕 KREDİT → «Biz tərəfdən bağlanmış» (silinmir ✗ · tarixçə qalır ✓)
+                credit.Status = Catalog.BizBaglamaStatus;
+                credit.Qeyd = $"{Catalog.BizBaglamaStatus} — {odenilenMebleg:N2} ₼ ({tarix:dd.MM.yyyy})" +
+                              (string.IsNullOrWhiteSpace(qeyd) ? string.Empty : $" · {qeyd.Trim()}");
+
+                _credits.Update(credit);
+                await _credits.SaveChangesAsync(cancellationToken);
+
+                // ③ 🚗 KÖHNƏ MAŞIN → arxiv ✓ (parkdan çıxır ✓)
+                if (kohneMasin is not null)
+                {
+                    kohneMasin.Status = Catalog.BizBaglamaCarStatus;
+                    _cars.Update(kohneMasin);
+                    await _cars.SaveChangesAsync(cancellationToken);
+                }
+
+                // ④ ✅ YENİ SƏTİR YARADILMIR ✗✓✓ — EYNİ maşın parkda qalır ✓
+                //    (istifadəçi: «ikidənə maşın gəlir — bidənə olmalıdır» ✗✓✓)
+
+                _logger.LogInformation(
+                    "🔒 Biz tərəfdən bağlama: {Muqavile} · {Mebleg:N2} ₼ XƏRC → maşın #{Sira} «{Status}»",
+                    credit.MuqavileNomresi, odenilenMebleg,
+                    kohneMasin?.SiraNomresi ?? 0, Catalog.BizBaglamaCarStatus);
+
+                return new BizTerefdenBaglamaNeticesi
+                {
+                    Ugurlu = true,
+                    Mesaj = "✓",
+                    OdenilenMebleg = odenilenMebleg,
+                    YeniCarId = kohneMasin?.Id ?? 0,
+                    YeniSiraNomresi = kohneMasin?.SiraNomresi ?? 0,
+                    YeniCarAdi = kohneMasin?.DisplayName ?? credit.Mustəri
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "🔒 Biz tərəfdən bağlama alınmadı (kredit #{Id})", creditId);
+                return BizTerefdenBaglamaNeticesi.Xeta(ex.Message);
+            }
         }
     }
 }

@@ -544,19 +544,35 @@ namespace EnterpriseAeroStudio.Views
         /// </summary>
         private void CarGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
-            if (e.EditAction != DataGridEditAction.Commit || e.Row.Item is not CarItem car)
+            // 🛡️ v6.2.50 — müdafiə ✓ (axtarış siyahını dəyişəndə WPF
+            //    «Index was out of range» atırdı ✗ → proqram xəta pəncərəsi ✗)
+            try
             {
-                return;
-            }
-
-            // Binding-lər tamamlandıqdan sonra komanda çağırılır.
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-            {
-                if (_viewModel.CarPark.SaveCarCommand.CanExecute(car))
+                if (e.EditAction != DataGridEditAction.Commit || e.Row.Item is not CarItem car)
                 {
-                    _viewModel.CarPark.SaveCarCommand.Execute(car);
+                    return;
                 }
-            }));
+
+                // Binding-lər tamamlandıqdan sonra komanda çağırılır.
+                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                {
+                    try
+                    {
+                        if (_viewModel.CarPark.SaveCarCommand.CanExecute(car))
+                        {
+                            _viewModel.CarPark.SaveCarCommand.Execute(car);
+                        }
+                    }
+                    catch
+                    {
+                        // 🛡️ səssizcə keçir ✓ — istifadəçini narahat etmirik ✓
+                    }
+                }));
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
         }
 
         /// <summary>

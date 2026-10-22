@@ -105,5 +105,22 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         /// <returns>Bu çağırışda bağlanan kreditlərin sayı.</returns>
         Task<int> RefreshCreditCompletionAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 🔒 <b>«BİZ TƏRƏFDƏN BAĞLAMA»</b> ✓✓✓
+        /// <para>Müştəri krediti ödəyə bilmədikdə pulu <b>BİZ</b> veririk → maşın parka qayıdır ✓</para>
+        /// <list type="number">
+        ///   <item>💵 Kassa → <b>XƏRC</b>: ödədiyimiz məbləğ ✓</item>
+        ///   <item>📕 Kredit → <see cref="Catalog.BizBaglamaStatus"/> ✓</item>
+        ///   <item>🚗 Köhnə maşın → <see cref="Catalog.BizBaglamaCarStatus"/> (arxiv ✓)</item>
+        ///   <item>🆕 <b>YENİ maşın</b> → Parkda ✓ · Maya = ödədiyimiz məbləğ ✓ · yeni sıra nömrəsi ✓</item>
+        /// </list>
+        /// </summary>
+        Task<BizTerefdenBaglamaNeticesi> BizTerefdenBaglaAsync(
+            int creditId,
+            decimal odenilenMebleg,
+            DateTime tarix,
+            string? qeyd = null,
+            CancellationToken cancellationToken = default);
     }
 }

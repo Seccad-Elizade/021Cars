@@ -115,7 +115,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 ApplySoldCarFilter();
 
                 CompletedCredits.Clear();
-                foreach (var credit in credits.Where(IsCompleted))
+                foreach (var credit in credits.Where(c => IsCompleted(c)
+                    // 🔒 v6.2.50 — «Biz tərəfdən bağlanmış» kreditlər də BURADA görünür ✓✓✓
+                    || string.Equals(c.Status, Catalog.BizBaglamaStatus, StringComparison.Ordinal)))
                 {
                     CompletedCredits.Add(credit);
                 }

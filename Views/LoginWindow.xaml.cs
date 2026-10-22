@@ -45,13 +45,16 @@ namespace EnterpriseAeroStudio.Views
 
             if (istifadeci is null)
             {
+                // ❌ v6.2.50 — XƏTA GÖRÜNÜRLÜYÜ kodla idarə olunur ✓✓✓
                 XetaMetni.Text = "❌ İstifadəçi adı və ya şifrə YANLIŞDIR!";
+                XetaPanel.Visibility = Visibility.Visible;
                 SifreQutusu.Clear();
                 SifreAciq.Clear();
                 SifreQutusu.Focus();
                 return;
             }
 
+            XetaPanel.Visibility = Visibility.Collapsed;
             Istifadeci = istifadeci;
             DialogResult = true;
         }

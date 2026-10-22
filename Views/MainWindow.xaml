@@ -1561,7 +1561,7 @@
                                     <Grid DockPanel.Dock="Top" Margin="2,0,2,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="420"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0" Height="30" VerticalContentAlignment="Center"
                                                  Text="{Binding Credits.ContractSearchText, UpdateSourceTrigger=PropertyChanged}"
@@ -1619,14 +1619,21 @@
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Top" Text="📄 Seçilmiş Kredit Məlumatı" FontSize="13" FontWeight="Bold" Margin="6,4,6,8"/>
 
-                                    <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="2,0,2,0">
+                                    <!-- ================================================================ -->
+                    <!-- ⚠ v6.2.50 — ÜFÜQİ SÜRÜŞMƏ SÖNDÜRÜLDÜ ✗✗✗                        -->
+                    <!-- ƏVVƏL: HorizontalScrollBarVisibility="Auto" → iç eni SONSUZ      -->
+                    <!--        olurdu ✗ → etiket/dəyər sətirləri DAĞILIR, mətn kəsilir ✗ -->
+                    <!-- ✅ İNDİ: Disabled → kartın eninə sığır ✓ · sətirlər SEÇİLİ ✓     -->
+                    <!-- ================================================================ -->
+                    <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0" Margin="2,0,2,0">
                                         <Border Background="#121A26" CornerRadius="10" BorderBrush="#202D3C" BorderThickness="1" Padding="14,12">
                                             <StackPanel>
                                                 <!-- Başlıq: müqavilə nömrəsi + status nişanı -->
                                                 <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="130"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0" Text="{Binding Credits.SelectedCredit.MuqavileNomresi}"
                                                                FontSize="18" FontWeight="Bold" Foreground="#7EA8FF"
@@ -1640,9 +1647,9 @@
                                                 <Border Height="1" Background="#202D3C" Margin="0,0,0,10"/>
 
                                                 <TextBlock Text="MÜQAVİLƏ" Style="{StaticResource CardSectionHeader}"/>
-                                                <Grid>
+                                                <Grid MaxWidth="400" HorizontalAlignment="Stretch">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="130"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
@@ -1673,9 +1680,9 @@
                                                 <Border Height="1" Background="#202D3C" Margin="0,6,0,10"/>
 
                                                 <TextBlock Text="MALİYYƏ" Style="{StaticResource CardSectionHeader}"/>
-                                                <Grid>
+                                                <Grid MaxWidth="400" HorizontalAlignment="Stretch">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="130"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
@@ -1723,7 +1730,7 @@
 
                                                 <TextBlock Text="ÖDƏNİŞ VƏZİYYƏTİ" Style="{StaticResource CardSectionHeader}"/>
                                                 <!-- 🏷️ v6.2.48 — ÖDƏNİŞ VƏZİYYƏTİ (2×2) + «MAYA ÖDƏNİŞ» ✓✓✓ -->
-                                                <Grid>
+                                                <Grid MaxWidth="400" HorizontalAlignment="Stretch">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="*"/>
@@ -1735,6 +1742,8 @@
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
                                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödənilib" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
@@ -1759,7 +1768,7 @@
 
                                                     <!-- 🏷️ v6.2.51 — MAYA SƏTRİ: Maya ödəniş · MAYA ÖDƏNİLİB (32) · Maya qalıq ✓✓✓ -->
                                                     <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
-                                                        <Grid>
+                                                        <Grid MaxWidth="400" HorizontalAlignment="Stretch">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*"/>
                                                                 <ColumnDefinition Width="*"/>
@@ -1767,6 +1776,8 @@
                                                             </Grid.ColumnDefinitions>
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <!-- ✅ v6.2.50 — MAYA PROGRESS BAR üçün sətir ✓ -->
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
 
@@ -1779,15 +1790,24 @@
                                                             <TextBlock Grid.Row="0" Grid.Column="2" Text="Maya qalıq" Style="{StaticResource CardLabel}"
                                                                        ToolTip="Maya ödəniş − Maya ödənilib ✓"/>
 
-                                                            <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#7EA8FF" FontWeight="Bold" FontSize="12.5"
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#7EA8FF" FontWeight="Bold" FontSize="12" Margin="0,0,10,0"
                                                                        Text="{Binding Credits.SelectedMayaOdenis, Converter={StaticResource Currency}}"
                                                                        ToolTip="Maya ödəniş (ödənilməli) ✓"/>
-                                                            <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#41D39A" FontWeight="Bold" FontSize="12.5"
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#41D39A" FontWeight="Bold" FontSize="12" Margin="0,0,10,0"
                                                                        Text="{Binding Credits.SelectedMayaOdenen, Converter={StaticResource Currency}}"
                                                                        ToolTip="Maya ödənilib ✓ (yalnız maya hissələri ✓ — bütün ödəniş YOX ✗)"/>
                                                             <TextBlock Grid.Row="1" Grid.Column="2" Foreground="#F3C24B" FontWeight="Bold" FontSize="12.5"
                                                                        Text="{Binding Credits.SelectedMayaQaliq, Converter={StaticResource Currency}}"
                                                                        ToolTip="Maya qalıq ✓"/>
+
+                                                            <!-- ✅ v6.2.50 — MAYA ÖDƏNİŞİNİN PROGRESS BAR-I ✓✓✓ -->
+                                                            <ProgressBar Grid.Row="2" Grid.ColumnSpan="3" Height="9" Margin="0,9,0,0"
+                                                                         Minimum="0"
+                                                                         Maximum="{Binding Credits.SelectedMayaOdenis, Mode=OneWay}"
+                                                                         Value="{Binding Credits.SelectedMayaOdenen, Mode=OneWay}"
+                                                                         Style="{StaticResource CreditProgressBar}"
+                                                                         ToolTip="Maya ödənilib ÷ Maya ödəniş ✓ (faiz avtomatik ✓)"/>
+
                                                         </Grid>
 
                                                         <TextBlock FontSize="10" Foreground="#8798AD" Margin="0,5,0,0">

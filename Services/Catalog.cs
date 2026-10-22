@@ -179,6 +179,15 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         public const string TransferStatus = "Transfer edildi";
 
+        /// <summary>🔒 Kredit «biz tərəfdən» bağlandı ✓ (müştəri ödəyə bilmədi → pulu biz verdik ✓).</summary>
+        public const string BizBaglamaStatus = "Biz tərəfdən bağlanmış";
+
+        /// <summary>🔒 Köhnə maşın «biz tərəfdən bağlandı» → arxivə keçir ✓ (parka YENİ nüsxə qayıdır ✓).</summary>
+        public const string BizBaglamaCarStatus = "Biz tərəfdən bağlandı";
+
+        /// <summary>🔒 Kassa xərc kateqoriyası ✓ (Maliyyə Panelində ayrı görünür ✓).</summary>
+        public const string BizBaglamaKateqoriya = "🔒 Biz tərəfdən bağlama";
+
         /// <summary>
         /// Status avtomobilin artıq parkda olmadığını göstərirmi?
         /// Satılan, barterə verilən və kreditə salınan maşınlar aktiv parkda görünmür.
