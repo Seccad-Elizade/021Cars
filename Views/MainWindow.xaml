@@ -2983,7 +2983,7 @@
                                           HorizontalScrollBarVisibility="Auto"
                                           ScrollViewer.PanningMode="Both"
                                           MinHeight="380"
-                                          MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType={x:Type ScrollViewer}}, FallbackValue=700, TargetNullValue=700}"
+                                          MaxHeight="520"
                                           IsManipulationEnabled="True">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">
