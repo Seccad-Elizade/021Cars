@@ -1890,6 +1890,25 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         private void BolguHesabla()
         {
+            // ================================================================
+            //  ⛔ v6.2.57 — MANUAL REJİMDƏ «HESABLA» PAYLARA TOXUNMUR ✓✓✓
+            //  ★ Səbəb: manual rejimdə maya 179 ✓ · paylar 108+108 = 216 ✓
+            //    yazılandan sonra «Hesabla» basılırdı ✗ → faiz %-dən
+            //    paylar YENİDƏN hesablanırdı ✗ (107,73 + 107,72 = 215,45 ✗)
+            //    → maya 179,55 ✗ → 35 ay × 0,55 = 18,70 ₼ fərq ✗✓✓
+            //  ✅ İNDİ: manual rejimdə düymə YALNIZ xəbərdarlıq göstərir ✓
+            //     və əl ilə yazdığınız paylara TOXUNMUR ✓✓✓
+            // ================================================================
+            if (BolguManual)
+            {
+                _dialogs.ShowInfo(
+                    "✍️ MANUAL BÖLGÜ AKTİVDİR ✓\n\n" +
+                    "Payları və MAYANI əl ilə yazın ✓\n" +
+                    "Baza avtomatik: Məbləğ − Maya ✓\n\n" +
+                    "«Hesabla» payların üzərinə YAZMIR ✗");
+                return;
+            }
+
             var modeller = new List<PartnerShare>();
             var sira = 0;
 
