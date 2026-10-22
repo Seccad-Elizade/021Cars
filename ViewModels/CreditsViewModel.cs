@@ -1134,6 +1134,10 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         public decimal SelectedQaliq { get; private set; }
 
+        /// <summary>💰 <b>ÜMUMİ ÖDƏNİLƏCƏK</b> = Ödənilib + Qalıq ✓✓✓
+        /// <para>«Ödəniləcək» sütunu üçün (Ödənilib-in SOLUNDA ✓)</para></summary>
+        public decimal SelectedOdenilecek => Math.Round(SelectedOdenilen + SelectedQaliq, 2);
+
         /// <summary>
         /// 💸 <b>KREDİTƏ YAZILAN ƏLAVƏ XƏRC CƏMİ (₼)</b> ✓✓✓ (v6.2.35)
         /// <para>
@@ -1312,10 +1316,28 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 SelectedMayaOdenen = Math.Round(mayaHissesi, 2);
 
+                // ════════════════════════════════════════════════════════════════
+                //  🔒 v6.2.53 — İLKİN ÖDƏNİŞƏ MÖHLƏT ÖDƏNİLİBSƏ
+                //  → məbləği «MAYA ÖDƏNİLİB»-ə ƏLAVƏ OLUNUR ✓✓✓
+                //  ★ İstifadəçi qaydası:
+                //     «İlkin ödənişə möhlət maya ödənişini (və ödəniləcəyi)
+                //      artırır → möhlət ödənildikdə maşının MAYASINDAN çıxır ✓»
+                //  → deməli ödənilən möhlət məbləği TAM olaraq mayadan çıxır ✓
+                // ════════════════════════════════════════════════════════════════
+                var odenilmisIlkinMohlet = c.IlkinMohletleri?
+                    .Where(m => m.Odenilib)
+                    .Sum(m => m.Mebleg) ?? 0m;
+
+                if (odenilmisIlkinMohlet > 0m)
+                {
+                    SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisIlkinMohlet, 2);
+                }
+
                 // ⏳ Maya qalığı = maya ödənişi − MAYA HİSSƏLƏRİ ✓ (bütün ödəniş YOX ✗)
                 SelectedMayaQaliq = Math.Max(0m, SelectedMayaOdenis - SelectedMayaOdenen);
 
                 OnPropertyChanged(nameof(SelectedMayaOdenen));
+                OnPropertyChanged(nameof(SelectedOdenilecek));
             }
             catch
             {

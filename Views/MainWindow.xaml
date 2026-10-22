@@ -1734,6 +1734,7 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
@@ -1746,16 +1747,20 @@
                                                     <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
 
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödənilib" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Qalıq" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Ödəniləcək" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Ödənilib" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Qalıq" Style="{StaticResource CardLabel}" Margin="0,0,10,0"/>
 
-                                                    <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#41D39A" FontWeight="Bold" FontSize="12.5"
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Foreground="#7EA8FF" FontWeight="Bold" FontSize="12.5" Margin="0,0,10,0"
+                                                               Text="{Binding Credits.SelectedOdenilecek, Converter={StaticResource Currency}}"
+                                                               ToolTip="Ümumi ödəniləcək = Ödənilib + Qalıq ✓"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#41D39A" FontWeight="Bold" FontSize="12.5" Margin="0,0,10,0"
                                                                Text="{Binding Credits.SelectedOdenilen, Converter={StaticResource Currency}}"/>
-                                                    <TextBlock Grid.Row="1" Grid.Column="1" Foreground="#FF9090" FontWeight="Bold" FontSize="12.5"
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Foreground="#FF9090" FontWeight="Bold" FontSize="12.5"
                                                                Text="{Binding Credits.SelectedQaliq, Converter={StaticResource Currency}}"/>
 
                                                     <!-- 💵 ① ÖDƏNİLƏCƏKLƏR BAR-I — Ödənilib/Qalıq-ın DƏRHAL ALTINDA ✓ -->
-                                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,10,0,0">
                                                         <TextBlock Text="💵 Ödəniləcəklər" FontSize="10" FontWeight="Bold"
                                                                    Foreground="#A9B8C8" Margin="0,0,0,4"/>
                                                         <ProgressBar Height="7" Margin="0,0,0,3"
@@ -1767,7 +1772,7 @@
                                                     </StackPanel>
 
                                                     <!-- 🏷️ v6.2.51 — MAYA SƏTRİ: Maya ödəniş · MAYA ÖDƏNİLİB (32) · Maya qalıq ✓✓✓ -->
-                                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,10,0,0">
                                                         <Grid MaxWidth="400" HorizontalAlignment="Stretch">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="*"/>
