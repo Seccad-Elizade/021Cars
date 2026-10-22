@@ -2588,7 +2588,7 @@
                                     <TextBlock Text="Müqavilə" Style="{StaticResource FieldLabel}"/>
                                     <ComboBox Width="360" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
                                               ItemsSource="{Binding CreditTransactions.FilteredCredits}"
-                                              SelectedItem="{Binding CreditTransactions.SelectedCredit}"
+                                              SelectedItem="{Binding CreditTransactions.SelectedCredit}" IsSynchronizedWithCurrentItem="False"
                                               Text="{Binding CreditTransactions.CreditSearchText, UpdateSourceTrigger=PropertyChanged}"
                                               ToolTip="BÜTÜN kreditlər ✓ — bitmiş (🗄️ arxiv) kreditlər də seçilə bilər ✓ (ödəniş/qeyd əlavə etmək üçün ✓)">
                                         <ComboBox.ItemTemplate>

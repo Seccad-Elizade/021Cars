@@ -686,7 +686,15 @@ namespace EnterpriseAeroStudio.ViewModels
                 // → seçim EYNİ İD ilə yeni nüsxəyə bağlanır ✓ (tapılmazsa null ✓)
                 if (seçilmişId is int id)
                 {
-                    SelectedCredit = Credits.FirstOrDefault(c => c.Id == id);
+                    // ⚡ v6.2.52 — MƏCBURİ YENİDƏN BAĞLAMA ✓✓✓
+                    //  ⚠ ƏVVƏL: yalnız `=` yazılırdı ✗ → WPF ComboBox bəzən
+                    //     seçimi «itirirdi» ✗ («yenidən avtomobil seçin» ✗✓✓)
+                    //  ✅ İNDİ: əvvəl NULL ✓ sonra yeni nüsxə ✓ →
+                    //     PropertyChanged 100% işə düşür ✓ və seçim QALIR ✓
+                    var yeniSecim = Credits.FirstOrDefault(c => c.Id == id);
+
+                    SelectedCredit = null;
+                    SelectedCredit = yeniSecim;
                 }
 
                 var creditById = Credits.ToDictionary(c => c.Id);

@@ -30,6 +30,9 @@ namespace EnterpriseAeroStudio.ViewModels
     {
         private readonly IKassaService _kassa;
         private readonly IMohletService _mohletler;
+
+        /// <summary>📕 Kredit xidməti — möhlət ödənişini KREDİTƏ də yazmaq üçün ✓✓✓</summary>
+        private readonly ICreditService _credits;
         private readonly IDialogService _dialogs;
         private readonly ILogger<KassaViewModel> _logger;
 
@@ -45,11 +48,13 @@ namespace EnterpriseAeroStudio.ViewModels
         public KassaViewModel(
             IKassaService kassa,
             IMohletService mohletler,
+            ICreditService credits,
             IDialogService dialogs,
             ILogger<KassaViewModel> logger)
         {
             _kassa = kassa;
             _mohletler = mohletler;
+            _credits = credits;
             _dialogs = dialogs;
             _logger = logger;
 
@@ -477,7 +482,13 @@ namespace EnterpriseAeroStudio.ViewModels
                     Qeyd = "⏳ Qismən ödəniş ✓"
                 });
 
-                await _mohletler.SetOdenildiAsync(odenilmis.Id, true, odenisTarixi);
+                // ✅ v6.2.53 — BİRBAŞA yeniləmə ✓ (SetOdenildiAsync səssiz uğursuz olurdu ✗)
+                odenilmis.Odenilib = true;
+                odenilmis.OdenilmeTarixi = odenisTarixi.Date;
+                await _mohletler.UpdateAsync(odenilmis);
+
+                // ⛔ v6.2.53 — qismən ödəniş də AYRICA kreditə yazılmır ✗
+                //    (möhlət sətri artıq kassaya düşür ✓ → ikiqat olmaz ✓)
 
                 mohlet.Mebleg = qaliq;
                 mohlet.Tarix = qalanTarix;
@@ -523,7 +534,19 @@ namespace EnterpriseAeroStudio.ViewModels
 
             try
             {
-                await _mohletler.SetOdenildiAsync(mohlet.Id, true, tarix);
+                // ✅ v6.2.53 — BİRBAŞA yeniləmə ✓ (SetOdenildiAsync səssiz uğursuz olurdu ✗)
+                mohlet.Odenilib = true;
+                mohlet.OdenilmeTarixi = tarix.Date;
+                await _mohletler.UpdateAsync(mohlet);
+
+                // ================================================================
+                //  ⛔ v6.2.53 — KREDİTƏ AYRICA «Gəlir» YAZILMIR ✗✓✓
+                //  ⚠ SƏBƏB: möhlət ödənişi KASSAYA ARTIQ avtomatik düşür ✓
+                //     (KassaHesabi → «⏳ İlkin ödəniş möhləti» ✓)
+                //     + CreditTransaction əlavə etsək → KASSADA İKİQAT yazı ✗
+                //     (200 ₼ → 400 ₼ görünürdü ✗✓✓ — istifadəçi şikayəti ✓)
+                //  ✅ İNDİ: yalnız möhlət yazılır ✓ — kassa DƏQİQ ✓
+                // ================================================================
 
                 _logger.LogInformation(
                     "✅ Möhlət ödənildi: {Menbe} · {Mebleg:N2} ₼ · {Tarix:dd.MM.yyyy}",
@@ -574,6 +597,38 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ================================================================
                 mohlet.Odenilib = false;
                 mohlet.OdenilmeTarixi = null;
+
+                // ================================================================
+                //  💰 v6.2.52 — «A»: QİSMƏN ÖDƏNİŞ GERİ ALINIRSA
+                //  → orijinal möhlətin MƏBLƏĞİ və TARİXİ tam BƏRPA olunur ✓✓✓
+                //  ⚠ ƏVVƏL: yalnız bu sətir «ödənilmədi» olurdu ✗ →
+                //     orijinalın AZALDILMIŞ məbləği qalırdı ✗ → pul «yox olurdu» ✗✓✓
+                // ================================================================
+                if (mohlet.Qeyd?.Contains("Qismən", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    var orijinal = GozlenilenMohletler.FirstOrDefault(m =>
+                        m.Id != mohlet.Id
+                        && !m.Odenilib
+                        && m.CreditId == mohlet.CreditId
+                        && m.SaleId == mohlet.SaleId
+                        && m.Sira == mohlet.Sira
+                        && string.Equals(m.Menbe, mohlet.Menbe, StringComparison.Ordinal));
+
+                    if (orijinal is not null)
+                    {
+                        // ① məbləğ geri qaytarılır ✓ (5 000 → 2 000 ödənildi → 5 000 ✓)
+                        orijinal.Mebleg = Math.Round(orijinal.Mebleg + mohlet.Mebleg, 2);
+
+                        // ② orijinal tarix bərpa olunur ✓
+                        orijinal.Tarix = mohlet.Tarix;
+
+                        await _mohletler.UpdateAsync(orijinal);
+
+                        _logger.LogInformation(
+                            "↩ Qismən ödəniş geri alındı → orijinal bərpa: #{Id} · {Mebleg:N2} ₼ ({Tarix:dd.MM.yyyy})",
+                            orijinal.Id, orijinal.Mebleg, orijinal.Tarix);
+                    }
+                }
 
                 await _mohletler.UpdateAsync(mohlet);
 

@@ -298,7 +298,13 @@ namespace EnterpriseAeroStudio.Services
 
                 Elave(
                     setirler,
-                    credit.BaslamaTarixi,
+                    // ⚡ v6.2.53 — TARİX FALLBACK ✓✓✓
+                    //  ⚠ `BaslamaTarixi` NULLABLE DEYİL ✗ (DateTime ✓) →
+                    //     «??» istifadə etmək OLMAZ ✗ (CS0019 ✗)
+                    //  ✅ Boş (default) olduqda → avtomobilin alış tarixi → bugün ✓
+                    credit.BaslamaTarixi != default(DateTime)
+                        ? credit.BaslamaTarixi
+                        : (credit.Car?.AlisTarixi ?? DateTime.Today),
                     KassaHereket.NovDaxilolma,
                     "İlkin ödəniş",
                     "🏦 İlkin ödəniş (avans)",
