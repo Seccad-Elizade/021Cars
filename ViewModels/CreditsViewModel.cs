@@ -1316,22 +1316,13 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 SelectedMayaOdenen = Math.Round(mayaHissesi, 2);
 
-                // ════════════════════════════════════════════════════════════════
-                //  🔒 v6.2.53 — İLKİN ÖDƏNİŞƏ MÖHLƏT ÖDƏNİLİBSƏ
-                //  → məbləği «MAYA ÖDƏNİLİB»-ə ƏLAVƏ OLUNUR ✓✓✓
-                //  ★ İstifadəçi qaydası:
-                //     «İlkin ödənişə möhlət maya ödənişini (və ödəniləcəyi)
-                //      artırır → möhlət ödənildikdə maşının MAYASINDAN çıxır ✓»
-                //  → deməli ödənilən möhlət məbləği TAM olaraq mayadan çıxır ✓
-                // ════════════════════════════════════════════════════════════════
-                var odenilmisIlkinMohlet = c.IlkinMohletleri?
-                    .Where(m => m.Odenilib)
-                    .Sum(m => m.Mebleg) ?? 0m;
-
-                if (odenilmisIlkinMohlet > 0m)
-                {
-                    SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisIlkinMohlet, 2);
-                }
+                // ================================================================
+                //  ⛔ v6.2.55 — MÖHLƏTLƏRİN TAM MƏBLƏĞİ MAYAYA ƏLAVƏ EDİLMİR ✗✓✓
+                //  ⚠ v6.2.53-də əlavə etmişdim ✗ → 18,70 ₼ artıq görünürdü ✗
+                //     (6 283,70 əvəzinə 6 265,00 olmalı idi ✗✓✓)
+                //  ✅ MAYA ÖDƏNİLİB = yalnız (MƏBLƏĞ − TƏRƏFDAŞ PAYLARI) cəmi ✓
+                //     → bütün ödənişlər eyni qayda ilə hesablanır ✓✓✓
+                // ================================================================
 
                 // ⏳ Maya qalığı = maya ödənişi − MAYA HİSSƏLƏRİ ✓ (bütün ödəniş YOX ✗)
                 SelectedMayaQaliq = Math.Max(0m, SelectedMayaOdenis - SelectedMayaOdenen);
