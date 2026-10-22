@@ -1317,6 +1317,19 @@ namespace EnterpriseAeroStudio.ViewModels
                 SelectedMayaOdenen = Math.Round(mayaHissesi, 2);
 
                 // ================================================================
+                //  🔒 v6.2.60 — ÖDƏNİLMİŞ İLKİN MÖHLƏTLƏR «MAYA ÖDƏNİLİB»-ə ✓✓✓
+                //  «İlkin ödənişə möhlət ödənildikdə maşının MAYASINDAN çıxır» ✓
+                // ================================================================
+                var odenilmisMohletMaya = c.IlkinMohletleri?
+                    .Where(m => m.Odenilib)
+                    .Sum(m => m.Mebleg) ?? 0m;
+
+                if (odenilmisMohletMaya > 0m)
+                {
+                    SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisMohletMaya, 2);
+                }
+
+                // ================================================================
                 //  ⛔ v6.2.55 — MÖHLƏTLƏRİN TAM MƏBLƏĞİ MAYAYA ƏLAVƏ EDİLMİR ✗✓✓
                 //  ⚠ v6.2.53-də əlavə etmişdim ✗ → 18,70 ₼ artıq görünürdü ✗
                 //     (6 283,70 əvəzinə 6 265,00 olmalı idi ✗✓✓)
@@ -1525,7 +1538,16 @@ namespace EnterpriseAeroStudio.ViewModels
             else
             {
                 var payments = CollectPayments(SelectedCredit).Values.SelectMany(v => v).ToList();
-                SelectedOdenilen = payments.Sum(t => t.Mebleg);
+                // ================================================================
+                //  🔒 v6.2.60 — ÖDƏNİLMİŞ İLKİN MÖHLƏTLƏR «ÖDƏNİLİB»-ə DAXİL ✓✓✓
+                //  ⚠ ƏVVƏL: yalnız «Gəlir» əməliyyatları sayılırdı ✗ →
+                //     kassada 1 000 ₼ möhlət ödənilsə də göstərici dəyişmirdi ✗✓✓
+                // ================================================================
+                var odenilmisIlkinMohletCemi = SelectedCredit?.IlkinMohletleri?
+                    .Where(m => m.Odenilib)
+                    .Sum(m => m.Mebleg) ?? 0m;
+
+                SelectedOdenilen = payments.Sum(t => t.Mebleg) + odenilmisIlkinMohletCemi;
 
                 // ================================================================
                 //  🔢 KÖK / ÖDƏNİLMİŞ KÖK ✓✓✓ (v6.2.17)
