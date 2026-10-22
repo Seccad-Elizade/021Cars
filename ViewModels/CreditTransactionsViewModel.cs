@@ -1990,6 +1990,19 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         private decimal BolguBazasiHesabla(decimal mebleg)
         {
+            // ════════════════════════════════════════════════════════════════
+            //  ⚡ v6.2.59 — MANUAL REJİMDƏ «MAYA» HƏQİQƏTDİR ✓✓✓
+            //  ⚠ ƏVVƏL: bu metod 7 yerdən çağırılır və bazanı HƏMİŞƏ
+            //     avtomatik formuladan YENİDƏN yazırdı ✗ → MAYA yazılandan
+            //     sonra baza 327,27-yə qayıdırdı ✗ (328 yox ✗) ✓✓
+            //  ✅ İNDİ: manual rejimdə və MAYA > 0 olduqda
+            //     Baza = Məbləğ − Maya   (395 − 179 = 216 ✓ · 600 − 272 = 328 ✓)
+            // ════════════════════════════════════════════════════════════════
+            if (BolguManual && BolguMaya > 0m && mebleg > 0m)
+            {
+                return Math.Max(0m, Math.Round(mebleg - BolguMaya, 2));
+            }
+
             var credit = SelectedCredit;
 
             if (credit is null || mebleg <= 0m)
