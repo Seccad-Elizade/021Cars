@@ -1085,7 +1085,14 @@ namespace EnterpriseAeroStudio.ViewModels
                         ? Mebleg
                         : Nov == "Gecikmə"
                             ? Mebleg
-                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir" ? BolguBazasi : null,
+                            // ⚡ v6.2.58 — MANUAL rejimdə Baza = MƏBLƏĞ − MAYA ✓✓✓
+                            //  ⚠ ƏVVƏL: köhnə `BolguBazasi` yazılırdı ✗ → «Əlavə et»
+                            //     basanda baza ƏVVƏLKİ formasına qayıdırdı ✗✓✓
+                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir"
+                                ? (BolguManual
+                                    ? Math.Max(0m, Math.Round(Mebleg - BolguMaya, 2))
+                                    : BolguBazasi)
+                                : null,
                     // ================================================================
                     //  ✅ GECİKMƏ YARADILARKEN PAYLAR BOŞDUR ✓✓✓
                     // ----------------------------------------------------------------
@@ -1901,11 +1908,7 @@ namespace EnterpriseAeroStudio.ViewModels
             // ================================================================
             if (BolguManual)
             {
-                _dialogs.ShowInfo(
-                    "✍️ MANUAL BÖLGÜ AKTİVDİR ✓\n\n" +
-                    "Payları və MAYANI əl ilə yazın ✓\n" +
-                    "Baza avtomatik: Məbləğ − Maya ✓\n\n" +
-                    "«Hesabla» payların üzərinə YAZMIR ✗");
+                // ⛔ v6.2.58 — SƏSSİZ qayıdış ✓ (hər dəfə dialoq AÇILMIR ✗✓✓)
                 return;
             }
 
