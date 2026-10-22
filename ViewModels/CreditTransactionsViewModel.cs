@@ -717,6 +717,15 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 Transactions.ReplaceAll(sətirlər);
 
+                // ================================================================
+                //  ✅ v6.2.54 — SÜZGƏC DƏRHAL YENİDƏN İŞLƏYİR ✓✓✓
+                //  ⚠ ƏVVƏL: sətirlər yüklənirdi ✓ amma `FilteredTransactions`
+                //     BOŞ qalırdı ✗ → «kredit tarixçəsi görünmür» ✗✓✓
+                //  ✅ İNDİ: yükləmədən sonra dərhal süzülür ✓ →
+                //     tarixçə görünür ✓ və proqramı yenidən açmaq lazım deyil ✓
+                // ================================================================
+                ApplyTransactionFilter();
+
                 UpdateStats();
                 ApplyCreditFilter();
                 ApplyTransactionFilter();
