@@ -4348,7 +4348,7 @@ namespace EnterpriseAeroStudio.ViewModels
         }
 
         /// <summary>Payların cəmi (₼).</summary>
-        public decimal KreditBolguCemi => KreditTerefdaslari.Sum(r => r.Mebleg);
+        public decimal KreditBolguCemi => KreditTerefdaslari.Where(r => r.Aktiv).Sum(r => r.Mebleg);   // ⚡ v6.2.61 — yalniz SECILMIS terefdaslar ✓
 
         /// <summary>Cəm ilə baza arasındaki fərq.</summary>
         public decimal KreditBolguFergi => KreditBolguCemi - KreditBolguBazasi;
