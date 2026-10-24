@@ -1623,6 +1623,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     // 💸 v6.2.35 — kreditə yazılan «Xərc» QALIQ BORCA ƏLAVƏ olunur ✓✓✓
                     + XercCemiHesabla(SelectedCredit)
                     - SelectedOdenilen);
+                // ⚡ v6.2.64 — QALIQ = ODENILECEK - ODENILIB ✓✓✓ (22 200 - 20 844 = 1 356 ✓)
+                SelectedQaliq = Math.Max(0m, Math.Round(SelectedOdenilecek - SelectedOdenilen, 2));
 
                 SelectedOdenisSayi = payments.Count;
                 SelectedSonOdenis = payments.Count == 0
