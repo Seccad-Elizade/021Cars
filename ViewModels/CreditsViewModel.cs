@@ -1137,12 +1137,12 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>💰 <b>ÜMUMİ ÖDƏNİLƏCƏK</b> = Ödənilib + Qalıq ✓✓✓
         /// <para>«Ödəniləcək» sütunu üçün (Ödənilib-in SOLUNDA ✓)</para></summary>
         public decimal SelectedOdenilecek => Math.Round(
-            // ⚡ v6.2.62 — DÜZGÜN DÜSTUR ✓✓✓
-            //  Ödəniləcək = İlkin ödəniş (tam: 5 000 + 1 000 möhlət = 6 000 ✓)
-            //             + Kreditin qiyməti (30 × 654 = 19 620 ✓)
-            //  → 25 620,00 ₼ ✓ (əvvəl 21 200 ✗)
-            (SelectedCredit?.IlkinOdenis ?? 0m)
-            + (SelectedCredit?.KreditQiymeti ?? 0m), 2);
+            // ⚡ v6.2.63 — DÜZGÜN DÜSTUR ✓✓✓ (kredit 20 → 22 200,00 ✓)
+            //   Kreditin qiyməti 19 620 ✓ + İlkin möhlət 1 000 ✓ + Gecikmə cəriməsi 1 580 ✓
+            //   ⚠ İlkin ödənişin dərhal hissəsi (5 000) DAXİL DEYİL ✗
+            (SelectedCredit?.KreditQiymeti ?? 0m)
+            + (SelectedCredit?.IlkinMohletCemi ?? 0m)
+            + SelectedGecikmeCerimesi, 2);
 
         /// <summary>
         /// 💸 <b>KREDİTƏ YAZILAN ƏLAVƏ XƏRC CƏMİ (₼)</b> ✓✓✓ (v6.2.35)
@@ -1553,13 +1553,10 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Where(m => m.Odenilib)
                     .Sum(m => m.Mebleg) ?? 0m;
 
-                //  ⚡ v6.2.62 — İLKİN ÖDƏNİŞİN DƏRHAL HİSSƏSİ də «ÖDƏNİLİB»-ə ✓✓✓
-                //  (5 000 ₼ dərhal ödənilib ✗ → əvvəl sayılmırdı ✗)
-                var ilkinDerhal = SelectedCredit?.IlkinDerhalOdenilen ?? 0m;
-
-                SelectedOdenilen = payments.Sum(t => t.Mebleg)
-                                 + odenilmisIlkinMohletCemi
-                                 + ilkinDerhal;
+                // ⛔ v6.2.63 — İLKİN ÖDƏNİŞİN DƏRHAL HİSSƏSİ BURAYA DAXİL DEYİL ✗
+                //  (5 000 ₼ ilkin ödəniş kreditin qiymətinə daxil deyil ✗ —
+                //   ayrıca kassaya düşür ✓) → «Ödənilib» 20 644 ✓ (25 844 ✗ yox)
+                SelectedOdenilen = payments.Sum(t => t.Mebleg) + odenilmisIlkinMohletCemi;
 
                 // ================================================================
                 //  🔢 KÖK / ÖDƏNİLMİŞ KÖK ✓✓✓ (v6.2.17)
