@@ -1298,7 +1298,14 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Sum(t => t.Mebleg);
 
                 // 💵 MAYA ÖDƏNİŞ (ödənilməli) = Satış − İlkin + Möhlət + Gecikmə ✓
-                SelectedMayaOdenis = Math.Max(0m, c.Mebleg - c.IlkinOdenis + mohletCemi + gecikmeCemi);
+                // ⚡ v6.2.68 — XƏRCLƏR «MAYA ÖDƏNİŞİ»-nə də ƏLAVƏ OLUNUR ✓✓✓
+                //  (məs. 50 ₼ polis xərci → Maya ödənişi 50 ₼ artır ✓)
+                var xercCemiMaya = _creditTransactions
+                    .Where(t => t.CreditId == c.Id && t.Nov == "Xərc")
+                    .Sum(t => t.Mebleg);
+
+                SelectedMayaOdenis = Math.Max(0m,
+                    c.Mebleg - c.IlkinOdenis + mohletCemi + gecikmeCemi + xercCemiMaya);
 
                 // ════════════════════════════════════════════════════════════════
                 //  🆕 v6.2.51 — MAYA HİSSƏSİ (istifadəçi tələbi ✓✓✓)
@@ -1334,6 +1341,16 @@ namespace EnterpriseAeroStudio.ViewModels
                 if (odenilmisMohletMaya > 0m)
                 {
                     SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisMohletMaya, 2);
+                }
+
+                // ⚡ v6.2.68 — ÖDƏNİLMİŞ XƏRCLƏR «MAYA ÖDƏNİLİB»-ə ✓✓✓
+                var odenilmisXercMaya = _creditTransactions
+                    .Where(t => t.CreditId == c.Id && t.Nov == "Xərc" && t.Odenilib)
+                    .Sum(t => t.Mebleg);
+
+                if (odenilmisXercMaya > 0m)
+                {
+                    SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisXercMaya, 2);
                 }
 
                 // ================================================================
