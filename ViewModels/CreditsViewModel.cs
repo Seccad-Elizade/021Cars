@@ -1137,12 +1137,15 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>💰 <b>ÜMUMİ ÖDƏNİLƏCƏK</b> = Ödənilib + Qalıq ✓✓✓
         /// <para>«Ödəniləcək» sütunu üçün (Ödənilib-in SOLUNDA ✓)</para></summary>
         public decimal SelectedOdenilecek => Math.Round(
-            // ⚡ v6.2.63 — DÜZGÜN DÜSTUR ✓✓✓ (kredit 20 → 22 200,00 ✓)
-            //   Kreditin qiyməti 19 620 ✓ + İlkin möhlət 1 000 ✓ + Gecikmə cəriməsi 1 580 ✓
-            //   ⚠ İlkin ödənişin dərhal hissəsi (5 000) DAXİL DEYİL ✗
+            // ⚡ v6.2.65 — SON DÜSTUR ✓✓✓ (kredit 20 → 22 200,00 ✓)
+            //   ① Kreditin qiyməti (faiz daxil) = 19 620 ✓
+            //   ② İlkin ödənişə möhlət          =  1 000 ✓
+            //   ③ Gecikmə cəriməsi              =  1 580 ✓
+            //   ④ Ödənilmiş gecikmə (əgər ayrıca sətirdirsə ✓) — ikiqat sayılmır ✓
             (SelectedCredit?.KreditQiymeti ?? 0m)
             + (SelectedCredit?.IlkinMohletCemi ?? 0m)
-            + SelectedGecikmeCerimesi, 2);
+            + SelectedGecikmeCerimesi
+            + SelectedGecikmeOdenilmis, 2);
 
         /// <summary>
         /// 💸 <b>KREDİTƏ YAZILAN ƏLAVƏ XƏRC CƏMİ (₼)</b> ✓✓✓ (v6.2.35)
