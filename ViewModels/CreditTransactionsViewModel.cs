@@ -1042,8 +1042,17 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 if (isException && installmentNo is null)
                 {
-                    _dialogs.ShowWarning(Nov + " tarixi kredit müddətindən kənardır. Tarixi düzəldin.");
-                    return;
+                    // ⚡ v6.2.71 — «Gecikmə» tarixi müddətdən KƏNAR OLA BİLƏR ✓✓✓
+                    //  (gecikmə ödənişdən sonra da yaranır ✓ — bloklanmır ✗)
+                    if (Nov == "Gecikmə")
+                    {
+                        // icazə verilir ✓ — xəbərdarlıq YOX ✗
+                    }
+                    else
+                    {
+                        _dialogs.ShowWarning(Nov + " tarixi kredit müddətindən kənardır. Tarixi düzəldin.");
+                        return;
+                    }
                 }
 
                 await _creditService.AddTransactionAsync(new CreditTransaction
