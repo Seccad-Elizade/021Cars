@@ -2618,32 +2618,92 @@
                             </WrapPanel>
 
                             <!-- ================================================ -->
-                            <!--  📥 SKRİPT İDXAL PANELİ ✓✓✓ (v6.2.32)            -->
-                            <!--  «Növ» = Skript idxal seçildikdə görünür ✓       -->
-                            <!--  Standart forma (məbləğ/tarix/bölgü) GİZLƏDİLİR ✗ -->
+                            <!--  📥 SKRİPT İDXAL PANELİ ✓✓✓ (v6.2.72)            -->
+                            <!--  «Növ» = Skript idxalı seçildikdə görünür ✓      -->
+                            <!--  ① Tarix ② Məbləğ ③ Maya ④ Musa ⑤ Asif         -->
+                            <!--  «🔍 YOXLA» → önizləmə · xəta yoxsa «📥 İDXAL ET» -->
                             <!-- ================================================ -->
                             <Border Background="#0C131C" CornerRadius="10" BorderBrush="#202D3C" BorderThickness="1"
                                     Padding="12,10" Margin="4,8,4,0"
                                     Visibility="{Binding CreditTransactions.IsSkriptIdxal, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
                                     <TextBlock FontSize="12.5" FontWeight="SemiBold" Foreground="#4EC3F5"
-                                               Text="📥 SKRİPT İDXALI  ·  aylıq qrafik cədvəli MÖVCUD kreditə «Gəlir» qeydi kimi yazılır"/>
+                                               Text="📥 SKRİPT İDXALI  ·  5 blok × N sətir → seçilmiş kreditə «Gəlir» qeydi kimi yazılır"/>
                                     <TextBlock Margin="0,5,0,0" FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap">
-                                        <Run Text="① Müqavilə seçin  ② cədvəli (başlıq + sətirlər) Ctrl+V ilə yapışdırın  ③ «📥 İdxal et» basın ✓"/>
+                                        <Run Text="① Müqavilə seçin  ② 5 bloku (boş sətirlə ayrılmış) yapışdırın  ③ «🔍 YOXLA»  ④ «📥 İDXAL ET» ✓"/>
                                         <LineBreak/>
-                                        <Run Text="Tərəfdaş sütunu: KarMusa · KarAsif · KarZaur · KarAsiman · KarEşqin · KarTural … ✓ (yeni ad avtomatik tanınır ✓)"/>
+                                        <Run Text="Blok sırası: ① Tarix (22,10,2024)  ② Məbləğ  ③ Maya  ④ Musa  ⑤ Asif"/>
                                         <LineBreak/>
-                                        <Run Text="⚠ Gələcək tarixli sətirlər keçilir ⏭️ · ⏳ möhlət sətirləri yazılmır ✗"/>
+                                        <Run Text="Şərt: hər sətirdə Maya + Musa + Asif = Məbləğ ✓ · xəta varsa «📥 İDXAL ET» BAĞLIDIR ✗"/>
                                     </TextBlock>
-                                    <TextBox Height="150" Margin="0,9,0,0" AcceptsReturn="True" TextWrapping="NoWrap"
+                                    <TextBox Height="180" Margin="0,9,0,0" AcceptsReturn="True" TextWrapping="NoWrap"
                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                                              FontFamily="Consolas" FontSize="11.5"
                                              Text="{Binding CreditTransactions.SkriptMetni, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="# Tarix | Ödəniş | Maya | KarMusa | KarAsif | KarZaur | KarAsiman | KarEşqin |"/>
-                                    <Button Content="📥  İdxal et" HorizontalAlignment="Left" Margin="0,9,0,0"
-                                            Style="{StaticResource iOSButton}" Background="#17A379" Foreground="White"
-                                            Command="{Binding CreditTransactions.SkriptIdxalEtCommand}"
-                                            ToolTip="Cədvəldəki hər sətri seçilmiş kreditə «Gəlir» (ödəniş) qeydi kimi yazır ✓ — tərəfdaş payları ilə ✓"/>
+                                             ToolTip="22,10,2024&#x0a;22,11,2024&#x0a;&#x0a;1470,00&#x0a;1200,00&#x0a;&#x0a;816,00&#x0a;546,00&#x0a;&#x0a;327,00&#x0a;327,00&#x0a;&#x0a;327,00&#x0a;327,00"/>
+                                    <WrapPanel Orientation="Horizontal" Margin="0,9,0,0">
+                                        <Button Content="🔍  YOXLA" Style="{StaticResource iOSButton}"
+                                                Background="#2E6FB7" Foreground="White" Padding="14,6"
+                                                Command="{Binding CreditTransactions.SkriptYoxlaCommand}"
+                                                ToolTip="Mətni yoxlayır: 5 blok · eyni say · tarix · rəqəm · Maya + Musa + Asif = Məbləğ ✓&#x0a;Bazaya heç nə yazılmır ✗ — yalnız önizləmə ✓"/>
+                                        <Button Content="📥  İDXAL ET" Style="{StaticResource iOSButton}"
+                                                Background="#17A379" Foreground="White" Padding="14,6" Margin="8,0,0,0"
+                                                IsEnabled="{Binding CreditTransactions.SkriptIdxalOlunur}"
+                                                Command="{Binding CreditTransactions.SkriptIdxalEtCommand}"
+                                                ToolTip="Yalnız xəta olmadıqda aktivdir ✓ — hər sətir «Gəlir» qeydi kimi seçilmiş kreditə yazılır ✓ (tərəfdaş payları: Musa · Asif · Faiz 0%)"/>
+                                        <Button Content="🧹  Təmizlə" Style="{StaticResource iOSButton}"
+                                                Background="#33404F" Foreground="White" Padding="14,6" Margin="8,0,0,0"
+                                                Command="{Binding CreditTransactions.SkriptTemizleCommand}"
+                                                ToolTip="Yapışdırma sahəsini və önizləməni təmizləyir ✓"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding CreditTransactions.SkriptStatusMetni}" FontSize="11"
+                                               Foreground="#4EC3F5" Margin="2,8,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding CreditTransactions.SkriptYekunMetni}" FontSize="12"
+                                               FontWeight="SemiBold" Foreground="#41D39A" Margin="2,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Visibility="{Binding CreditTransactions.SkriptYekunMetni, Converter={StaticResource StrToVis}}"/>
+                                    <TextBlock Text="{Binding CreditTransactions.SkriptXetaMetni}" FontSize="10.5"
+                                               Foreground="#F2677F" Margin="2,4,0,0" TextWrapping="Wrap"
+                                               Visibility="{Binding CreditTransactions.SkriptXetaMetni, Converter={StaticResource StrToVis}}"/>
+                                    <TextBlock Text="{Binding CreditTransactions.SkriptXeberdarliqMetni}" FontSize="10.5"
+                                               Foreground="#E5A62E" Margin="2,4,0,0" TextWrapping="Wrap"
+                                               Visibility="{Binding CreditTransactions.SkriptXeberdarliqMetni, Converter={StaticResource StrToVis}}"/>
+
+                                    <!-- ============================================ -->
+                                    <!--  🔍 ÖNİZLƏMƏ CƏDVƏLİ — № | Tarix | Məbləğ |  -->
+                                    <!--  Maya | Musa | Asif | ✓/✗                      -->
+                                    <!-- ============================================ -->
+                                    <DataGrid ItemsSource="{Binding CreditTransactions.SkriptSetirleri}"
+                                              Margin="0,9,0,0" MinHeight="180" MaxHeight="360"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                              SelectionMode="Single" HeadersVisibility="Column"
+                                              Visibility="{Binding CreditTransactions.SkriptOnizlemeGorunur, Converter={StaticResource BoolToVis}}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="№" Binding="{Binding No}" Width="45"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="TARİX" Binding="{Binding TarixMetni}" Width="Auto"
+                                                                ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="MƏBLƏĞ" Binding="{Binding MeblegMetni}"
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="MAYA" Binding="{Binding MayaMetni}"
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="MUSA" Binding="{Binding MusaMetni}"
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="ASIF" Binding="{Binding AsifMetni}"
+                                                                Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTemplateColumn Header="✓/✗" Width="60">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding VeziyyetMetni}"
+                                                                   Foreground="{Binding VeziyyetRengi}"
+                                                                   FontWeight="Bold" FontSize="13"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   ToolTip="{Binding Ipucu}"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
                                 </StackPanel>
                             </Border>
 

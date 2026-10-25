@@ -1,11 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- ======================================================================
-       📦 021Cars — QURAŞDIRICI (INSTALLER) ✓✓✓
-       ✅ WPF tətbiq → 021Cars_Installer.exe (əsl .exe ✓ — ps1 DEYİL ✗)
-       ✅ Quraşdırma yerini seçmək ✓ (default C:\Program Files\021Cars ✓)
-       ✅ Qısayollar + «Proqramlar və Xüsusiyyətlər» qeydiyyatı ✓
-       ✅ Öz surətini {app}\Uninstaller.exe kimi yazır ✓✓✓
+       ?? 021Cars � QURASDIRICI (INSTALLER) ???
+       ? WPF t?tbiq ? 021Cars_Installer.exe (?sl .exe ? � ps1 DEYIL ?)
+       ? Qurasdirma yerini se�m?k ? (default C:\Program Files\021Cars ?)
+       ? Qisayollar + �Proqramlar v? X�susiyy?tl?r� qeydiyyati ?
+       ? �z sur?tini {app}\Uninstaller.exe kimi yazir ???
        ====================================================================== -->
 
   <PropertyGroup>
@@ -18,19 +18,19 @@
     <AssemblyName>021Cars_Installer</AssemblyName>
     <RootNamespace>Cas0201.Setup</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- 🔗 COM INTEROP DƏSTƏYİ ✓✓✓ (v6.2.21) — trimmed publish-də qısayol SİNMƏSİN ✗✓✓ -->
+    <!-- ?? COM INTEROP D?ST?YI ??? (v6.2.21) � trimmed publish-d? qisayol SINM?SIN ??? -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <Version>6.2.71</Version>
+    <Version>6.2.72</Version>
 
     <!-- ======================================================================
-         🖼️ QURAŞDIRICI İKONU (021 CARS ✓✓✓)
-         → əsas layihənin ikonu İSTİFADƏ OLUNUR ✓ (tək mənbə ✗→✓ təkrarlama YOX)
-         Beləliklə 021Cars_Installer.exe · UAC pəncərəsi · qısayollar ·
-         «Proqramlar və Xüsusiyyətlər» — hamısı 021 CARS logosunu göstərir ✓✓✓
+         ??? QURASDIRICI IKONU (021 CARS ???)
+         ? ?sas layih?nin ikonu ISTIFAD? OLUNUR ? (t?k m?nb? ??? t?krarlama YOX)
+         Bel?likl? 021Cars_Installer.exe � UAC p?nc?r?si � qisayollar �
+         �Proqramlar v? X�susiyy?tl?r� � hamisi 021 CARS logosunu g�st?rir ???
          ====================================================================== -->
     <ApplicationIcon>..\..\..\Resources\021Cars.ico</ApplicationIcon>
-    <AssemblyTitle>021Cars — Quraşdırıcı</AssemblyTitle>
-    <Product>021Cars — Avtomobil Parkı</Product>
+    <AssemblyTitle>021Cars � Qurasdirici</AssemblyTitle>
+    <Product>021Cars � Avtomobil Parki</Product>
     <Company>021Cars</Company>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
@@ -38,9 +38,9 @@
   </PropertyGroup>
 
   <!-- ======================================================================
-       ★★★ TƏK FAYLLI INSTALLER ✓✓✓ ★★★
-       payload.zip → .EXE-İN İÇİNƏ gömülür ✓ → müştəriyə YALNIZ BİR .exe gedir ✓
-       (zip yoxdursa ✗ → yanındaki payload\ qovluğu da işləyir ✓ ehtiyat ✓)
+       ??? T?K FAYLLI INSTALLER ??? ???
+       payload.zip ? .EXE-IN I�IN? g�m�l�r ? ? m�st?riy? YALNIZ BIR .exe gedir ?
+       (zip yoxdursa ? ? yanindaki payload\ qovlugu da isl?yir ? ehtiyat ?)
        ====================================================================== -->
   <ItemGroup Condition="Exists('payload.zip')">
     <EmbeddedResource Include="payload.zip">
@@ -49,9 +49,9 @@
   </ItemGroup>
 
   <!-- ======================================================================
-       🔗 PAYLAŞILAN QISAYOL KÖMƏKÇİSİ ✓✓✓ (v6.2.21)
-       ⚠ Eyni kod həm proqramda, həm quraşdırıcıda işlədilir ✗ →
-         TƏK MƏNBƏDƏN götürülür ✓ (təkrarlama YOX ✗✓✓)
+       ?? PAYLASILAN QISAYOL K�M?K�ISI ??? (v6.2.21)
+       ? Eyni kod h?m proqramda, h?m qurasdiricida isl?dilir ? ?
+         T?K M?NB?D?N g�t�r�l�r ? (t?krarlama YOX ???)
        ====================================================================== -->
   <ItemGroup>
     <Compile Include="..\..\..\Services\QisayolYaradan.cs" Link="QisayolYaradan.cs" />

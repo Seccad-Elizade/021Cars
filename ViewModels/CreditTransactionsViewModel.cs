@@ -311,6 +311,35 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>📥 Skript idxalı xidməti (cədvəl təhlili + bazaya yazma ✓).</summary>
         private readonly IKreditIdxalService _idxal;
 
+        // ====================================================================
+        //  📥 «SKRİPT İDXALI» — 5 BLOK × N SƏTİR  ✓✓✓ (v6.2.72)
+        // --------------------------------------------------------------------
+        //  ① Tarix · ② Məbləğ · ③ Maya · ④ Musa · ⑤ Asif
+        //  «🔍 YOXLA» → önizləmə cədvəli ✓ · xəta yoxdursa «📥 İDXAL ET» aktiv ✓
+        // ====================================================================
+
+        /// <summary>🔍 «YOXLA» nəticəsinin sətirləri (önizləmə cədvəli ✓).</summary>
+        public ObservableCollection<KreditSkriptSetir> SkriptSetirleri { get; } = new();
+
+        /// <summary>🔍 Önizləmə cədvəli görünsün? (yalnız «YOXLA»dan sonra ✓)</summary>
+        [ObservableProperty] private bool skriptOnizlemeGorunur;
+
+        /// <summary>📥 «İDXAL ET» aktiv olsun? (yalnız xəta YOXDURSA ✓✓✓)</summary>
+        [ObservableProperty] private bool skriptIdxalOlunur;
+
+        /// <summary>📊 Yekun mətn: «✅ 27 sətir düzgün · cəm 16 680,00 ₼».</summary>
+        [ObservableProperty] private string skriptYekunMetni = string.Empty;
+
+        /// <summary>❌ Xəta siyahısı (idxalı BAĞLAYIR ✗).</summary>
+        [ObservableProperty] private string skriptXetaMetni = string.Empty;
+
+        /// <summary>⚠ Xəbərdarlıq siyahısı (təkrar tarix ✓ — idxalı bağlamır ✗).</summary>
+        [ObservableProperty] private string skriptXeberdarliqMetni = string.Empty;
+
+        /// <summary>🔍 Yoxlama statusu («5 bloku yapışdırın → 🔍 YOXLA» ✓).</summary>
+        [ObservableProperty] private string skriptStatusMetni =
+            "🔍 5 bloku yapışdırın (① Tarix ② Məbləğ ③ Maya ④ Musa ⑤ Asif) → «🔍 YOXLA» → «📥 İDXAL ET»";
+
         /// <summary>📤 Transfer edilən ŞƏXSİN adı (məs. «Tural»).</summary>
         [ObservableProperty] private string transferSexsAdi = string.Empty;
 
@@ -1549,6 +1578,18 @@ namespace EnterpriseAeroStudio.ViewModels
             ApplyTransactionFilter();
 
             // ================================================================
+            //  📥 v6.2.72 — Müqavilə dəyişdi → «🔍 YOXLA» nəticəsi ETİBARSIZDIR ✗
+            // ----------------------------------------------------------------
+            //  ⚠ Skript HƏMİŞƏ seçilmiş kreditə yazılır ✓ → kredit dəyişəndə
+            //    köhnə önizləməyə güvənmək OLMAZ ✗ → «📥 İDXAL ET» bağlanır ✓
+            // ================================================================
+            if (SkriptOnizlemeGorunur || SkriptIdxalOlunur)
+            {
+                SkriptIdxalOlunur = false;
+                SkriptStatusMetni = "🔍 Müqavilə dəyişdi — yenidən «🔍 YOXLA» basın ✓";
+            }
+
+            // ================================================================
             //  🔢 ★ v6.2.22 — KÖK PAYI YENİDƏN HESABLANIR ★✓✓✓
             // ----------------------------------------------------------------
             //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ:
@@ -2248,35 +2289,140 @@ namespace EnterpriseAeroStudio.ViewModels
         /// avtomatik hesablanır (əvvəlki düsturla).
         /// </summary>
         // ====================================================================
-        //  📥 SKRİPT İDXALI ƏMRİ ✓✓✓ (v6.2.32)
+        //  📥 SKRİPT İDXALI ƏMRİ ✓✓✓ (v6.2.72)
         // --------------------------------------------------------------------
-        //  ★ Müqavilə seçilir ✓ → qrafik cədvəli yapışdırılır ✓ → «📥 İdxal et»
-        //    basılır ✓ → hər sətir «Gəlir» qeydi kimi yazılır ✓ (tərəfdaş
-        //    payları ilə ✓ — «KarTural» → «Tural» ✓).
-        //  ⚠ Gələcək tarixli sətirlər KEÇİLİR ⏭️ (hələ vaxtı deyil ✗)
-        //  ⚠ Əvvəlcə təsdiq soruşulur ✓
+        //  ★ Müqavilə seçilir ✓ → 5 bloklu mətn yapışdırılır ✓ →
+        //    «🔍 YOXLA» yoxlayır ✓ (önizləmə cədvəli ✓) → xəta yoxdursa
+        //    «📥 İDXAL ET» aktiv olur ✓ → hər sətir «Gəlir» qeydi kimi yazılır ✓
+        //    (tərəfdaş payları: Musa · Asif · Faiz = 0 ✓)
+        //  ⚠ Xəta varsa idxal BAĞLIDIR ✗ — heç nə yazılmır ✗✓✓
         // ====================================================================
+
+        /// <summary>
+        /// 🔍 <b>«YOXLA»</b> — 5 bloklu mətni yoxlayır və önizləmə cədvəlini doldurur ✓✓✓
+        /// <para>⚠ Bazaya heç nə yazmır ✗ — yalnız önizləmə ✓</para>
+        /// </summary>
+        [RelayCommand]
+        private void SkriptYoxla()
+        {
+            var netice = _idxal.SkriptiYoxla(SkriptMetni, SelectedCredit?.Id);
+
+            SkriptSetirleri.Clear();
+
+            foreach (var setir in netice.Setirler)
+            {
+                SkriptSetirleri.Add(setir);
+            }
+
+            SkriptOnizlemeGorunur = netice.Setirler.Count > 0;
+            SkriptIdxalOlunur = netice.Ugurlu;
+            SkriptYekunMetni = netice.YekunMetni;
+            SkriptXetaMetni = netice.XetaMetni;
+            SkriptXeberdarliqMetni = netice.XeberdarliqMetni;
+
+            if (netice.Ugurlu)
+            {
+                SkriptStatusMetni = SelectedCredit is null
+                    ? "❌ Müqavilə seçilməyib ✗ — yuxarıdan kredit seçin"
+                    : $"✅ Yoxlama uğurlu · {SelectedCredit.DisplayText} → «📥 İDXAL ET» basın ✓";
+            }
+            else
+            {
+                SkriptStatusMetni = netice.Xetalar.Count == 0
+                    ? "❌ Yoxlama keçmədi ✗"
+                    : $"❌ {netice.Xetalar.Count} xəta var — «📥 İDXAL ET» BAĞLIDIR ✗";
+            }
+
+            _logger.LogInformation(
+                "🔍 Skript yoxlaması: {Duzgun} düzgün · {Xeta} xəta · {Xeberdarliq} xəbərdarlıq ✓",
+                netice.DuzgunSayi, netice.Xetalar.Count, netice.Xeberdarliqlar.Count);
+        }
+
+        /// <summary>🧹 Yapışdırma sahəsini və önizləməni təmizləyir ✓.</summary>
+        [RelayCommand]
+        private void SkriptTemizle()
+        {
+            SkriptMetni = string.Empty;
+        }
+
+        /// <summary>
+        /// 📝 Mətn dəyişdi → köhnə yoxlama <b>ETİBARSIZDIR</b> ✗✓✓
+        /// <para>«📥 İDXAL ET» yenidən BAĞLANIR ✗ — istifadəçi mütləq «🔍 YOXLA» basmalıdır ✓</para>
+        /// </summary>
+        partial void OnSkriptMetniChanged(string value)
+        {
+            SkriptSetirleri.Clear();
+            SkriptOnizlemeGorunur = false;
+            SkriptIdxalOlunur = false;
+            SkriptYekunMetni = string.Empty;
+            SkriptXetaMetni = string.Empty;
+            SkriptXeberdarliqMetni = string.Empty;
+            SkriptStatusMetni =
+                "🔍 5 bloku yapışdırın (① Tarix ② Məbləğ ③ Maya ④ Musa ⑤ Asif) → «🔍 YOXLA» → «📥 İDXAL ET»";
+        }
 
         [RelayCommand]
         private async Task SkriptIdxalEtAsync()
         {
             if (SelectedCredit is null)
             {
-                _dialogs.ShowWarning("Əvvəlcə «Müqavilə» seçin ✗ — cədvəl seçilmiş kreditə yazılır ✓");
+                _dialogs.ShowWarning(
+                    "Əvvəlcə «Müqavilə» seçin ✗ — skript məhz seçilmiş kreditə yazılır ✓");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(SkriptMetni))
             {
-                _dialogs.ShowWarning("Cədvəl mətnini yapışdırın ✗\n\n" +
-                                     "# Tarix | Ödəniş | Maya | KarMusa | KarAsif | … |");
+                _dialogs.ShowWarning(
+                    "5 bloklu mətni yapışdırın ✗\n\n" +
+                    "① Tarix · ② Məbləğ · ③ Maya · ④ Musa · ⑤ Asif\n" +
+                    "(bloklar BOŞ SƏTİR ilə ayrılır ✓)");
+                return;
+            }
+
+            // ================================================================
+            //  🔍 İDXALDAN ƏVVƏL MÜTLƏQ YENİDƏN YOXLANILIR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ İstifadəçi «YOXLA»dan SONRA mətni dəyişə bilər ✗ →
+            //    köhnə nəticəyə güvənmək OLMAZ ✗ → yenidən yoxlanılır ✓
+            // ================================================================
+            var yoxlama = _idxal.SkriptiYoxla(SkriptMetni, SelectedCredit.Id);
+
+            SkriptSetirleri.Clear();
+
+            foreach (var setir in yoxlama.Setirler)
+            {
+                SkriptSetirleri.Add(setir);
+            }
+
+            SkriptOnizlemeGorunur = yoxlama.Setirler.Count > 0;
+            SkriptIdxalOlunur = yoxlama.Ugurlu;
+            SkriptYekunMetni = yoxlama.YekunMetni;
+            SkriptXetaMetni = yoxlama.XetaMetni;
+            SkriptXeberdarliqMetni = yoxlama.XeberdarliqMetni;
+
+            if (!yoxlama.Ugurlu)
+            {
+                SkriptStatusMetni = "❌ Xəta var — idxal DAYANDIRILDI ✗";
+
+                _dialogs.ShowWarning(
+                    "Skriptdə xəta var ✗ — idxal DAYANDIRILDI, heç nə yazılmadı.\n\n" +
+                    string.Join(Environment.NewLine, yoxlama.Xetalar.Take(10)) +
+                    (yoxlama.Xetalar.Count > 10
+                        ? $"\n… və daha {yoxlama.Xetalar.Count - 10} xəta"
+                        : string.Empty),
+                    "📥 Skript idxalı — xəta");
+
                 return;
             }
 
             if (!_dialogs.Confirm(
-                    $"«{SelectedCredit.DisplayText}» müqaviləsinə qrafik cədvəli yazılacaq ✓\n\n" +
-                    "Hər sətir «Gəlir» (ödəniş) qeydi kimi əlavə olunacaq ✓ —\n" +
-                    "tərəfdaş payları da avtomatik bölünəcək ✓.\n\nDavam edilsin?",
+                    $"«{SelectedCredit.DisplayText}» müqaviləsinə {yoxlama.DuzgunSayi} ödəniş yazılacaq ✓\n\n" +
+                    $"Cəm: {KreditSkriptYoxlama.Pul(yoxlama.CemMebleg)}\n" +
+                    $"Maya: {KreditSkriptYoxlama.Pul(yoxlama.CemMaya)}\n" +
+                    $"Bölgü bazası: {KreditSkriptYoxlama.Pul(yoxlama.CemMenfeet)}\n\n" +
+                    "Hər sətir «Gəlir» qeydi kimi yazılır ✓ — tərəfdaş payları (Musa · Asif) ilə ✓\n\n" +
+                    "Davam edilsin?",
                     "📥 Skript idxalı"))
             {
                 return;
@@ -2286,7 +2432,7 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 IsBusy = true;
 
-                var netice = await _idxal.CedveliKrediteYazAsync(SelectedCredit.Id, SkriptMetni);
+                var netice = await _idxal.SkriptiKrediteYazAsync(SelectedCredit.Id, SkriptMetni);
 
                 if (!netice.Ugurlu)
                 {
@@ -2298,12 +2444,18 @@ namespace EnterpriseAeroStudio.ViewModels
                     "📥 Skript idxalı tamamlandı — {Odenis} ödəniş · {Pay} pay ✓",
                     netice.OdenisSayi, netice.PaySayi);
 
-                SkriptMetni = string.Empty;
+                SkriptMetni = string.Empty;   // → önizləmə avtomatik sıfırlanır ✓
+
+                SkriptStatusMetni =
+                    $"✅ İDXAL TAMAMLANDI — {netice.OdenisSayi} ödəniş · " +
+                    $"{netice.PaySayi} tərəfdaş payı yazıldı ✓";
 
                 // 📢 «💳 Kreditlər» + 👥 tərəfdaş kartları DƏRHAL yenilənir ✓✓✓
                 TransactionsChanged?.Invoke(this, EventArgs.Empty);
 
-                _dialogs.ShowInfo(string.Join(Environment.NewLine, netice.Setirler));
+                _dialogs.ShowInfo(
+                    string.Join(Environment.NewLine, netice.Setirler),
+                    "📥 Skript idxalı — nəticə");
             }
             catch (Exception ex)
             {

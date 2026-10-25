@@ -56,5 +56,43 @@ namespace EnterpriseAeroStudio.Services
             int creditId,
             string metn,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 🔍 <b>5 BLOKLU «SKRİPT İDXALI» MƏTNİNİ YOXLAYIR</b> ✓✓✓ (v6.2.72)
+        /// <para>
+        /// Mətn <b>5 blokdan</b> ibarətdir (bloklar BOŞ SƏTİR ilə ayrılır ✓):
+        /// ① Tarix · ② Məbləğ · ③ Maya · ④ Musa · ⑤ Asif
+        /// </para>
+        /// <para><b>Yoxlanış:</b> 5 blok · hər blokda eyni say · tarix formatı ·
+        /// rəqəm formatı · <c>Maya + Musa + Asif = Məbləğ</c> · mənfi dəyər ·
+        /// müqavilə seçilibmi ✓ · təkrar tarix isə yalnız <b>xəbərdarlıq</b> ⚠</para>
+        /// <para>
+        /// ⚠ <b>Bazaya heç nə yazılmır</b> ✗ — yalnız önizləmə ✓
+        /// (yazma: <see cref="SkriptiKrediteYazAsync"/> ✓).
+        /// </para>
+        /// </summary>
+        /// <param name="metn">Yapışdırılan 5 bloklu mətn ✓</param>
+        /// <param name="creditId">Seçilmiş müqavilə (<c>null</c> → xəta ✗)</param>
+        KreditSkriptYoxlama SkriptiYoxla(string? metn, int? creditId = null);
+
+        /// <summary>
+        /// 📥 <b>YOXLANILMIŞ SKRİPTİ SEÇİLMİŞ KREDİTƏ YAZIR</b> ✓✓✓ (v6.2.72)
+        /// <para>
+        /// Hər sətir üçün <see cref="Models.CreditTransaction"/> yaradılır ✓:
+        /// <c>Nov = "Gəlir"</c> · <c>Tarix</c> · <c>Mebleg</c> · <c>Odenilib = true</c> ·
+        /// <c>BolguBazasi = Mebleg − Maya</c> · <c>TerefdasBolguTetbiqOlunub = true</c> ·
+        /// <c>TerefdasPaylari = Musa + Asif</c> (<c>Faiz = 0</c> ✓).
+        /// </para>
+        /// <para>
+        /// ⚠ Əvvəlcə <see cref="SkriptiYoxla"/> çağırılır — xəta varsa
+        /// <b>heç nə yazılmır</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        /// <param name="creditId">Müqavilənin İD-si ✓</param>
+        /// <param name="metn">Yoxlanılacaq 5 bloklu mətn ✓</param>
+        Task<KreditIdxalNeticesi> SkriptiKrediteYazAsync(
+            int creditId,
+            string metn,
+            CancellationToken cancellationToken = default);
     }
 }

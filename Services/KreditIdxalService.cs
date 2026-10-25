@@ -1456,6 +1456,172 @@ namespace EnterpriseAeroStudio.Services
             return netice;
         }
 
+        // ====================================================================
+        //  📥 «SKRİPT İDXALI» — 5 BLOK × N SƏTİR  ✓✓✓ (v6.2.72)
+        // --------------------------------------------------------------------
+        //  ① Tarix · ② Məbləğ · ③ Maya · ④ Musa · ⑤ Asif
+        //  Bloklar BOŞ SƏTİR ilə ayrılır ✓ · şərt: Maya + Musa + Asif = Məbləğ ✓
+        //  ⚠ Yoxlama bazaya HEÇ NƏ yazmır ✗ — yalnız önizləmə ✓
+        // ====================================================================
+
+        /// <inheritdoc />
+        public KreditSkriptYoxlama SkriptiYoxla(string? metn, int? creditId = null)
+        {
+            var netice = KreditSkriptOxuyucu.Yoxla(metn);
+
+            // 🚫 Müqavilə seçilməyibsə «📥 İDXAL ET» BAĞLIDIR ✗✓✓
+            if (creditId is null or <= 0)
+            {
+                netice.Xetalar.Insert(
+                    0,
+                    "Müqavilə seçilməyib ✗ — yuxarıdaki «Müqavilə» siyahısından kredit seçin.");
+
+                netice.Ugurlu = false;
+                netice.Xeta ??= netice.Xetalar[0];
+            }
+
+            return netice;
+        }
+
+        /// <inheritdoc />
+        public async Task<KreditIdxalNeticesi> SkriptiKrediteYazAsync(
+            int creditId,
+            string metn,
+            CancellationToken cancellationToken = default)
+        {
+            var netice = new KreditIdxalNeticesi();
+
+            // ================================================================
+            //  ① ƏVVƏLCƏ YOXLAMA ✓ — xəta varsa HEÇ NƏ YAZILMIR ✗✓✓
+            // ================================================================
+            var yoxlama = SkriptiYoxla(metn, creditId);
+
+            if (!yoxlama.Ugurlu)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = yoxlama.Xeta ?? "Skript yoxlaması keçmədi ✗";
+
+                foreach (var xeta in yoxlama.Xetalar)
+                {
+                    netice.Setirler.Add("❌ " + xeta);
+                }
+
+                return netice;
+            }
+
+            var kredit = (await _kreditler.GetCreditsAsync(cancellationToken))
+                .FirstOrDefault(k => k.Id == creditId);
+
+            if (kredit is null)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Seçilmiş müqavilə tapılmadı ✗";
+                return netice;
+            }
+
+            var yazilan = 0;
+            var paySayi = 0;
+
+            // ================================================================
+            //  ② HƏR SƏTİR → AYRI «Gəlir» QEYDİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  • Odenilib = true               → tarixçədə «✅ Ödənilib» ✓
+            //  • BolguBazasi = Məbləğ − Maya   → bölünən mənfəət ✓
+            //  • TerefdasPaylari = Musa · Asif (Faiz = 0) ✓
+            // ================================================================
+            foreach (var setir in yoxlama.Setirler.Where(s => s.Duzgundur).OrderBy(s => s.Tarix))
+            {
+                var tarix = setir.Tarix ?? DateTime.Today;
+
+                // 👥 TƏRƏFDAŞ PAYLARI — yalnız SIFIRDAN BÖYÜK olanlar yazılır ✓
+                var paylar = new List<PartnerShare>();
+
+                if (setir.Musa > 0m)
+                {
+                    paylar.Add(new PartnerShare
+                    {
+                        Terefdas = "Musa",
+                        Mebleg = setir.Musa,
+                        Faiz = 0m,
+                        QaligPayi = false,
+                        Aktiv = true,
+                        Sira = 0
+                    });
+                }
+
+                if (setir.Asif > 0m)
+                {
+                    paylar.Add(new PartnerShare
+                    {
+                        Terefdas = "Asif",
+                        Mebleg = setir.Asif,
+                        Faiz = 0m,
+                        QaligPayi = false,
+                        Aktiv = true,
+                        Sira = 1
+                    });
+                }
+
+                // 📅 Taksit nömrəsi = «Başlama Tarixi»ndən AY FƏRQİ + 1 ✓
+                //  ⚠ Ödəniş kreditin BAŞLAMA ayından ƏVVƏLDİRSƏ → null ✓
+                //    (əks halda «1-ci taksit ödənilib» kimi SƏHV görünərdi ✗✓✓)
+                var ayFerqi = AyFerqi(kredit.BaslamaTarixi, tarix);
+
+                await _kreditler.AddTransactionAsync(
+                    new CreditTransaction
+                    {
+                        CreditId = creditId,
+                        Nov = "Gəlir",
+                        InstallmentNo = ayFerqi >= 0 ? ayFerqi + 1 : null,
+
+                        Mebleg = setir.Mebleg,
+                        Tarix = tarix,
+                        Odenilib = true,
+                        Tesvir = "📥 Skript idxalı — kredit ödənişi",
+                        TerefdasBolguTetbiqOlunub = true,
+                        BolguBazasi = setir.Mebleg - setir.Maya,
+                        TerefdasPaylari = paylar
+                    },
+                    cancellationToken);
+
+                yazilan++;
+                paySayi += paylar.Count;
+            }
+
+            if (yazilan == 0)
+            {
+                netice.Ugurlu = false;
+                netice.Xeta = "Yazılacaq sətir tapılmadı ✗";
+                return netice;
+            }
+
+            netice.Ugurlu = true;
+            netice.KreditSayi = 1;
+            netice.OdenisSayi = yazilan;
+            netice.PaySayi = paySayi;
+            netice.UmumiKok = yoxlama.CemMebleg;
+            netice.UmumiMaya = yoxlama.CemMaya;
+
+            netice.Setirler.Add($"📥 SKRİPT İDXALI ✓ — {kredit.MuqavileNomresi} | {kredit.Mustəri}");
+            netice.Setirler.Add(
+                $"        ✅ {yazilan} ödəniş yazıldı ✓ · {paySayi} tərəfdaş payı (Musa · Asif · Faiz 0%)");
+            netice.Setirler.Add(
+                $"        💰 Cəm: {KreditSkriptYoxlama.Pul(yoxlama.CemMebleg)} · " +
+                $"Maya: {KreditSkriptYoxlama.Pul(yoxlama.CemMaya)} · " +
+                $"Bölgü bazası: {KreditSkriptYoxlama.Pul(yoxlama.CemMenfeet)}");
+
+            if (yoxlama.Xeberdarliqlar.Count > 0)
+            {
+                netice.Setirler.AddRange(yoxlama.Xeberdarliqlar);
+            }
+
+            _logger.LogInformation(
+                "📥 Skript idxalı (5 blok): {Muqavile} → {Odenis} ödəniş · {Pay} pay ✓",
+                kredit.MuqavileNomresi, yazilan, paySayi);
+
+            return netice;
+        }
+
         /// <summary>Qrafik sətrinin tərəfdaş paylarını <see cref="PartnerShare"/>-a çevirir ✓.</summary>
         private static List<PartnerShare> PaylariQur(KreditIdxalQrafikSetir q)
             => q.Paylar
