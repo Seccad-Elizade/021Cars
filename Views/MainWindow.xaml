@@ -3045,7 +3045,8 @@
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                          ToolTip="Ödəniş bağlanıb (ödənilib)? — Gecikmə və Xərc sətirləri üçün ✓"
+                                                          ToolTip="Ödəniş bağlanıb (ödənilib)? — yalnız Gecikmə və Xərc üçün ✓"
+                                                          Visibility="{Binding OdenilibGorunur, Converter={StaticResource BoolToVis}}"
                                                           IsChecked="{Binding Odenilib, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                                           Command="{Binding DataContext.CreditTransactions.ToggleTransactionPaidCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                                           CommandParameter="{Binding}"/>

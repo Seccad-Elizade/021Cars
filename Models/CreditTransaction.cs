@@ -120,6 +120,13 @@ namespace EnterpriseAeroStudio.Models
         [NotMapped]
         public bool IsGecikme => Nov == "Gecikmə";
 
+        /// <summary>
+        /// ⚡ v6.2.70 — «ÖDƏNİLİB?» checkbox-u YALNIZ Gecikmə və Xərc sətirlərində ✓✓✓
+        /// <para>«Gəlir» sətirləri artıq ödənilmişdir ✗ → checkbox lazım deyil ✗</para>
+        /// </summary>
+        public bool OdenilibGorunur =>
+            IsGecikme || string.Equals(Nov, "Xərc", StringComparison.Ordinal);
+
         /// <summary>Cədvəldə göstərilən kredit məlumatı: müqavilə | müştəri | avtomobil.</summary>
         [NotMapped]
         public string CreditInfo
