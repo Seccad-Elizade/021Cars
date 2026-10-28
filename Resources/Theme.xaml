@@ -1073,6 +1073,30 @@
         </Setter>
     </Style>
 
+    <!-- ==================================================================== -->
+    <!--  📊 v6.2.73 — SIRALANA BİLƏN BAŞLIQ (▲ artan · ▼ azalan · ⇅ sırasız)  -->
+    <!--  «№» / «Müqavilə №» RƏQƏMSAL sıralanır ✓ (mətn deyil ✗✓✓)             -->
+    <!-- ==================================================================== -->
+    <Style x:Key="SortableHeader" TargetType="DataGridColumnHeader"
+           BasedOn="{StaticResource ProfessionalHeader}">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="ToolTip" Value="Basın → sırala ✓ (yenidən basın → istiqamət dəyişir ✓)"/>
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                               FontSize="12.5" FontWeight="Bold" Foreground="#C7D4E2"
+                               LineHeight="15" TextOptions.TextFormattingMode="Display"
+                               VerticalAlignment="Center">
+                        <Run Text="{Binding Mode=OneWay}"/>
+                        <Run Text="{Binding DataContext.Credits.SortIsare, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWay}"
+                             FontSize="10" Foreground="#4EC3F5"/>
+                    </TextBlock>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Başlıq: mətn ORTADA (checkbox / dar sütunlar üçün) -->
     <Style x:Key="ProfessionalHeaderCenter" TargetType="DataGridColumnHeader"
            BasedOn="{StaticResource ProfessionalHeader}">

@@ -1592,24 +1592,85 @@
                                                 ToolTip="Axtarışı təmizlə və bütün müqavilələri göstər"/>
                                     </Grid>
 
-                                    <DataGrid ItemsSource="{Binding Credits.FilteredContracts}" SelectedItem="{Binding Credits.SelectedCredit}"
+                                    <DataGrid x:Name="KreditCedveli"
+                                              ItemsSource="{Binding Credits.FilteredContracts}" SelectedItem="{Binding Credits.SelectedCredit}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                               SelectionMode="Single"
+                                              CanUserSortColumns="False"
+                                              ColumnHeaderStyle="{StaticResource SortableHeader}"
                                               MinHeight="200">
                                         <!-- ⚠ `MaxHeight` (ScrollViewer-ə bağlı) SİLİNDİ ✓ →
                                              hündürlük artıq `Grid.Row="*"` ilə MƏHDUDDUR ✓
                                              (MaxHeight + Stretch → WPF cədvəli sahənin ORTASINA qoyurdu ✗ →
                                               axtarış sətri ilə cədvəl arasında böyük BOŞLUQ ✗) -->
+                                        <!-- ============================================================
+                                             📊 v6.2.73 — CANLI SIRALAMA ✓✓✓
+                                             ⚠ ƏVVƏL WPF dəyəri MƏTN kimi sıralayırdı ✗ →
+                                               245 · 244 · 242 · 241 · 239 · 234 · 99 ✗✓✓
+                                             ✅ İNDİ hər başlıq SortBy əmrini çağırır ✓ və
+                                               «№» / «Müqavilə №» RƏQƏMSAL sıralanır ✓ →
+                                               245 · 244 · 242 · 241 · 239 · 234 · 99 ✓
+                                             ✅ Başlıqda nişan görünür: ▲ artan · ▼ azalan ✓
+                                             ============================================================ -->
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" SortMemberPath="SiraNomresi" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="№" Binding="{Binding SiraNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Nomre"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Müqavilə №" Binding="{Binding MuqavileNomresi}" Width="Auto" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Muqavile"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Müştəri" Binding="{Binding Mustəri}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Musteri"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
                                             <!-- 🚘 Avtomobil adları ƏN UZUNDUR → bütün boş yer BURAYA verilir ✓
                                                  (əvvəl Müştəri də «*» idi → qısa adlardan sonra böyük boşluq ✗) -->
-                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
-                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" ElementStyle="{StaticResource GridCellText}"/>
+                                            <DataGridTextColumn Header="Avtomobil" Binding="{Binding Car.DisplayName}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Avtomobil"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Satış Qiyməti" Binding="{Binding Mebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Mebleg"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Aylıq Ödəniş" Binding="{Binding AylıqOdenis, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Aylig"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="Auto" ElementStyle="{StaticResource GridCellText}">
+                                                <DataGridTextColumn.HeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource SortableHeader}">
+                                                        <Setter Property="Command" Value="{Binding DataContext.Credits.SortByCommand, ElementName=KreditCedveli}"/>
+                                                        <Setter Property="CommandParameter" Value="Status"/>
+                                                    </Style>
+                                                </DataGridTextColumn.HeaderStyle>
+                                            </DataGridTextColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </DockPanel>

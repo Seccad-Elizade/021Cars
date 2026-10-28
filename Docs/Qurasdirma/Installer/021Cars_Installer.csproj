@@ -20,7 +20,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- ?? COM INTEROP D?ST?YI ??? (v6.2.21) — trimmed publish-d? qisayol SINM?SIN ??? -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <Version>6.2.72</Version>
+    <Version>6.2.73</Version>
 
     <!-- ======================================================================
          ??? QURASDIRICI IKONU (021 CARS ???)

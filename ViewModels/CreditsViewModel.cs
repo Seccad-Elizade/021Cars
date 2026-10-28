@@ -275,6 +275,47 @@ namespace EnterpriseAeroStudio.ViewModels
         [MaxLength(60, ErrorMessage = "Müqavilə nömrəsi 60 simvoldan çox ola bilməz.")]
         private string muqavileNomresi = string.Empty;
 
+        // ====================================================================
+        //  📊 CƏDVƏL SIRALAMASI  ✓✓✓ (v6.2.73)
+        // --------------------------------------------------------------------
+        //  ⚠ <b>Problem:</b> «№» və «Müqavilə №» başlığına basanda WPF dəyəri
+        //    <b>MƏTN</b> kimi sıralayırdı ✗ →
+        //      245 · 244 · 242 · 241 · 239 · 234 · 99 · 9 ✗✓✓
+        //  ✅ <b>Həll:</b> başlığa basanda siyahı ÖZÜ yenidən qurulur ✓ və
+        //    nömrə <b>rəqəmsal</b> müqayisə olunur ✓ →
+        //      245 · 244 · 242 · 241 · 239 · 234 · 99 ✓
+        // ====================================================================
+
+        /// <summary>
+        /// 📊 Aktiv sıralama sütunu (<c>null</c> = standart ✓):
+        /// <c>"Nomre"</c> · <c>"Muqavile"</c> · <c>"Musteri"</c> ·
+        /// <c>"Avtomobil"</c> · <c>"Mebleg"</c> · <c>"Aylig"</c> · <c>"Status"</c>
+        /// </summary>
+        [ObservableProperty] private string? sortMember;
+
+        /// <summary>📊 Sıralama istiqaməti: <c>null</c> = azalan ✓ (ən yeni nömrələr yuxarıda ✓)</summary>
+        [ObservableProperty] private bool? sortAscending;
+
+        /// <summary>Cədvəl başlığına basıldıqda sıralamanı dəyişir ✓✓✓</summary>
+        [RelayCommand]
+        private void SortBy(string? member)
+        {
+            var açar = string.IsNullOrWhiteSpace(member) ? null : member.Trim();
+
+            if (string.Equals(SortMember, açar, StringComparison.Ordinal))
+            {
+                // 🔁 Eyni sütuna ikinci basış → istiqamət dəyişir ✓
+                SortAscending = SortAscending is not true;
+            }
+            else
+            {
+                SortMember = açar;
+                SortAscending = null;   // standart: azalan ✓
+            }
+
+            ApplyContractFilter();
+        }
+
         [ObservableProperty]
         [Required(ErrorMessage = "Müştəri adı tələb olunur.")]
         private string musteri = string.Empty;
@@ -657,6 +698,15 @@ namespace EnterpriseAeroStudio.ViewModels
                                 //  (o, «🗄️ Satılan & Krediti Bitmiş» tabında görünür ✓)
                                 && !string.Equals(c.Status, Catalog.BizBaglamaStatus, StringComparison.Ordinal))
                     .ToList();
+
+                // ============================================================
+                //  📊 v6.2.73 — CƏDVƏL SIRALAMASI ✓✓✓
+                // ------------------------------------------------------------
+                //  ⚠ ƏVVƏL WPF «№» / «Müqavilə №» sütunlarını MƏTN kimi
+                //    sıralayırdı ✗ → 245 · 244 · 242 · 241 · 99 · 9 ✗✓✓
+                //  ✅ İNDİ nömrə RƏQƏMSAL sıralanır ✓ (bax: SortBy əmri ✓)
+                // ============================================================
+                matches = SortContracts(matches);
 
                 // ✅ Seçilmiş kredit «Bağlı» oldusa → seçim SIFIRLANIR ✓✓✓
                 //  (detallar / ödəniş cədvəli paneli köhnə BAĞLI krediti
@@ -1062,6 +1112,101 @@ namespace EnterpriseAeroStudio.ViewModels
                        || (credit.Car.Marka ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase)
                        || (credit.Car.QeydiyyatNisani ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase)
                        || (credit.Car.Vin ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase)));
+
+        /// <summary>
+        /// 📊 <b>KREDİT CƏDVƏLİNİN SIRALAMASI</b> ✓✓✓ (v6.2.73)
+        /// <para>
+        /// ⚠ WPF-in standart sıralaması «Müqavilə №»-ni <b>MƏTN</b> kimi
+        /// sıralayır ✗ (245 · 244 · 242 · 241 · 239 · 234 · 99 ✗) — burada isə
+        /// nömrə <b>RƏQƏMSAL</b> müqayisə olunur ✓✓✓
+        /// </para>
+        /// </summary>
+        private List<Credit> SortContracts(List<Credit> matches)
+        {
+            // ⚙️ Sıralama seçilməyibsə → standart: ən yenilər yuxarıda ✓
+            if (string.IsNullOrWhiteSpace(SortMember))
+            {
+                return matches;
+            }
+
+            var artan = SortAscending is true;
+
+            // 🔢 «Müqavilə №» / «№» → RƏQƏMSAL ✓ (mətn deyil ✗✓✓)
+            int Nomre(Credit c) => MuqavileNomreleri.RəqəmNomre(c.MuqavileNomresi);
+
+            IEnumerable<Credit> sıralı = SortMember switch
+            {
+                "Nomre" or "Muqavile" => artan
+                    ? matches.OrderBy(Nomre).ThenBy(c => c.MuqavileNomresi, StringComparer.OrdinalIgnoreCase)
+                    : matches.OrderByDescending(Nomre).ThenByDescending(c => c.MuqavileNomresi, StringComparer.OrdinalIgnoreCase),
+
+                "Musteri" => artan
+                    ? matches.OrderBy(c => c.Mustəri, StringComparer.CurrentCultureIgnoreCase)
+                    : matches.OrderByDescending(c => c.Mustəri, StringComparer.CurrentCultureIgnoreCase),
+
+                "Avtomobil" => artan
+                    ? matches.OrderBy(c => c.Car?.DisplayName ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    : matches.OrderByDescending(c => c.Car?.DisplayName ?? string.Empty, StringComparer.CurrentCultureIgnoreCase),
+
+                "Mebleg" => artan ? matches.OrderBy(c => c.Mebleg) : matches.OrderByDescending(c => c.Mebleg),
+
+                "Aylig" => artan ? matches.OrderBy(c => c.AylıqOdenis) : matches.OrderByDescending(c => c.AylıqOdenis),
+
+                "Status" => artan
+                    ? matches.OrderBy(c => c.Status, StringComparer.CurrentCultureIgnoreCase)
+                    : matches.OrderByDescending(c => c.Status, StringComparer.CurrentCultureIgnoreCase),
+
+                _ => matches
+            };
+
+            return sıralı.ToList();
+        }
+
+        /// <summary>
+        /// 🔄 Kredit <b>HƏRƏKƏTDƏDİR?</b> ✓✓✓ (v6.2.73)
+        /// <para>
+        /// «Hərəkətdə» = kredit hələ də bizdədir ✓ → eyni müqavilə nömrəsi
+        /// ilə <b>ikinci kredit yaradıla BİLMƏZ</b> ✗
+        /// </para>
+        /// <list type="bullet">
+        ///   <item>✅ <b>Hərəkətdə</b>: «Aktiv» · «Gecikmiş»</item>
+        ///   <item>✗ <b>Hərəkətdə DEYİL</b> (maneə töretmir ✗): «Bağlı» ·
+        ///         📤 transfer olunmuş · 🔒 biz tərəfdən bağlanmış · arxiv</item>
+        /// </list>
+        /// <para>
+        /// ★ İstifadəçi tələbi: «248 nömrəli maşını artıq transfer etmişəm —
+        /// o maşın bizdən çıxıb ✓ → eyni nömrə ilə yeni kredit əlavə
+        /// etmək OLMALIDIR ✓»
+        /// </para>
+        /// </summary>
+        private static bool HereketdeKreditdir(Credit credit)
+        {
+            var status = (credit.Status ?? string.Empty).Trim();
+
+            // 📤 Transfer edilmiş · 🤝 barter · 🔒 biz tərəfdən bağlanmış · 🗄️ arxiv
+            //     → avtomobil artıq BİZDƏ DEYİL ✗ (eyni nömrə sərbəstdir ✓)
+            if (status.Contains("transfer", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("barter", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("bağlan", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("bağlı", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("arxiv", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("bitdi", StringComparison.OrdinalIgnoreCase)
+                || status.Contains("bitmiş", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return status.Length == 0
+                   || status.Contains("Aktiv", StringComparison.OrdinalIgnoreCase)
+                   || status.Contains("Gecik", StringComparison.OrdinalIgnoreCase)
+                   || status.Contains("Davam", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Cədvəl başlığında göstərilən sıralama nişanı ✓ (▲ artan · ▼ azalan · ⇅ sırasız ✓).</summary>
+        public string SortIsare(string? member)
+            => string.Equals(SortMember, member, StringComparison.Ordinal)
+                ? SortAscending is true ? "▲" : "▼"
+                : "⇅";
 
         partial void OnScheduleSearchTextChanged(string value) => ApplyScheduleFilter();
 
@@ -1975,25 +2120,73 @@ namespace EnterpriseAeroStudio.ViewModels
                 var kreditlesdirilen = Mebleg - IlkinOdenis;
 
                 // ================================================================
-                //  🛡️ v6.2.36 — EYNİ MÜQAVİLƏ NÖMRƏSİ ƏVVƏLCƏ YOXLANILIR ✓✓✓
+                //  🛡️ v6.2.73 — MÜQAVİLƏ NÖMRƏSİ YOXLANIŞI YENİDƏN QURULDU ✓✓✓
                 // ----------------------------------------------------------------
-                //  ★ İstifadəçi şikayəti: «Kredit əlavə edilə bilmədi — An error
-                //    occurred while saving the entity changes» ✗✓✓
-                //  ✅ İNDİ: uyğunsuzluq varsa AYDIŊ izah verilir ✓
-                //    (EF-in anlaşılmaz xətası yerinə ✓✓✓)
+                //  ★ İstifadəçi tələbi: «248 nömrəli maşını artıq transfer etmişəm
+                //    — o maşın BİZDƏN ÇIXIB ✗, amma eyni müqavilə nömrəsi ilə
+                //    YENİ kredit əlavə etmək OLMUR ✗ (“artıq mövcuddur” ✗)».
+                // ----------------------------------------------------------------
+                //  ✅ İNDİ «ARTIQ MÖVCUDDUR» yalnız o halda deyilir ki,
+                //     həmin nömrə ilə kredit <b>HƏRƏKƏTDƏDİR</b> (aktiv ✓):
+                //       • «Aktiv» · «Gecikmiş» ✓
+                //       • elə bu dəqiqə seçilmiş kredit ✓
+                //  ⚠ «Bağlı» · «📤 Transfer olunmuş» · «🔒 Biz tərəfdən bağlanmış»
+                //     kreditlər <b>MANEƏ TÖRƏTMİR</b> ✗✓✓ (maşın artıq bizdə deyil ✗)
+                //  ℹ️ Nömrə keçmişdə istifadə olunubsa — sadəcə XƏBƏRDARLIQ
+                //     göstərilir ✓ və istifadəçi təsdiqləyə bilər ✓
                 // ================================================================
                 var movcudKreditler = await _creditService.GetCreditsAsync();
 
-                if (movcudKreditler.Any(c =>
-                        string.Equals(c.MuqavileNomresi?.Trim(), contractNo,
-                                      StringComparison.OrdinalIgnoreCase)))
+                var eyniNomreli = movcudKreditler
+                    .Where(c => string.Equals(c.MuqavileNomresi?.Trim(), contractNo,
+                                              StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var hereketde = eyniNomreli
+                    .Where(c => c.Id != SelectedCredit?.Id && HereketdeKreditdir(c))
+                    .ToList();
+
+                if (hereketde.Count > 0)
                 {
+                    var kim = string.Join(
+                        Environment.NewLine,
+                        hereketde.Select(c =>
+                            $"   • {c.MuqavileNomresi} — {c.Mustəri} · {c.Status}" +
+                            (string.IsNullOrWhiteSpace(c.Car?.DisplayName) ? string.Empty : $" · {c.Car!.DisplayName}")));
+
                     _dialogs.ShowWarning(
                         $"🛡️ «{contractNo}» nömrəli müqavilə ARTIQ MÖVCUDDUR ✗\n\n" +
+                        $"{kim}\n\n" +
+                        "Bu kredit HƏRƏKƏTDƏDİR (aktiv ✓) — eyni nömrə ilə ikinci kredit\n" +
+                        "yaradıla bilməz ✗\n\n" +
                         "Zəhmət olmasa başqa müqavilə nömrəsi yazın ✓\n" +
                         "(yaxud həmin krediti siyahıdan seçib düzəliş edin ✓)");
 
                     return;
+                }
+
+                if (eyniNomreli.Count > 0)
+                {
+                    var keçmiş = string.Join(
+                        Environment.NewLine,
+                        eyniNomreli.Select(c =>
+                            $"   • {c.MuqavileNomresi} — {c.Mustəri} · {c.Status} · " +
+                            $"{c.Mebleg:N2} ₼" +
+                            (string.IsNullOrWhiteSpace(c.Car?.DisplayName) ? string.Empty : $" · {c.Car!.DisplayName}")));
+
+                    var davam = _dialogs.Confirm(
+                        $"ℹ️ «{contractNo}» nömrəsi KEÇMİŞDƏ istifadə olunub ✓ — həmin kredit " +
+                        "artıq HƏRƏKƏTDƏ DEYİL ✗ (bağlı / transfer olunmuş / biz tərəfdən bağlanmış ✓):\n\n" +
+                        $"{keçmiş}\n\n" +
+                        "Eyni müqavilə nömrəsi ilə YENİ kredit yaradılsın? ✓\n\n" +
+                        "   • 📤 Köhnə kredit «Bağlı» olaraq qalır ✓\n" +
+                        "   • 🚘 Yeni müştəri üçün TƏZƏ kredit yaradılır ✓",
+                        "💳 Eyni müqavilə nömrəsi");
+
+                    if (!davam)
+                    {
+                        return;
+                    }
                 }
 
                 var credit = new Credit
@@ -3454,6 +3647,22 @@ namespace EnterpriseAeroStudio.ViewModels
                     //  üçün «seçim → təmizləmə → seçim itir» DÖVRÜ yaranırdı ✗✓✓
                     Credits.Remove(hedef);
                     FilteredContracts.Remove(hedef);
+
+                    // 📊 v6.2.73 — sıralama aktivsə siyahı yenidən ardıcıllanır ✓
+                    //  ⚠ `ApplyContractFilter()` BURADA çağırılmır ✗ (seçim itərdi ✗) —
+                    //    yalnız nömrə sıralaması varsa qalan sətirlər yenidən düzülür ✓
+                    if (SortMember is "Nomre" or "Muqavile"
+                        && FilteredContracts.Count > 1)
+                    {
+                        var sıralı = SortContracts(FilteredContracts.ToList());
+
+                        FilteredContracts.Clear();
+
+                        foreach (var k in sıralı)
+                        {
+                            FilteredContracts.Add(k);
+                        }
+                    }
                 }
             }
 
