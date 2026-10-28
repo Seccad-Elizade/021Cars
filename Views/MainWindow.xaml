@@ -1026,16 +1026,17 @@
                                 </StackPanel>
 
                                 <!-- ==================================================== -->
-                                <!-- 👥 SATIŞIN TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ                 -->
-                                <!-- XEYİR = Satış qiyməti − Maya dəyəri                -->
-                                <!-- Nümunə: 22 014 − 20 420 = 1 594 ₼  → bölünür      -->
-                                <!-- ☑ işarəli tərəfdaşlar hesablanır, işarəsizlər yox  -->
+                                <!-- 👥 SATIŞIN TƏRƏFDAŞ BÖLGÜSÜ ✓✓✓ (v6.2.75)          -->
+                                <!--  ★ «KREDİTLƏR» TABINDAKI PANEL İLƏ EYNİDİR ✓       -->
+                                <!--  XEYİR = Satış qiyməti − Maya  → bölünür ✓         -->
+                                <!--  ☑ işarəli tərəfdaşlar hesablanır, işarəsizlər yox  -->
+                                <!--  Sıra: xeyir → rejim → MAYA → düymələr → cədvəl ✓  -->
                                 <!-- ==================================================== -->
                                 <Border Margin="4" Width="392" CornerRadius="10"
                                         Background="#0C131C" BorderBrush="#2B3949" BorderThickness="1">
                                     <StackPanel>
 
-                                        <!-- ===== BAŞLIQ ZOLAĞI ===== -->
+                                        <!-- ===== BAŞLIQ ZOLAĞI (Kreditlər ilə eyni ✓) ===== -->
                                         <Border Background="#1B2634" CornerRadius="9,9,0,0" Padding="11,8">
                                             <DockPanel>
                                                 <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
@@ -1044,12 +1045,18 @@
                                                           Content="{Binding Sales.SatisBolguVeziyyet}"
                                                           IsChecked="{Binding Sales.SatisBolguTetbiq}"/>
                                                 <TextBlock Text="👥 Satışın tərəfdaş bölgüsü" FontWeight="Bold"
-                                                           FontSize="12.5" Foreground="#DCE5EF" VerticalAlignment="Center"/>
+                                                           FontSize="12" Foreground="#DCE5EF" VerticalAlignment="Center"/>
                                             </DockPanel>
                                         </Border>
 
+                                        <!-- ===== XEYİR (baza) — «Kreditlər» tabındaki kimi ✓ ===== -->
+                                        <Border Background="#141D28" Padding="10,7" Margin="11,9,11,0" CornerRadius="6">
+                                            <TextBlock Text="{Binding Sales.SatisXeyirMetni}" FontSize="11"
+                                                       Foreground="#41D39A" TextWrapping="Wrap"/>
+                                        </Border>
+
                                         <!-- ============================================================ -->
-                                        <!-- ✍️ MANUAL BÖLGÜ — «Kreditlər» ilə EYNİ üslub (v6.2.51) ✓✓✓   -->
+                                        <!-- ✍️ REJİM + 🏷️ MAYA — «Kreditlər» tabındaki kimi ✓✓✓         -->
                                         <!-- ============================================================ -->
                                         <Border Background="#131C26" CornerRadius="8" Margin="11,8,11,0" Padding="10,8"
                                                 BorderBrush="#24406F" BorderThickness="1">
@@ -1060,27 +1067,33 @@
                                                                VerticalAlignment="Center"/>
                                                     <CheckBox Content="✍️ Manual bölgü" FontSize="11.5" FontWeight="SemiBold"
                                                               IsChecked="{Binding Sales.SatisBolguManual}"
-                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
+                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «🔄 Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
                                                 </DockPanel>
+
+                                                <!-- 🏷️ MAYA (₼) — Kreditlər tabındaki kimi HƏMİŞƏ görünür ✓ -->
+                                                <Grid Margin="0,7,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="MAYA (₼)" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
+                                                             FontWeight="SemiBold" Foreground="#7EA8FF"
+                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                             Text="{Binding Sales.SatisBolguMaya, UpdateSourceTrigger=PropertyChanged}"
+                                                             ToolTip="MAYA (₼) — avtomobil seçildikdə avtomatik dolur ✓, əl ilə dəyişdirilə bilər ✓&#x0a;Xeyir = Satış qiyməti − Maya ✓"/>
+                                                </Grid>
 
                                                 <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
                                                            Visibility="{Binding Sales.SatisBolguManual, Converter={StaticResource BoolToVis}}"
-                                                           Text="① Maya dəyərini və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓　② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓"/>
+                                                           Text="{Binding Sales.SatisBolguManualIzahMetni}"/>
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- ===== XEYİR (baza) ===== -->
-                                        <TextBlock Margin="11,9,11,4" FontSize="11" Foreground="#F3C24B"
-                                                   TextWrapping="Wrap"
-                                                   Text="{Binding Sales.SatisXeyirMetni}"/>
-
-                                        <TextBlock Margin="11,0,11,9" FontSize="11" Foreground="#4EC3F5"
-                                                   TextWrapping="Wrap"
-                                                   Text="{Binding Sales.SatisBolguXulase}"/>
-
-                                        <!-- ===== DÜYMƏLƏR ===== -->
-                                        <UniformGrid Columns="2" Margin="11,0,11,9">
-                                            <Button Content="🔄 Xeyiri hesabla" Style="{StaticResource iOSButton}" FontSize="11"
+                                        <!-- ===== DÜYMƏLƏR (Kreditlər ilə EYNİ: 2 sütun ✓) ===== -->
+                                        <UniformGrid Columns="2" Margin="11,8,11,8">
+                                            <Button Content="🔄 Hesabla" Style="{StaticResource iOSButton}" FontSize="11"
                                                     Background="#4C7DFF" Foreground="White" Margin="0,0,3,0"
                                                     ToolTip="Xeyiri (Satış − Maya) hesablayır və payları bölür"
                                                     Command="{Binding Sales.SatisBolguHesablaCommand}"/>
@@ -1089,40 +1102,79 @@
                                                     ToolTip="Zaur %6 · Eşqin %5 · Asiman %5 · Asif &amp; Musa qalıq"
                                                     Command="{Binding Sales.SatisBolguDefaultCommand}"/>
                                         </UniformGrid>
-                                        <!-- ===== CƏDVƏL ===== -->
-                                        <Border Margin="11,0,11,0" CornerRadius="7"
-                                                Background="#141D28" BorderBrush="#202D3C" BorderThickness="1">
-                                            <DataGrid ItemsSource="{Binding Sales.SatisTerefdaslari}"
-                                                      AutoGenerateColumns="False" CanUserAddRows="False"
-                                                      HeadersVisibility="Column"
-                                                      Background="Transparent" BorderThickness="0"
-                                                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
-                                                      Foreground="#DCE5EF" FontSize="11.5" RowBackground="#141D28"
-                                                      AlternatingRowBackground="#101823">
-                                                <DataGrid.Columns>
-                                                    <DataGridCheckBoxColumn Header="TƏTBİQ" Width="Auto"
-                                                                            Binding="{Binding Aktiv, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <DataGridTextColumn Header="TƏRƏFDAŞ" Width="Auto" IsReadOnly="True"
-                                                                        Binding="{Binding Terefdas}"/>
-                                                    <DataGridTextColumn Header="FAİZ %" Width="Auto"
-                                                                        Binding="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
-                                                    <DataGridTextColumn Header="MƏBLƏĞ (₼)" Width="Auto" IsReadOnly="True"
-                                                                        Binding="{Binding Mebleg, StringFormat=N2}"/>
-                                                    <DataGridTextColumn Header="QALIQ" Width="Auto" IsReadOnly="True"
-                                                                        Binding="{Binding QaligPayi}"/>
-                                                </DataGrid.Columns>
-                                            </DataGrid>
+                                        <!-- ===== CƏDVƏL (Kreditlər tabı ilə EYNİ: ItemsControl ✓) ===== -->
+                                        <Border Margin="11,0,11,0" CornerRadius="6" Background="#141D28"
+                                                BorderBrush="#202D3C" BorderThickness="1">
+                                            <StackPanel>
+                                                <Border Background="#202D3C" CornerRadius="5,5,0,0" Padding="9,5">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="46"/>
+                                                            <ColumnDefinition Width="82"/>
+                                                            <ColumnDefinition Width="58"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="TƏTBİQ" FontSize="10" FontWeight="Bold" Foreground="#41D39A" HorizontalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="TƏRƏFDAŞ" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8"/>
+                                                        <TextBlock Grid.Column="2" Text="FAİZ %" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8" HorizontalAlignment="Right" Margin="0,0,6,0"/>
+                                                        <TextBlock Grid.Column="3" Text="MƏBLƏĞ (₼)" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ItemsControl ItemsSource="{Binding Sales.SatisTerefdaslari}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Padding="9,3" BorderBrush="#202D3C" BorderThickness="0,0,0,1">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="46"/>
+                                                                        <ColumnDefinition Width="82"/>
+                                                                        <ColumnDefinition Width="58"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                              ToolTip="TƏTBİQ OLUNUR? — işarəsizdirsə faizi hesablanmır"
+                                                                              IsChecked="{Binding Aktiv}"/>
+
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Terefdas}" FontSize="12"
+                                                                               FontWeight="SemiBold" Foreground="#DCE5EF" VerticalAlignment="Center"/>
+
+                                                                    <TextBox Grid.Column="2" Height="23" FontSize="11.5"
+                                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                                             ToolTip="Faiz (%) · qalıq payçısında bağlıdır ✓"
+                                                                             IsEnabled="{Binding FaizDuzelis}"
+                                                                             Text="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                                                    <TextBox Grid.Column="3" Height="23" FontSize="12" FontWeight="SemiBold"
+                                                                             Foreground="#41D39A" Margin="6,0,0,0"
+                                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                                             ToolTip="Məbləğ (₼) — manual düzəliş edilə bilər"
+                                                                             IsEnabled="{Binding Aktiv}"
+                                                                             Text="{Binding Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
                                         </Border>
 
-                                        <!-- ===== YEKUN ===== -->
-                                        <TextBlock Margin="11,8,11,2" FontSize="12" FontWeight="Bold" Foreground="#F5F8FC"
-                                                   HorizontalAlignment="Right"
-                                                   Text="{Binding Sales.SatisBolguCemi, StringFormat='PAYLARIN CƏMİ: {0:N2} ₼'}"/>
-
-                                        <TextBlock Margin="11,0,11,10" FontSize="11" FontWeight="SemiBold"
-                                                   HorizontalAlignment="Right"
-                                                   Foreground="{Binding Sales.SatisBolguFergReng}"
-                                                   Text="{Binding Sales.SatisBolguFergMetni}"/>
+                                        <!-- ===== YEKUN (Kreditlər tabı ilə EYNİ ✓) ===== -->
+                                        <Border Margin="11,8,11,11" CornerRadius="6" Background="#141D28" Padding="10,7">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" FontSize="13" FontWeight="Bold" Foreground="#EFC93F"
+                                                               Text="{Binding Sales.SatisBolguCemi, Mode=OneWay, Converter={StaticResource Currency}}"/>
+                                                    <TextBlock Text="PAYLARIN CƏMİ" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding Sales.SatisBolguXulase}" FontSize="10.5"
+                                                           Foreground="#41D39A" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Sales.SatisBolguFergMetni}" FontSize="10.5"
+                                                           Margin="0,3,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           Foreground="{Binding Sales.SatisBolguFergReng}"/>
+                                            </StackPanel>
+                                        </Border>
 
                                     </StackPanel>
                                 </Border>

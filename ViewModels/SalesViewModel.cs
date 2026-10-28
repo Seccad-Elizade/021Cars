@@ -246,6 +246,9 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
             MohletXulaseYenile();
+
+            // 🏷️ v6.2.75 — satış qiyməti dəyişdi → «xeyir» (baza) yenilənir ✓
+            SatisBolguYenile();
         }
 
         /// <summary>➗ Barter hissəsi dəyişdikcə möhlət hesablamaları yenilənir ✓.</summary>
@@ -318,6 +321,15 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 MohletXulaseYenile();
             };
+
+            // ================================================================
+            //  👥 v6.2.75 — TƏRƏFDAŞ SƏTİRLƏRİ DƏRHAL HAZIRLANIR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL: sətirlər yalnız İLK «Hesabla» basılanda yaranırdı ✗ →
+            //    cədvəl BOŞ görünürdü ✗ (Kreditlər tabında isə HƏMİŞƏ doludur ✓)
+            //  ✅ İNDİ: ViewModel yarananda standart tərəfdaşlar yüklənir ✓
+            // ================================================================
+            SatisBolguSifirla();
         }
 
         /// <summary>Möhlət xülasəsini/hesablamalarını yeniləyir (canlı ✓).</summary>
@@ -364,6 +376,9 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
             CarSearchText = value.DisplayName;
+
+            // 🏷️ v6.2.75 — bölgü MAYA-sı da avtomatik doldurulur ✓
+            SatisBolguMayaDoldur();
 
             // Maya dəyəri dəyişdi → bölgü bazası yenilənir.
             OnPropertyChanged(nameof(MayaDeyeri));
@@ -636,8 +651,55 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Bölgü bazası («xeyir») — Satış qiyməti − Maya dəyəri.</summary>
         [ObservableProperty] private decimal satisBolguBazasi;
 
-        /// <summary>Payların cəmi (₼).</summary>
-        public decimal SatisBolguCemi => SatisTerefdaslari.Sum(r => r.Mebleg);
+        /// <summary>
+        /// 👥 <b>v6.2.75 — SATIŞ BÖLGÜSÜ «KREDİTLƏR» TABI İLƏ EYNİDİR</b> ✓✓✓
+        /// --------------------------------------------------------------------
+        ///  ★ İstifadəçi tələbi: «Satış tabındaki bölgü çox fərqlidir ✗ —
+        ///    kredit tabındaki bölgüyə bax, eyni ilə onu kopyala ✓»
+        /// --------------------------------------------------------------------
+        ///  ✅ UYĞUNLAŞDIRILAN:
+        ///   ① <b>MAYA</b> əl ilə yazıla bilən sahə ✓ (Kreditlər: «MAYA (₼)»)
+        ///   ② Sıra eynidir ✓: Xeyir mətni → rejim → MAYA → izah → DÜYMƏLƏR
+        ///   ③ Cədvəl <b>ItemsControl</b> ilə qurulur ✓ (DataGrid yox ✗) →
+        ///      «qalıq» nişanı, bağlı faiz xanası, yaşıl məbləğ ✓
+        ///   ④ Yekun bloku eynidir ✓: «PAYLARIN CƏMİ» + «✓ Dəqiq bölünüb» ✓
+        /// ====================================================================
+
+        /// <summary>«MAYA (₼)» başlığı — «Kreditlər» tabı ilə EYNİ ✓</summary>
+        public const string SatisMayaBasligi = "MAYA (₼)";
+
+        /// <summary>✍️ Manual rejim izahı — «Kreditlər» tabı ile EYNİ ✓</summary>
+        public const string SatisBolguManualIzahi =
+            "① MAYA-nı və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓  ② «🔄 Hesabla» basın ✓ — " +
+            "paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓";
+
+        /// <summary>✍️ Manual rejim izahı (UI ✓)</summary>
+        public string SatisBolguManualIzahMetni => SatisBolguManual ? SatisBolguManualIzahi : string.Empty;
+
+        /// <summary>
+        /// 🏷️ <b>BÖLGÜ MAYA-SI</b> — əl ilə yazıla bilər ✓
+        /// <para>Avtomatik doldurulur: seçilmiş avtomobilin <c>MayaDeyeri</c> ✓</para>
+        /// </summary>
+        [ObservableProperty] private decimal satisBolguMaya;
+
+        /// <summary>MAYA dəyişdikdə — «xeyir» (baza) yenidən hesablanır ✓</summary>
+        partial void OnSatisBolguMayaChanged(decimal value)
+        {
+            var baza = SatisQiymeti - value;
+
+            SatisBolguBazasi = baza > 0m ? Math.Round(baza, 2) : 0m;
+
+            SatisBolguYenile();
+
+            // ⚙️ Avtomatik rejimdə paylar dərhal yenidən bölünür ✓
+            if (!SatisBolguManual)
+            {
+                SatisBolguHesabla();
+            }
+        }
+
+        /// <summary>Payların cəmi (₼) — yalnız ☑ işarəli tərəfdaşlar ✓</summary>
+        public decimal SatisBolguCemi => SatisTerefdaslari.Where(r => r.Aktiv).Sum(r => r.Mebleg);
 
         /// <summary>Cəm ilə baza arasındaki fərq.</summary>
         public decimal SatisBolguFergi => SatisBolguCemi - SatisBolguBazasi;
@@ -648,7 +710,10 @@ namespace EnterpriseAeroStudio.ViewModels
             get
             {
                 var satis = SatisQiymeti;
-                var maya = MayaDeyeri;
+
+                // ✅ v6.2.75 — MAYA: əl ilə yazılan dəyər ✓, yoxsa avtomobilin mayası ✓
+                var maya = SatisBolguMaya > 0m ? SatisBolguMaya : MayaDeyeri;
+
                 return $"Xeyir = Satış qiyməti − Maya = {satis:N2} − {maya:N2} = {SatisBolguBazasi:N2} ₼";
             }
         }
@@ -663,16 +728,37 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
         public string SatisBolguRejimMetni => SatisBolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
 
-        partial void OnSatisBolguManualChanged(bool value) =>
+        partial void OnSatisBolguManualChanged(bool value)
+        {
             OnPropertyChanged(nameof(SatisBolguRejimMetni));
+            OnPropertyChanged(nameof(SatisBolguManualIzahMetni));
+
+            // ✍️ Manual → FAİZLƏR sıfırlanır ✓ (Kreditlər tabı ilə EYNİ ✓)
+            try
+            {
+                if (value)
+                {
+                    foreach (var r in SatisTerefdaslari)
+                    {
+                        r.Faiz = 0m;
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
+        }
 
         /// <summary>Vəziyyət mətni.</summary>
         public string SatisBolguVeziyyet => SatisBolguTetbiq ? "✅ Tətbiq olunub" : "⬜ Tətbiq olunmayıb";
 
-        /// <summary>Xülasə: «Zaur 95,40 ₼ · Eşqin 79,50 ₼ · …».</summary>
+        /// <summary>Xülasə: «Zaur 95,40 ₼ · Eşqin 79,50 ₼ · …» (yalnız ☑ tərəfdaşlar ✓).</summary>
         public string SatisBolguXulase => SatisTerefdaslari.Count == 0
             ? "Bölgü hazır deyil"
-            : string.Join(" · ", SatisTerefdaslari.Select(r => $"{r.Terefdas} {r.Mebleg:N2} ₼"));
+            : string.Join(" · ", SatisTerefdaslari
+                .Where(r => r.Aktiv)
+                .Select(r => $"{r.Terefdas} {r.Mebleg:N2} ₼"));
 
         /// <summary>Fərq mətni.</summary>
         public string SatisBolguFergMetni => SatisBolguFergi == 0m
@@ -697,7 +783,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
             }
 
-            var baza = Math.Round(SatisQiymeti - MayaDeyeri, 2);
+            var baza = Math.Round(SatisQiymeti - SatisBolguMaya, 2);
             SatisBolguBazasi = baza > 0m ? baza : 0m;
 
             var modeller = new List<PartnerShare>();
@@ -728,11 +814,53 @@ namespace EnterpriseAeroStudio.ViewModels
             SatisBolguYenile();
         }
 
+        /// <summary>
+        /// 🏷️ Avtomobil seçildikdə <b>MAYA</b> avtomatik doldurulur ✓✓✓ (v6.2.75)
+        /// <para>⚠ İstifadəçi əl ilə yazıbsa <b>TOXUNULMUR</b> ✗✓✓</para>
+        /// </summary>
+        private void SatisBolguMayaDoldur()
+        {
+            if (SelectedCar is null)
+            {
+                return;
+            }
+
+            if (SatisBolguMaya > 0m)
+            {
+                return;   // əl ilə yazılıb → qorunur ✓
+            }
+
+            SatisBolguMaya = SelectedCar.MayaDeyeri;
+
+            SatisBolguYenile();
+        }
+
+        /// <summary>Yeni satış üçün bölgünü sıfırlayır (MAYA daxil ✓).</summary>
+        private void SatisBolguMayaSifirla() => SatisBolguMaya = 0m;
+
         /// <summary>Faiz dərəcələrini standart qiymətlərə qaytarır.</summary>
         [RelayCommand]
         private void SatisBolguDefault()
         {
             var standart = PartnerMath.CreateDefaultRows();
+
+            // 👥 v6.2.75 — çatışmayan tərəfdaşlar AVTOMATİK əlavə olunur ✓
+            //  («👥 Tərəfdaşlar» tabında yeni şəxs yaradılsa da görünür ✓)
+            foreach (var pay in standart)
+            {
+                var ad = (pay.Terefdas ?? string.Empty).Trim();
+
+                if (ad.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!SatisTerefdaslari.Any(r =>
+                        string.Equals(r.Terefdas?.Trim(), ad, StringComparison.OrdinalIgnoreCase)))
+                {
+                    SatisTerefdaslari.Add(PartnerPayRow.FromModel(pay));
+                }
+            }
 
             foreach (var row in SatisTerefdaslari)
             {
@@ -759,6 +887,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
             SatisBolguTetbiq = false;
             SatisBolguBazasi = 0m;
+            SatisBolguMayaSifirla();      // 🏷️ v6.2.75 — MAYA da sıfırlanır ✓
             SatisBolguYenile();
         }
 
