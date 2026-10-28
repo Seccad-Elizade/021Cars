@@ -1892,6 +1892,32 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
         public string BolguRejimMetni => BolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
 
+        // ====================================================================
+        //  👥 v6.2.74 — BÖLGÜ «KREDİTLƏR» TABI İLƏ EYNİDİR ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Tərəfdaş bölgüsü Kredit tabındakından
+        //    fərqlidir ✗ — onu eyni ilə Kredit tabındakı kimi elə ✓»
+        // --------------------------------------------------------------------
+        //  ✅ UYĞUNLAŞDIRILAN FƏRQLƏR:
+        //   ① <b>MAYA</b> həmişə görünür ✓ (Kreditlər: «Xeyir = Satış − Maya»)
+        //   ② Sıra eynidir ✓: rejim → MAYA → izah → DÜYMƏLƏR
+        //   ③ Düymələr <b>2 sütunlu</b> ✓ («🔄 Hesabla» · «♻️ Default faizlər»)
+        //   ④ Cədvəldə <b>«qalıq»</b> nişanı + qalıq payçısında faiz xanası
+        //      <b>bağlıdır</b> ✓ (Kreditlər tabında olduğu kimi ✓)
+        //   ⑤ Şrift ölçüləri eynidir ✓ (12 · 11,5 · 12 · 10 ✓)
+        // ====================================================================
+
+        /// <summary>«MAYA (₼)» başlığı — «Kreditlər» tabı ilə EYNİ ✓</summary>
+        public const string BolguMayaBasligi = "MAYA (₼)";
+
+        /// <summary>✍️ Manual rejim izahı — «Kreditlər» tabındaki mətnlə EYNİ ✓</summary>
+        public const string BolguManualIzahi =
+            "① Hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓  ② «🔄 Hesabla» basın ✓ — " +
+            "paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓";
+
+        /// <summary>✍️ Manual rejim izahı (UI üçün ✓ — manual rejimdə göstərilir)</summary>
+        public string BolguManualIzahMetni => BolguManual ? BolguManualIzahi : string.Empty;
+
         /// <summary>
         /// ✍️ Manual rejim dəyişdikdə ✓ (v6.2.51)
         /// <para>★ İstifadəçi tələbi: «manual edəndə faizlər avtomatik silinsin —
@@ -1900,6 +1926,7 @@ namespace EnterpriseAeroStudio.ViewModels
         partial void OnBolguManualChanged(bool value)
         {
             OnPropertyChanged(nameof(BolguRejimMetni));
+            OnPropertyChanged(nameof(BolguManualIzahMetni));
 
             // ✍️ Manual → FAİZLƏR sıfırlanır ✓ (məbləğlər əl ilə yazılır ✓)
             try
@@ -2134,6 +2161,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 {
                     row.Faiz = uygun.Faiz;
                     row.QaligPayi = uygun.QaligPayi;
+
+                    // 👥 v6.2.74 — «Kreditlər» tabındaki kimi: hamısı AKTİV ✓
+                    row.Aktiv = true;
                 }
             }
 

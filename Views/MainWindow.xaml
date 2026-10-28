@@ -2921,7 +2921,9 @@
                                         </Grid>
 
                                         <!-- ============================================================ -->
-                                        <!-- ✍️ MANUAL BÖLGÜ — «Kreditlər» ilə EYNİ üslub (v6.2.51) ✓✓✓   -->
+                                        <!-- 👥 v6.2.74 — BÖLGÜ «KREDİTLƏR» TABI İLƏ EYNİDİR ✓✓✓       -->
+                                        <!--  Sıra: rejim (Manual) → MAYA (həmişə görünür ✓) →          -->
+                                        <!--  izah → DÜYMƏLƏR (2 sütun ✓) → cədvəl → yekun ✓           -->
                                         <!-- ============================================================ -->
                                         <Border Background="#131C26" CornerRadius="8" Margin="11,0,11,8" Padding="10,8"
                                                 BorderBrush="#24406F" BorderThickness="1">
@@ -2935,9 +2937,8 @@
                                                               ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «🔄 Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
                                                 </DockPanel>
 
-                                                <!-- 🏷️ MAYA (₼) — «Kreditlər» tabındakı kimi ✓ (v6.2.51) ✓✓✓ -->
-                                                <Grid Margin="0,7,0,0"
-                                                      Visibility="{Binding CreditTransactions.BolguManual, Converter={StaticResource BoolToVis}}">
+                                                <!-- 🏷️ MAYA (₼) — «Kreditlər» tabındaki kimi HƏMİŞƏ görünür ✓✓✓ -->
+                                                <Grid Margin="0,7,0,0">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
@@ -2948,14 +2949,26 @@
                                                              FontWeight="SemiBold" Foreground="#7EA8FF"
                                                              VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
                                                              Text="{Binding CreditTransactions.BolguMaya, UpdateSourceTrigger=PropertyChanged}"
-                                                             ToolTip="MAYA əl ilə yazılır ✓ — Baza = Məbləğ − Maya ✓"/>
+                                                             ToolTip="MAYA (₼) — Baza = Əməliyyat məbləği − Maya (otomatik rejimin dəqiq düsturu ✓)&#x0a;Manual rejimdə isə əl ilə yazılır ✓"/>
                                                 </Grid>
 
                                                 <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
                                                            Visibility="{Binding CreditTransactions.BolguManual, Converter={StaticResource BoolToVis}}"
-                                                           Text="① Bölgü bazasını və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓　② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗, yalnız CƏMİ və FƏRQİ yenilənir ✓"/>
+                                                           Text="{Binding CreditTransactions.BolguManualIzahMetni}"/>
                                             </StackPanel>
                                         </Border>
+
+                                        <!-- ===== DÜYMƏLƏR (Kreditlər tabı ilə EYNİ: 2 sütun ✓) ===== -->
+                                        <UniformGrid Columns="2" Margin="11,0,11,8">
+                                            <Button Content="🔄 Hesabla" Style="{StaticResource iOSButton}" FontSize="11"
+                                                    Background="#4C7DFF" Foreground="White" Margin="0,0,3,0"
+                                                    ToolTip="Payları yenidən hesablayır (faizlər + qalıq)"
+                                                    Command="{Binding CreditTransactions.BolguHesablaCommand}"/>
+                                            <Button Content="♻️ Default faizlər" Style="{StaticResource iOSButton}" FontSize="11"
+                                                    Background="#3A4A5C" Foreground="White" Margin="3,0,0,0"
+                                                    ToolTip="Zaur %6 · Eşqin %5 · Asiman %5 · Asif &amp; Musa qalıq"
+                                                    Command="{Binding CreditTransactions.BolguDefaultFaizlerCommand}"/>
+                                        </UniformGrid>
 
                                         <!-- ====================================================
                                              🔢 KÖK İZAHI ✓✓✓ (v6.2.17)
@@ -2971,23 +2984,7 @@
                                                        FontSize="10.5" Foreground="#A9C4FF" TextWrapping="Wrap"/>
                                         </Border>
 
-                                        <!-- ===== DÜYMƏLƏR ===== -->
-                                        <UniformGrid Columns="3" Margin="11,0,11,9">
-                                            <Button Content="📐 Məbləğdən götür" Style="{StaticResource iOSButton}" FontSize="11"
-                                                    Background="#2B3949" Foreground="White" Margin="0,0,3,0"
-                                                    ToolTip="Bazanı cari əməliyyat məbləğinə bərabər edir"
-                                                    Command="{Binding CreditTransactions.BolguBazaniMeblegdenGotCommand}"/>
-                                            <Button Content="🔄 Hesabla" Style="{StaticResource iOSButton}" FontSize="11"
-                                                    Background="#4C7DFF" Foreground="White" Margin="3,0,3,0"
-                                                    ToolTip="Payları yenidən hesablayır (faizlər + qalıq)"
-                                                    Command="{Binding CreditTransactions.BolguHesablaCommand}"/>
-                                            <Button Content="♻️ Default faizlər" Style="{StaticResource iOSButton}" FontSize="11"
-                                                    Background="#3A4A5C" Foreground="White" Margin="3,0,0,0"
-                                                    ToolTip="Zaur %6 · Eşqin %5 · Asiman %5 · Asif &amp; Musa qalıq"
-                                                    Command="{Binding CreditTransactions.BolguDefaultFaizlerCommand}"/>
-                                        </UniformGrid>
-
-                                        <!-- ===== CƏDVƏL ===== -->
+                                        <!-- ===== CƏDVƏL (Kreditlər tabı ilə EYNİ sütun ölçüləri ✓) ===== -->
                                         <Border Margin="11,0,11,0" CornerRadius="7"
                                                 Background="#141D28" BorderBrush="#202D3C" BorderThickness="1">
                                             <StackPanel>
@@ -3022,8 +3019,9 @@
                                                                               ToolTip="TƏTBİQ OLUNUR? — işarə qoyulmayıbsa bu tərəfdaşın faizi HESABLANMIR"
                                                                               IsChecked="{Binding Aktiv}"/>
 
-                                                                    <TextBlock Grid.Column="1" Text="{Binding Terefdas}" FontSize="12.5"
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Terefdas}" FontSize="12"
                                                                                FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                               Margin="0,0,2,0"
                                                                                TextTrimming="CharacterEllipsis">
                                                                         <TextBlock.Style>
                                                                             <Style TargetType="TextBlock">
@@ -3038,13 +3036,23 @@
                                                                         </TextBlock.Style>
                                                                     </TextBlock>
 
-                                                                    <TextBox Grid.Column="2" Height="24" FontSize="12"
+                                                                    <!-- 🏷️ «qalıq» nişanı — Kreditlər tabındaki kimi görünür ✓ -->
+                                                                    <Border Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                            Background="#24406F" CornerRadius="3" Padding="3,0"
+                                                                            ToolTip="QALIQ payçısı — faizlər çıxıldıqdan sonra qalan məbləği qalıq payçıları bərabər bölür ✓"
+                                                                            Visibility="{Binding QaligPayi, Converter={StaticResource BoolToVis}}">
+                                                                        <TextBlock Text="qalıq" FontSize="8.5" FontWeight="Bold"
+                                                                                   Foreground="#A9C4FF"/>
+                                                                    </Border>
+
+                                                                    <!-- 🏷️ QALIQ nişanı ✓ — faiz xanası qalıq payçısında BAĞLIDIR ✓ -->
+                                                                    <TextBox Grid.Column="2" Height="23" FontSize="11.5"
                                                                              VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
-                                                                             ToolTip="Faiz (%) — manual dəyişdirilə bilər"
-                                                                             IsEnabled="{Binding Aktiv}"
+                                                                             ToolTip="Faiz (%) — manual dəyişdirilə bilər · qalıq payçısında bağlıdır ✓ (Kreditlər tabı ilə eyni)"
+                                                                             IsEnabled="{Binding FaizDuzelis}"
                                                                              Text="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                                                    <TextBox Grid.Column="3" Height="24" FontSize="12.5" FontWeight="SemiBold"
+                                                                    <TextBox Grid.Column="3" Height="23" FontSize="12" FontWeight="SemiBold"
                                                                              Foreground="#41D39A" Margin="6,0,0,0"
                                                                              VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
                                                                              ToolTip="Məbləğ (₼) — manual düzəliş edilə bilər"
