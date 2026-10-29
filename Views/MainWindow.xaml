@@ -4013,8 +4013,15 @@
                 <!--     kassaya düşür ✓✓✓                                        -->
                 <!-- ============================================================ -->
                 <TabItem Header="💵 Kassa">
+                    <!-- ⚠ v6.2.77 — HORIZONTAL SÜRÜŞMƏ SÖNDÜRÜLDÜ ✗✓✓
+                         ƏVVƏL: `Auto` → iç eni SONSUZ olurdu ✗ → `Width="*"` sütunu
+                         sonsuz uzanır ✗ və SAĞDAKI «👥 Tərəfdaş bölgüsü» paneli
+                         EKRANDAN KƏNARA ÇIXIRDI ✗✓✓
+                         ✅ İNDİ: `Disabled` → en VIEWPORT ilə MƏHDUDDUR ✓ →
+                         cədvəl SOLDA ✓ · bölgü paneli SAĞDA ✓ (hər ikisi görünür ✓)
+                         📌 Cədvəllərin ÖZ daxili sürüşməsi QALIR ✓ -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
                                   Focusable="False"
                                   Padding="0,0,6,0">
                         <StackPanel Margin="0,16,0,0">
@@ -4436,10 +4443,24 @@
                                                FontSize="11.5" Foreground="#41D39A" TextWrapping="Wrap"/>
                                 </Border>
 
-                                <DataGrid ItemsSource="{Binding Kassa.GozlenilenMohletler}"
+                                <!-- ============================================================
+                                     📋 v6.2.77 — SOLDA MÖHLƏT CƏDVƏLİ · SAĞDA 👥 TƏRƏFDAŞ BÖLGÜSÜ
+                                     ★ İstifadəçi tələbi: «gözlənilən möhlətlərin yanında tərəfdaş
+                                       bölgüsü əlavə et — eynilə digər tablardakıların» ✓✓✓
+                                     ============================================================ -->
+                                <Grid Margin="0,12,0,0"
+                                      Visibility="{Binding Kassa.HasGozlenilen, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                <DataGrid Grid.Column="0"
+                                          ItemsSource="{Binding Kassa.GozlenilenMohletler}"
+                                          SelectedItem="{Binding Kassa.SelectedGozlenilenMohlet}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False"
                                           HeadersVisibility="Column"
-                                          MaxHeight="330" Margin="0,12,0,0"
+                                          MaxHeight="330"
                                           Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
                                           RowBackground="#121A26" AlternatingRowBackground="#141D28"
@@ -4535,6 +4556,174 @@
                                         </DataGridTemplateColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
+
+                                <!-- ============================================================
+                                     👥 v6.2.77 — MÖHLƏTİN TƏRƏFDAŞ BÖLGÜSÜ ✓✓✓
+                                     ★ Dizayn «Kreditlər» tabı ilə EYNİDİR ✓
+                                     📌 Baza = seçilmiş möhlətin məbləği − MAYA
+                                        (seçim yoxdursa → BÜTÜN gözlənilən möhlətlər ✓)
+                                     ============================================================ -->
+                                <Border Grid.Column="1" Width="400" Margin="10,0,0,0" CornerRadius="10"
+                                        Background="#0C131C" BorderBrush="#2B3949" BorderThickness="1"
+                                        VerticalAlignment="Top">
+                                    <StackPanel>
+                                        <!-- ===== BAŞLIQ ZOLAĞI ===== -->
+                                        <Border Background="#1B2634" CornerRadius="9,9,0,0" Padding="11,8">
+                                            <DockPanel>
+                                                <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                          FontSize="11.5" FontWeight="SemiBold" Foreground="#41D39A"
+                                                          ToolTip="Bölgünü tətbiq et / ləğv et"
+                                                          Content="{Binding Kassa.MohletBolguVeziyyet}"
+                                                          IsChecked="{Binding Kassa.MohletBolguTetbiq}"/>
+                                                <TextBlock Text="👥 MÖHLƏTİN TƏRƏFDAŞ BÖLGÜSÜ" FontWeight="Bold"
+                                                           FontSize="12" Foreground="#DCE5EF" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                        </Border>
+
+                                        <!-- ===== HANSI MÖHLƏT ÜZRƏ (izah ✓) ===== -->
+                                        <Border Background="#141D28" Padding="10,7" Margin="11,9,11,0" CornerRadius="6">
+                                            <TextBlock Text="{Binding Kassa.MohletBolguHedefMetni}" FontSize="11"
+                                                       Foreground="#F3C24B" TextWrapping="Wrap"
+                                                       ToolTip="Cədvəldən bir möhlət seçin ✓ — bölgü HƏMİN möhlətin məbləği üzrə hesablanır ✓&#x0a;Seçim yoxdursa BÜTÜN gözlənilən möhlətlərin cəmi üzrə göstərilir ✓"/>
+                                        </Border>
+
+                                        <!-- ===== XEYİR (baza) ===== -->
+                                        <Border Background="#141D28" Padding="10,7" Margin="11,7,11,0" CornerRadius="6">
+                                            <TextBlock Text="{Binding Kassa.MohletXeyirMetni}" FontSize="11"
+                                                       Foreground="#41D39A" TextWrapping="Wrap"/>
+                                        </Border>
+
+                                        <!-- ===== REJİM + MAYA ===== -->
+                                        <Border Background="#131C26" CornerRadius="8" Margin="11,8,11,0" Padding="10,8"
+                                                BorderBrush="#24406F" BorderThickness="1">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Kassa.MohletBolguRejimMetni}"
+                                                               FontSize="10" FontWeight="Bold" Foreground="#7EA8FF"
+                                                               VerticalAlignment="Center"/>
+                                                    <CheckBox Content="✍️ Manual bölgü" FontSize="11.5" FontWeight="SemiBold"
+                                                              IsChecked="{Binding Kassa.MohletBolguManual}"
+                                                              ToolTip="Açıqdırsa: tərəfdaş paylarını özünüz əl ilə yazırsınız ✓ — «🔄 Hesabla» məbləğlərin üzərinə YAZMIR ✓"/>
+                                                </DockPanel>
+
+                                                <!-- 🏷️ MAYA (₼) -->
+                                                <Grid Margin="0,7,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="MAYA (₼)" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                    <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
+                                                             FontWeight="SemiBold" Foreground="#7EA8FF"
+                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                             Text="{Binding Kassa.MohletBolguMaya, UpdateSourceTrigger=PropertyChanged}"
+                                                             ToolTip="MAYA (₼) — möhlət məbləğindən çıxılır ✓&#x0a;Xeyir = Möhlət məbləği − Maya ✓"/>
+                                                </Grid>
+
+                                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                           Visibility="{Binding Kassa.MohletBolguManual, Converter={StaticResource BoolToVis}}"
+                                                           Text="{Binding Kassa.MohletBolguManualIzahMetni}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ===== DÜYMƏLƏR (2 sütun ✓) ===== -->
+                                        <UniformGrid Columns="2" Margin="11,8,11,8">
+                                            <Button Content="🔄 Hesabla" Style="{StaticResource iOSButton}" FontSize="11"
+                                                    Background="#4C7DFF" Foreground="White" Margin="0,0,3,0"
+                                                    ToolTip="Payları yenidən hesablayır (faizlər + qalıq)"
+                                                    Command="{Binding Kassa.MohletBolguHesablaCommand}"/>
+                                            <Button Content="♻️ Default faizlər" Style="{StaticResource iOSButton}" FontSize="11"
+                                                    Background="#3A4A5C" Foreground="White" Margin="3,0,0,0"
+                                                    ToolTip="Zaur %6 · Eşqin %5 · Asiman %5 · Asif &amp; Musa qalıq"
+                                                    Command="{Binding Kassa.MohletBolguDefaultCommand}"/>
+                                        </UniformGrid>
+
+                                        <!-- ===== CƏDVƏL ===== -->
+                                        <Border Margin="11,0,11,0" CornerRadius="6" Background="#141D28"
+                                                BorderBrush="#202D3C" BorderThickness="1">
+                                            <StackPanel>
+                                                <Border Background="#202D3C" CornerRadius="5,5,0,0" Padding="9,5">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="46"/>
+                                                            <ColumnDefinition Width="82"/>
+                                                            <ColumnDefinition Width="58"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="TƏTBİQ" FontSize="10" FontWeight="Bold" Foreground="#41D39A" HorizontalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="TƏRƏFDAŞ" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8"/>
+                                                        <TextBlock Grid.Column="2" Text="FAİZ %" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8" HorizontalAlignment="Right" Margin="0,0,6,0"/>
+                                                        <TextBlock Grid.Column="3" Text="MƏBLƏĞ (₼)" FontSize="10" FontWeight="Bold" Foreground="#A9B8C8" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ItemsControl ItemsSource="{Binding Kassa.MohletTerefdaslari}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Padding="9,3" BorderBrush="#202D3C" BorderThickness="0,0,0,1">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="46"/>
+                                                                        <ColumnDefinition Width="82"/>
+                                                                        <ColumnDefinition Width="58"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <CheckBox Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                              ToolTip="TƏTBİQ OLUNUR? — işarəsizdirsə faizi hesablanmır"
+                                                                              IsChecked="{Binding Aktiv}"/>
+
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Terefdas}" FontSize="12"
+                                                                               FontWeight="SemiBold" Foreground="#DCE5EF" VerticalAlignment="Center"
+                                                                               Margin="0,0,2,0" TextTrimming="CharacterEllipsis"/>
+
+                                                                    <Border Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                            Background="#24406F" CornerRadius="3" Padding="3,0"
+                                                                            ToolTip="QALIQ payçısı — faizlər çıxıldıqdan sonra qalan məbləği qalıq payçıları bərabər bölür ✓"
+                                                                            Visibility="{Binding QaligPayi, Converter={StaticResource BoolToVis}}">
+                                                                        <TextBlock Text="qalıq" FontSize="8.5" FontWeight="Bold"
+                                                                                   Foreground="#A9C4FF"/>
+                                                                    </Border>
+
+                                                                    <TextBox Grid.Column="2" Height="23" FontSize="11.5"
+                                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                                             ToolTip="Faiz (%) · qalıq payçısında bağlıdır ✓"
+                                                                             IsEnabled="{Binding FaizDuzelis}"
+                                                                             Text="{Binding Faiz, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                                                    <TextBox Grid.Column="3" Height="23" FontSize="12" FontWeight="SemiBold"
+                                                                             Foreground="#41D39A" Margin="6,0,0,0"
+                                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                                             ToolTip="Məbləğ (₼) — manual düzəliş edilə bilər"
+                                                                             IsEnabled="{Binding Aktiv}"
+                                                                             Text="{Binding Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ===== YEKUN ===== -->
+                                        <Border Margin="11,8,11,11" CornerRadius="6" Background="#141D28" Padding="10,7">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" FontSize="13" FontWeight="Bold" Foreground="#EFC93F"
+                                                               Text="{Binding Kassa.MohletBolguCemi, Mode=OneWay, Converter={StaticResource Currency}}"/>
+                                                    <TextBlock Text="PAYLARIN CƏMİ" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding Kassa.MohletBolguXulase}" FontSize="10.5"
+                                                           Foreground="#41D39A" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Kassa.MohletBolguFergMetni}" FontSize="10.5"
+                                                           Margin="0,3,0,0" TextWrapping="Wrap" FontWeight="SemiBold"
+                                                           Foreground="{Binding Kassa.MohletBolguFergReng}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                </Grid>
                             </StackPanel>
                         </Border>
 

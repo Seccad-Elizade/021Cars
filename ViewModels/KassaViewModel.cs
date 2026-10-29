@@ -77,6 +77,12 @@ namespace EnterpriseAeroStudio.ViewModels
                     YeniHereket.Kateqoriya = Kateqoriyalar[0];
                 }
             };
+
+            // ================================================================
+            //  👥 v6.2.77 — MÖHLƏTİN TƏRƏFDAŞ BÖLGÜSÜ sətirləri DƏRHAL hazır ✓
+            //  (digər tablarda olduğu kimi — cədvəl boş açılmır ✗✓✓)
+            // ================================================================
+            MohletBolguSifirla();
         }
 
         // ====================================================================
@@ -363,6 +369,284 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Heç gözlənilən möhlət yoxdurmu? (boş panel yazısı üçün ✓)</summary>
         public bool MohletYoxdur => GozlenilenMohletler.Count == 0;
+
+        // ====================================================================
+        //  👥 v6.2.77 — GÖZLƏNİLƏN MÖHLƏTİN TƏRƏFDAŞ BÖLGÜSÜ ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Kassa tabında gözlənilən möhlətlərin yanında
+        //    tərəfdaş bölgüsü əlavə et — eynilə digər tablardakıların.
+        //    Bəzən bu ilkin ödənişə möhlətlər də tərəfdaşlar arasında bölünür.»
+        // --------------------------------------------------------------------
+        //  ✅ Dizayn və davranış «Kreditlər» tabı ilə EYNİDİR ✓✓✓
+        //    • 🏷️ MAYA (₼) — əl ilə yazılır ✓
+        //    • ✍️ Manual bölgü rejimi ✓ (açıqda paylar əl ilə — «Hesabla»
+        //      məbləğlərin ÜZƏRİNƏ YAZMIR ✗)
+        //    • ☑ TƏTBİQ OLUNUR — işarəsiz tərəfdaşın faizi hesablanmır ✗
+        //    • «qalıq» payçısında FAİZ xanası BAĞLIDIR ✓
+        //    • PAYLARIN CƏMİ + «✓ Dəqiq bölünüb / ⚠ Fərq» ✓
+        //  📌 Baza = MÖHLƏTİN MƏBLƏĞİ − MAYA ✓ (yalnız mənfəət bölünür ✓)
+        //  📌 Cədvəldə MÖHLƏT seçilməyibsə → BÜTÜN gözlənilən möhlətlərin
+        //     cəmi üzrə bölgü göstərilir ✓✓✓
+        //  ⚠ Bu panel HESABLAMADIR ✗ — pul «Tərəfdaşlar» tabında faktiki
+        //     ödəniş kimi yazılır ✓ (kassa balansı dəyişmir ✗✓✓)
+        // ====================================================================
+
+        /// <summary>👥 Möhlətin tərəfdaş payları (canlı ✓).</summary>
+        public ObservableCollection<PartnerPayRow> MohletTerefdaslari { get; } = new();
+
+        /// <summary>🕓 Bölgüsü göstərilən möhlət (seçilməyibsə — hamısı ✓).</summary>
+        [ObservableProperty] private OdenisMohlet? selectedGozlenilenMohlet;
+
+        /// <summary>☑ Bölgü tətbiq olunur? (işarəsiz → hesablanmır ✗)</summary>
+        [ObservableProperty] private bool mohletBolguTetbiq = true;
+
+        /// <summary>✍️ Manual rejim — paylar əl ilə yazılır ✓</summary>
+        [ObservableProperty] private bool mohletBolguManual;
+
+        /// <summary>🏷️ MAYA (₼) — bölgü bazasından çıxılır ✓</summary>
+        [ObservableProperty] private decimal mohletBolguMaya;
+
+        /// <summary>📊 Bölgü bazası («xeyir») = möhlətin məbləği − MAYA ✓</summary>
+        [ObservableProperty] private decimal mohletBolguBazasi;
+
+        /// <summary>Rejim mətni — «✍️ MANUAL» / «⚙️ AVTOMATİK» ✓</summary>
+        public string MohletBolguRejimMetni => MohletBolguManual ? "✍️ MANUAL" : "⚙️ AVTOMATİK";
+
+        /// <summary>☑ Vəziyyət mətni ✓</summary>
+        public string MohletBolguVeziyyet => MohletBolguTetbiq ? "✅ Tətbiq olunub" : "⬜ Tətbiq olunmayıb";
+
+        /// <summary>✍️ Manual rejim izahı — digər tablarla EYNİ mətn ✓</summary>
+        public string MohletBolguManualIzahMetni => MohletBolguManual
+            ? "① MAYA-nı və hər tərəfdaşın MƏBLƏĞİNİ əl ilə yazın ✓  ② «🔄 Hesabla» basın ✓ — paylar TOXUNULMUR ✗"
+            : string.Empty;
+
+        /// <summary>🕓 Bölgünün hansı məbləğ üzərindən qurulduğu (izah ✓)</summary>
+        public string MohletBolguHedefMetni => SelectedGozlenilenMohlet is OdenisMohlet m
+            ? $"🕓 {m.MenbeMetni} · {m.TarixMetni} · {m.Mebleg:N2} ₼"
+            : GozlenilenMohletler.Count == 0
+                ? "🕓 Gözlənilən möhlət yoxdur ✗"
+                : $"🕓 BÜTÜN gözlənilən möhlətlər · {GozlenilenMohletler.Count} qeyd · " +
+                  $"{GozlenilenMohletler.Sum(x => x.Mebleg):N2} ₼";
+
+        /// <summary>💰 Bölgü bazası üçün MƏNBƏ məbləğ (möhlət və ya hamısı ✓).</summary>
+        public decimal MohletBolguMenbe => SelectedGozlenilenMohlet is OdenisMohlet m
+            ? m.Mebleg
+            : GozlenilenMohletler.Sum(x => x.Mebleg);
+
+        /// <summary>«Xeyir = Möhlət məbləği − Maya = … ₼» ✓</summary>
+        public string MohletXeyirMetni =>
+            $"Xeyir = Möhlət məbləği − Maya = {MohletBolguMenbe:N2} − {MohletBolguMaya:N2} = {MohletBolguBazasi:N2} ₼";
+
+        /// <summary>Payların cəmi (yalnız ☑ tərəfdaşlar ✓).</summary>
+        public decimal MohletBolguCemi => MohletTerefdaslari.Where(r => r.Aktiv).Sum(r => r.Mebleg);
+
+        /// <summary>Cəm ilə baza arasındaki fərq ✓.</summary>
+        public decimal MohletBolguFergi => MohletBolguCemi - MohletBolguBazasi;
+
+        /// <summary>Xülasə: «Zaur 95,40 ₼ · Eşqin 79,50 ₼ · …» ✓</summary>
+        public string MohletBolguXulase => MohletTerefdaslari.Count == 0
+            ? "Bölgü hazır deyil"
+            : string.Join(" · ", MohletTerefdaslari
+                .Where(r => r.Aktiv)
+                .Select(r => $"{r.Terefdas} {r.Mebleg:N2} ₼"));
+
+        /// <summary>Fərq mətni ✓.</summary>
+        public string MohletBolguFergMetni => MohletBolguFergi == 0m
+            ? "✓ Dəqiq bölünüb — fərq yoxdur"
+            : $"⚠ Fərq: {MohletBolguFergi:N2} ₼";
+
+        /// <summary>Fərq rəngi ✓.</summary>
+        public string MohletBolguFergReng => MohletBolguFergi == 0m ? "#41D39A" : "#F2677F";
+
+        /// <summary>Bölgü paneli görünsün? (ən azı bir gözlənilən möhlət varsa ✓)</summary>
+        public bool MohletBolguGorunur => GozlenilenMohletler.Count > 0;
+
+        /// <summary>🔄 Bölgü bazasını möhlət məbləğindən yeniləyir ✓.</summary>
+        private void MohletBolguBazasiniYenile()
+        {
+            var baza = Math.Round(MohletBolguMenbe - MohletBolguMaya, 2);
+
+            MohletBolguBazasi = baza > 0m ? baza : 0m;
+
+            MohletBolguYenile();
+        }
+
+        /// <summary>Bölgü ilə bağlı hesablanmış göstəriciləri UI-a bildirir ✓.</summary>
+        private void MohletBolguYenile()
+        {
+            OnPropertyChanged(nameof(MohletBolguMenbe));
+            OnPropertyChanged(nameof(MohletBolguHedefMetni));
+            OnPropertyChanged(nameof(MohletXeyirMetni));
+            OnPropertyChanged(nameof(MohletBolguCemi));
+            OnPropertyChanged(nameof(MohletBolguFergi));
+            OnPropertyChanged(nameof(MohletBolguXulase));
+            OnPropertyChanged(nameof(MohletBolguFergMetni));
+            OnPropertyChanged(nameof(MohletBolguFergReng));
+            OnPropertyChanged(nameof(MohletBolguVeziyyet));
+            OnPropertyChanged(nameof(MohletBolguRejimMetni));
+            OnPropertyChanged(nameof(MohletBolguManualIzahMetni));
+            OnPropertyChanged(nameof(MohletBolguGorunur));
+        }
+
+        /// <summary>🏷️ MAYA dəyişdi → baza yenidən hesablanır ✓.</summary>
+        partial void OnMohletBolguMayaChanged(decimal value)
+        {
+            MohletBolguBazasiniYenile();
+
+            if (!MohletBolguManual)
+            {
+                MohletBolguHesabla();
+            }
+        }
+
+        /// <summary>🕓 Seçilmiş möhlət dəyişdi → bölgü yenilənir ✓.</summary>
+        partial void OnSelectedGozlenilenMohletChanged(OdenisMohlet? value)
+        {
+            MohletBolguBazasiniYenile();
+
+            if (!MohletBolguManual)
+            {
+                MohletBolguHesabla();
+            }
+        }
+
+        /// <summary>☑ Bölgü açıldı/bağlandı ✓.</summary>
+        partial void OnMohletBolguTetbiqChanged(bool value)
+        {
+            OnPropertyChanged(nameof(MohletBolguVeziyyet));
+
+            if (value)
+            {
+                MohletBolguBazasiniYenile();
+                MohletBolguHesabla();
+            }
+        }
+
+        /// <summary>✍️ Manual rejim dəyişdi → faizlər sıfırlanır ✓ (digər tablar kimi).</summary>
+        partial void OnMohletBolguManualChanged(bool value)
+        {
+            OnPropertyChanged(nameof(MohletBolguRejimMetni));
+            OnPropertyChanged(nameof(MohletBolguManualIzahMetni));
+
+            try
+            {
+                if (value)
+                {
+                    foreach (var r in MohletTerefdaslari)
+                    {
+                        r.Faiz = 0m;
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
+        }
+
+        /// <summary>👥 Bölgü sətirlərini standart tərəfdaşlarla doldurur ✓.</summary>
+        private void MohletBolguSifirla()
+        {
+            MohletTerefdaslari.Clear();
+
+            foreach (var share in PartnerMath.CreateDefaultRows())
+            {
+                MohletTerefdaslari.Add(PartnerPayRow.FromModel(share));
+            }
+
+            MohletBolguMaya = 0m;
+            MohletBolguBazasi = 0m;
+            MohletBolguYenile();
+        }
+
+        /// <summary>➕ Çatışmayan tərəfdaşları cədvələ əlavə edir ✓ (DB-dən ✓).</summary>
+        private void MohletTerefdaslariniTamamla()
+        {
+            try
+            {
+                foreach (var pay in PartnerMath.CreateDefaultRows())
+                {
+                    var ad = (pay.Terefdas ?? string.Empty).Trim();
+
+                    if (ad.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!MohletTerefdaslari.Any(r =>
+                            string.Equals(r.Terefdas?.Trim(), ad, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        MohletTerefdaslari.Add(PartnerPayRow.FromModel(pay));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Möhlət bölgüsü: yeni tərəfdaşlar əlavə olunmadı ✗");
+            }
+        }
+
+        /// <summary>
+        /// 🔄 <b>Möhlətin tərəfdaş bölgüsünü hesablayır</b> ✓✓✓
+        /// <para>Qayda digər tablarla EYNİDİR: faiz payçıları faizi qədər alır,
+        /// qalan məbləği qalıq payçıları (Asif &amp; Musa) yarı-yarıya bölür ✓</para>
+        /// <para>⚠ Manual rejimdə məbləğlərə TOXUNULMUR ✗ (yalnız cəm/fərq ✓)</para>
+        /// </summary>
+        [RelayCommand]
+        private void MohletBolguHesabla()
+        {
+            MohletTerefdaslariniTamamla();
+            MohletBolguBazasiniYenile();
+
+            // ✍️ Manual rejim → məbləğlər ƏL İLƏDİR ✓ (üzərinə yazılmır ✗)
+            if (MohletBolguManual)
+            {
+                MohletBolguYenile();
+                return;
+            }
+
+            var modeller = new List<PartnerShare>();
+            var sira = 0;
+
+            foreach (var row in MohletTerefdaslari)
+            {
+                modeller.Add(row.ToModel(sira++));
+            }
+
+            PartnerMath.Distribute(MohletBolguBazasi, modeller);
+
+            for (var i = 0; i < modeller.Count && i < MohletTerefdaslari.Count; i++)
+            {
+                MohletTerefdaslari[i].Mebleg = modeller[i].Mebleg;
+            }
+
+            MohletBolguYenile();
+        }
+
+        /// <summary>♻️ Faizləri standart qiymətlərə qaytarır ✓ (digər tablar kimi).</summary>
+        [RelayCommand]
+        private void MohletBolguDefault()
+        {
+            MohletTerefdaslariniTamamla();
+
+            var standart = PartnerMath.CreateDefaultRows();
+
+            foreach (var row in MohletTerefdaslari)
+            {
+                var uygun = standart.FirstOrDefault(d => d.Terefdas == row.Terefdas);
+
+                if (uygun is null)
+                {
+                    continue;
+                }
+
+                row.Faiz = uygun.Faiz;
+                row.QaligPayi = uygun.QaligPayi;
+                row.Aktiv = true;
+            }
+
+            MohletBolguHesabla();
+        }
 
         /// <summary>
         /// 🗓️ Tarixi istifadəçidən soruşur ✓
@@ -826,6 +1110,22 @@ namespace EnterpriseAeroStudio.ViewModels
                 OnPropertyChanged(nameof(HasOdenilmis));
                 OnPropertyChanged(nameof(MohletYoxdur));
                 OnPropertyChanged(nameof(HereketYoxdur));
+
+                // ================================================================
+                //  👥 v6.2.77 — MÖHLƏT BÖLGÜSÜ YENİLƏNİR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ Seçilmiş möhlət artıq siyahıda yoxdursa (ödənildi / silindi)
+                //    → seçim sıfırlanır ✓ və bölgü BÜTÜN gözlənilənlər üzrə
+                //    yenidən qurulur ✓✓✓
+                // ================================================================
+                if (SelectedGozlenilenMohlet is OdenisMohlet secili
+                    && !GozlenilenMohletler.Any(m => m.Id == secili.Id))
+                {
+                    SelectedGozlenilenMohlet = null;
+                }
+
+                MohletBolguBazasiniYenile();
+                MohletBolguHesabla();
 
                 // ================================================================
                 //  ④ 🏷️ BÖLMƏLƏR ÜZRƏ CƏM + 📒 JURNAL (filtrlərlə ✓)
