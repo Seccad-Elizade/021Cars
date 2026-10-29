@@ -1372,6 +1372,19 @@ namespace EnterpriseAeroStudio.ViewModels
             CreditTransactions.DataChanged += async (_, _) => await YalnizAktivTabYenileAsync();
             SalesArchive.DataChanged += async (_, _) => await YalnizAktivTabYenileAsync();
 
+            // ================================================================
+            //  💵 v6.2.79 — KASSA HADİSƏSİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi şikayəti: «Kassada möhləti ödədim, maya bölgüsü
+            //    yazdım — amma TƏRƏFDAŞLAR bölgüsündə insanların üzərinə
+            //    GƏLMƏDİ ✗»
+            //  ⚠ SƏBƏB: Kassa öz hadisəsini yaymırdı ✗ → digər tablar
+            //    «çirkli» işarələnmirdi ✗ və köhnə məlumat göstərilirdi ✗✓✓
+            //  ✅ İNDİ: möhlət ödənişi/geri alımı/silinməsi → BÜTÜN tablar
+            //    yenilənir ✓ («👥 Tərəfdaşlar» ✓ «💳 Kreditlər» ✓ «📊 Maliyyə» ✓)
+            // ================================================================
+            Kassa.DataChanged += async (_, _) => await YalnizAktivTabYenileAsync();
+
             // --- ÖZ dəyişikliklərimizi qeyd edirik ---------------------------------
             //  Tətbiq bazaya yazanda fayl dəyişir və izləyici hadisə yaradır.
             //  Həmin anda cədvəllər artıq yeniləndiyi üçün ikinci dəfə yeniləmək
@@ -1382,6 +1395,7 @@ namespace EnterpriseAeroStudio.ViewModels
             Credits.CreditsChanged += (_, _) => MarkSelfChange();
             CreditTransactions.DataChanged += (_, _) => MarkSelfChange();
             SalesArchive.DataChanged += (_, _) => MarkSelfChange();
+            Kassa.DataChanged += (_, _) => MarkSelfChange();   // 💵 v6.2.79 ✓
         }
 
         /// <summary>Növbəti <see cref="SelfChangeWindow"/> müddətində xarici hadisələri udur.</summary>

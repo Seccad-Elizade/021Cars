@@ -49,6 +49,20 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Eyni anda iki yükləmənin işləməsinin qarşısını alır ✓.</summary>
         private readonly SemaphoreSlim _gate = new(1, 1);
 
+        /// <summary>
+        /// 📢 <b>v6.2.79 — MƏLUMAT DƏYİŞDİ HADİSƏSİ</b> ✓✓✓
+        /// <para>
+        /// ⚠ <b>SƏBƏB:</b> Kassa tabında möhlət ödənildikdə tərəfdaş payları
+        /// bazaya yazılırdı ✓, amma <b>«👥 Tərəfdaşlar» tabı YENİLƏNMİRDİ</b> ✗ →
+        /// istifadəçi payları GÖRMÜRDÜ ✗✓✓ (şikayət: «insanların üzərinə gəlmədi»)
+        /// </para>
+        /// <para>
+        /// ✅ <c>MainViewModel</c> bu hadisəyə abunədir ✓ → bütün tablar
+        /// «çirkli» işarələnir ✓ və aktiv tab dərhal yenilənir ✓✓✓
+        /// </para>
+        /// </summary>
+        public event EventHandler? DataChanged;
+
         /// <summary>Filtrləmə zamanı geri-əlaqə (re-entrancy) dövrünün qarşısını alır ✓.</summary>
         private bool _filtrlenir;
 
@@ -293,6 +307,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 // 📊 CƏMLƏR DƏRHAL yenilənir ✓ (kassa qalığı dəyişdi ✓✓✓)
                 await LoadAsync();
 
+                // 📢 v6.2.79 — digər tablar da yenilənsin ✓
+                MelumatDegisdi();
+
                 // 🧹 Forma təmizlənir ✓ (növ · kateqoriya · ödəniş üsulu saxlanılır ✓)
                 YeniHereket.Mebleg = 0m;
                 YeniHereket.Qeyd = string.Empty;
@@ -338,6 +355,8 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 ManuelHereketler.Remove(hereket);
                 await LoadAsync();
+
+                MelumatDegisdi();   // 📢 v6.2.79 — digər tablar yenilənsin ✓
 
                 _logger.LogInformation("🗑 Əl ilə kassa hərəkəti silindi: {Hereket}", hereket);
             }
@@ -759,6 +778,9 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 MohletOdenisStatusMetni = "⏳ Ödəniş yazılır…";
 
+                // 🔗 Payların markeri üçün ÖDƏNİLMİŞ sətrin İD-si ✓
+                var odenilmisId = mohlet.Id;
+
                 if (tam)
                 {
                     mohlet.Odenilib = true;
@@ -783,16 +805,22 @@ namespace EnterpriseAeroStudio.ViewModels
                     odenilmis.OdenilmeTarixi = tarix;
                     await _mohletler.UpdateAsync(odenilmis);
 
+                    odenilmisId = odenilmis.Id;   // 🔗 paylar BU sətrə bağlanır ✓
+
                     // ② QALAN HİSSƏ — YENİ TARİXLƏ möhlətdə qalır ✓
                     mohlet.Mebleg = qaliq;
                     mohlet.Tarix = MohletSonrakiTarix!.Value.Date;
                     await _mohletler.UpdateAsync(mohlet);
                 }
 
-                // ③ 👥 TƏRƏFDAŞ PAYLARI (yalnız kreditə bağlı möhlətdə ✓)
-                var paySayi = await MohletBolguPaylariniYazAsync(mohlet, odenis, tarix);
+                // ③ 👥 TƏRƏFDAŞ PAYLARI — kredit VƏ nisyə satış möhlətlərində ✓
+                var paySayi = await MohletBolguPaylariniYazAsync(
+                    odenilmisId, mohlet.CreditId, odenis, tarix);
 
                 await LoadAsync();
+
+                // 📢 v6.2.79 — «👥 Tərəfdaşlar» / «Maliyyə» tabları DƏRHAL yenilənsin ✓✓✓
+                MelumatDegisdi();
 
                 MohletOdenisStatusMetni =
                     $"✅ ÖDƏNİŞ YAZILDI — {odenis:N2} ₼ · {tarix:dd.MM.yyyy}" +
@@ -822,24 +850,35 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
-        /// <summary>
-        /// 👥 <b>Möhlət ödənişinin tərəfdaş paylarını BAZAYA yazır</b> ✓✓✓ (v6.2.78)
-        /// <para>
-        /// 💳 Kreditə bağlı möhlətdə <c>CreditTransaction</c> yaradılır —
-        /// növ: <see cref="Catalog.MohletOdenisNovu"/> («Möhlət ödənişi» ✓) →
-        /// <b>Gəlir sayılmır</b> ✗ (kassada ikiqat olmaz ✗✓✓), yalnız paylar yazılır ✓
-        /// </para>
-        /// <returns>Yazılan pay sətirlərinin sayı ✓</returns>
-        /// </summary>
-        private async Task<int> MohletBolguPaylariniYazAsync(OdenisMohlet mohlet, decimal odenis, DateTime tarix)
+        /// <summary>📢 Məlumat dəyişdi → bütün tablar yenilənsin ✓ (v6.2.79)</summary>
+        private void MelumatDegisdi()
         {
-            if (!MohletBolguTetbiq || odenis <= 0m || MohletBolguBazasi <= 0m)
+            try
             {
-                return 0;
+                DataChanged?.Invoke(this, EventArgs.Empty);
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Kassa: DataChanged hadisəsi ötürülmədi ✗");
+            }
+        }
 
-            // ⚠ Yalnız KREDİTƏ bağlı möhlətlər ✓ (nisyə satışda bölgü satışda edilir ✓)
-            if (mohlet.CreditId is not int creditId || creditId <= 0)
+        /// <summary>
+        /// 👥 <b>Möhlət ödənişinin tərəfdaş paylarını BAZAYA yazır</b> ✓✓✓ (v6.2.79)
+        /// <para>
+        /// 💳 <b>Həm kreditə, həm nisyə satışa</b> bağlı möhlətlərdə işləyir ✓ —
+        /// <c>CreditTransaction</c> yaradılır (növ: «Möhlət ödənişi» ✗ <b>«Gəlir» deyil</b>)
+        /// → <b>kassada ikiqat olmaz</b> ✗✓✓, yalnız paylar yazılır ✓
+        /// </para>
+        /// <para>
+        /// 🔗 <b>ƏLAQƏ MARKERİ:</b> təsvirə <c>möhlət #Id</c> yazılır ✓ →
+        /// «geri al» / «sil» zamanı paylar DƏQİQ tapılıb silinir ✓✓✓
+        /// </para>
+        /// </summary>
+        /// <param name="mohletId">Ödənilmiş möhlət sətrinin İD-si (marker üçün ✓)</param>
+        private async Task<int> MohletBolguPaylariniYazAsync(int mohletId, int? creditId, decimal odenis, DateTime tarix)
+        {
+            if (!MohletBolguTetbiq || odenis <= 0m)
             {
                 return 0;
             }
@@ -859,8 +898,14 @@ namespace EnterpriseAeroStudio.ViewModels
 
             if (paylar.Count == 0)
             {
+                _logger.LogInformation("⏳ Möhlət ödənişi: tərəfdaş payı 0 ₼ — bölgü yazılmadı ✗");
                 return 0;
             }
+
+            // ✍️ MANUAL rejimdə baza 0 olsa da paylar YAZILIR ✓ (istifadəçi əl ilə yazıb ✓)
+            var baza = MohletBolguBazasi > 0m
+                ? MohletBolguBazasi
+                : Math.Round(paylar.Sum(p => p.Mebleg), 2);
 
             await _credits.AddTransactionAsync(new CreditTransaction
             {
@@ -869,17 +914,58 @@ namespace EnterpriseAeroStudio.ViewModels
                 Mebleg = odenis,
                 Tarix = tarix,
                 Odenilib = true,
-                Tesvir = $"⏳ Möhlət ödənişi · maya {MohletMayaPayi:N2} ₼ · mənfəət {MohletBolguBazasi:N2} ₼",
+                Tesvir = $"⏳ Möhlət ödənişi · möhlət #{mohletId} · maya {MohletMayaPayi:N2} ₼ · mənfəət {baza:N2} ₼",
                 TerefdasBolguTetbiqOlunub = true,
-                BolguBazasi = MohletBolguBazasi,
+                BolguBazasi = baza,
                 TerefdasPaylari = paylar
             });
 
             _logger.LogInformation(
-                "⏳ Möhlət ödənişi + tərəfdaş bölgüsü: kredit #{Id} · {Mebleg:N2} ₼ · {Pay} pay · {Tarix:dd.MM.yyyy}",
-                creditId, odenis, paylar.Count, tarix);
+                "⏳ Möhlət ödənişi + tərəfdaş bölgüsü ✓: möhlət #{MohletId} · kredit {CreditId} · {Mebleg:N2} ₼ · {Pay} pay · {Tarix:dd.MM.yyyy}",
+                mohletId, creditId?.ToString() ?? "—", odenis, paylar.Count, tarix);
 
             return paylar.Count;
+        }
+
+        /// <summary>
+        /// 🗑️ <b>Möhlətə bağlı TƏRƏFDAŞ PAYLARINI SİLİR</b> ✓✓✓ (v6.2.79)
+        /// <para>
+        /// ★ İstifadəçi tələbi: «geri alım edəndə ödənilmiş möhlət tərəfdaşlar
+        /// bölgüsündən də silinməlidir» ✓ → marker (<c>möhlət #Id</c>) ilə
+        /// DƏQİQ sətirlər tapılır ✓ və payları ilə birlikdə silinir ✓✓✓
+        /// </para>
+        /// </summary>
+        private async Task<int> MohletBolguPaylariniSilAsync(int mohletId)
+        {
+            try
+            {
+                var marker = $"möhlət #{mohletId}";
+                var hamisi = await _credits.GetTransactionsAsync();
+
+                var silinecek = hamisi
+                    .Where(t => string.Equals(t.Nov, Catalog.MohletOdenisNovu, StringComparison.Ordinal)
+                                && (t.Tesvir ?? string.Empty).Contains(marker, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var tx in silinecek)
+                {
+                    await _credits.DeleteTransactionAsync(tx.Id);
+                }
+
+                if (silinecek.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "🗑️ Möhlət #{MohletId} — {Say} tərəfdaş bölgüsü sətri SİLİNDİ ✓",
+                        mohletId, silinecek.Count);
+                }
+
+                return silinecek.Count;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Möhlətin tərəfdaş bölgüsü silinmədi ✗ (möhlət #{Id})", mohletId);
+                return 0;
+            }
         }
 
         /// <summary>🔄 Bölgü bazasını möhlət məbləğindən yeniləyir ✓.</summary>
@@ -1196,6 +1282,8 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 await LoadAsync();
 
+                MelumatDegisdi();   // 📢 v6.2.79 — digər tablar yenilənsin ✓
+
                 _dialogs.ShowInfo(
                     "⏳ QİSMƏN ÖDƏNİŞ YAZILDI ✓✓✓\n\n" +
                     $"📌 {mohlet.MenbeMetni}\n\n" +
@@ -1253,6 +1341,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     mohlet.MenbeMetni, mohlet.Mebleg, tarix);
 
                 await LoadAsync();
+
+                MelumatDegisdi();   // 📢 v6.2.79 — digər tablar yenilənsin ✓
 
                 _dialogs.ShowInfo(
                     "✅ MÖHLƏT ÖDƏNİLDİ ✓\n\n" +
@@ -1332,6 +1422,16 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 await _mohletler.UpdateAsync(mohlet);
 
+                // ================================================================
+                //  🗑️ v6.2.79 — TƏRƏFDAŞ PAYLARI DA SİLİNİR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «geri alım edəndə ödənilmiş möhlət
+                //    tərəfdaşlar bölgüsündən də silinməlidir» ✓✓✓
+                //  🔗 Marker (`möhlət #Id`) ilə DƏQİQ sətir tapılır ✓ →
+                //     payları ilə birlikdə silinir ✓
+                // ================================================================
+                var silinenPaylar = await MohletBolguPaylariniSilAsync(mohlet.Id);
+
                 OdenilmisMohletler.Remove(mohlet);
 
                 OnPropertyChanged(nameof(HasOdenilmis));
@@ -1339,12 +1439,18 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 await LoadAsync();
 
+                // 📢 Bütün tablar yenilənsin ✓ (Tərəfdaşlar · Maliyyə ✓)
+                MelumatDegisdi();
+
                 _dialogs.ShowInfo(
                     "↩️ GERİ ALINDI ✓✓✓\n\n" +
                     $"📌 {mohlet.MenbeMetni}\n" +
                     $"Məbləğ: {mohlet.Mebleg:N2} ₼\n\n" +
                     "✅ Möhlət yenidən «GÖZLƏNİLƏN MÖHLƏTLƏR» siyahısındadır ✓\n" +
-                    "⚠ Pul kassadan ÇIXARILDI ✓ (jurnal yeniləndi ✓)");
+                    "⚠ Pul kassadan ÇIXARILDI ✓ (jurnal yeniləndi ✓)" +
+                    (silinenPaylar > 0
+                        ? $"\n🗑️ Tərəfdaş bölgüsü də SİLİNDİ ✓ ({silinenPaylar} sətir)"
+                        : string.Empty));
 
                 _logger.LogInformation("↩ Möhlətin ödəniş işarəsi geri alındı: {Id}", mohlet.Id);
             }
@@ -1405,10 +1511,17 @@ namespace EnterpriseAeroStudio.ViewModels
 
             try
             {
+                // 🗑️ v6.2.79 — möhlətə bağlı TƏRƏFDAŞ BÖLGÜSÜ də silinir ✓✓✓
+                var silinenPaylar = await MohletBolguPaylariniSilAsync(mohlet.Id);
+
                 await _mohletler.DeleteAsync(mohlet.Id);
                 await LoadAsync();
 
-                _logger.LogInformation("🗑 Möhlət silindi: {Id}", mohlet.Id);
+                MelumatDegisdi();
+
+                _logger.LogInformation(
+                    "🗑 Möhlət silindi: {Id} · tərəfdaş bölgüsü: {Pay} sətir",
+                    mohlet.Id, silinenPaylar);
             }
             catch (Exception ex)
             {
