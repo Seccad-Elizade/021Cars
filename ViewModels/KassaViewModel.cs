@@ -33,8 +33,18 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>📕 Kredit xidməti — möhlət ödənişini KREDİTƏ də yazmaq üçün ✓✓✓</summary>
         private readonly ICreditService _credits;
+
+        /// <summary>🧾 Satış xidməti — nisyə satış möhlətinin MAYA-sı üçün ✓ (v6.2.78)</summary>
+        private readonly ISaleService _satislar;
         private readonly IDialogService _dialogs;
         private readonly ILogger<KassaViewModel> _logger;
+
+        /// <summary>
+        /// 📦 v6.2.78 — Kredit/satış KEŞİ ✓ (möhlətin maya və mənfəətini
+        /// <b>sinxron</b> hesablamaq üçün — hər klikdə bazaya sorğu getmir ✗✓✓)
+        /// </summary>
+        private List<Credit> _kreditKeshi = new();
+        private List<Sale> _satisKeshi = new();
 
         /// <summary>Eyni anda iki yükləmənin işləməsinin qarşısını alır ✓.</summary>
         private readonly SemaphoreSlim _gate = new(1, 1);
@@ -49,12 +59,14 @@ namespace EnterpriseAeroStudio.ViewModels
             IKassaService kassa,
             IMohletService mohletler,
             ICreditService credits,
+            ISaleService satislar,
             IDialogService dialogs,
             ILogger<KassaViewModel> logger)
         {
             _kassa = kassa;
             _mohletler = mohletler;
             _credits = credits;
+            _satislar = satislar;
             _dialogs = dialogs;
             _logger = logger;
 
@@ -423,15 +435,10 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>🕓 Bölgünün hansı məbləğ üzərindən qurulduğu (izah ✓)</summary>
         public string MohletBolguHedefMetni => SelectedGozlenilenMohlet is OdenisMohlet m
             ? $"🕓 {m.MenbeMetni} · {m.TarixMetni} · {m.Mebleg:N2} ₼"
-            : GozlenilenMohletler.Count == 0
-                ? "🕓 Gözlənilən möhlət yoxdur ✗"
-                : $"🕓 BÜTÜN gözlənilən möhlətlər · {GozlenilenMohletler.Count} qeyd · " +
-                  $"{GozlenilenMohletler.Sum(x => x.Mebleg):N2} ₼";
+            : "🕓 Ödəniş üçün cədvəldən bir möhlət SEÇİN ✗";
 
-        /// <summary>💰 Bölgü bazası üçün MƏNBƏ məbləğ (möhlət və ya hamısı ✓).</summary>
-        public decimal MohletBolguMenbe => SelectedGozlenilenMohlet is OdenisMohlet m
-            ? m.Mebleg
-            : GozlenilenMohletler.Sum(x => x.Mebleg);
+        /// <summary>💰 Bölgü bazası üçün MƏNBƏ məbləğ = ÖDƏNİLƏCƏK məbləğ ✓ (v6.2.78)</summary>
+        public decimal MohletBolguMenbe => MohletOdenisMebleg;
 
         /// <summary>«Xeyir = Möhlət məbləği − Maya = … ₼» ✓</summary>
         public string MohletXeyirMetni =>
@@ -460,6 +467,420 @@ namespace EnterpriseAeroStudio.ViewModels
 
         /// <summary>Bölgü paneli görünsün? (ən azı bir gözlənilən möhlət varsa ✓)</summary>
         public bool MohletBolguGorunur => GozlenilenMohletler.Count > 0;
+
+        // ====================================================================
+        //  💳 v6.2.78 — MÖHLƏT ÖDƏNİŞİNİN PROFESIONAL PANELİ ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «möhlətin üstünə basıb seçirik ✓ — paneldə
+        //    TAM ÖDƏNİŞ / TAM ÖDƏNİLMƏDİ seçimi olmalıdır ✓
+        //    • TAM ÖDƏNİŞ      → yalnız «nə vaxt ödəndi» soruşulur ✓
+        //    • TAM ÖDƏNİLMƏDİ  → «ödəniş tarixi» + «qalan nə vaxt ödəniləcək» ✓
+        //    • hər iki halda MƏBLƏĞ soruşulur ✓ (default = möhlətin məbləği ✓)
+        //    • mayaya (kökə) və tərəfdaş mənfəətinə nə qədər getdiyi YAZILIR ✓
+        //    • bütün hesablamalar maşının mayasından DÜZGÜN götürülür ✓»
+        // --------------------------------------------------------------------
+        //  🔢 MAYA (kök payı) AVTOMATİK:
+        //     • Kreditə bağlı möhlət → `Credit.OdenisKokPayi(ödəniş)` ✓
+        //     • Nisyə satışa bağlı möhlət → `MayaDeyeri × (ödəniş ÷ SatışQiyməti)` ✓
+        //     ⚠ İstifadəçi MAYA-nı əl ilə də DƏYİŞƏ BİLƏR ✓
+        //  💰 BÖLGÜ BAZASI = ÖDƏNİŞ − MAYA (kök) ✓ → yalnız MƏNFƏƏT bölünür ✓
+        // ====================================================================
+
+        /// <summary>✅ <b>TAM ÖDƏNİŞ</b> rejimi (möhlətin hamısı ödənilir) ✓</summary>
+        [ObservableProperty] private bool mohletTamOdenis = true;
+
+        /// <summary>⚠ <b>TAM ÖDƏNİLMƏDİ</b> rejimi (qismən ödəniş + yeni tarix) ✓</summary>
+        [ObservableProperty] private bool mohletQismenOdenis;
+
+        /// <summary>💵 ÖDƏNİLƏN MƏBLƏĞ (₼) — default: möhlətin tam məbləği ✓</summary>
+        [ObservableProperty] private decimal mohletOdenisMebleg;
+
+        /// <summary>📅 ÖDƏNİŞ TARİXİ — default: bu gün ✓</summary>
+        [ObservableProperty] private DateTime? mohletOdenisTarixi = DateTime.Today;
+
+        /// <summary>⏳ Qalan məbləğ NƏ VAXT ödəniləcək (yalnız qismən ödənişdə ✓)</summary>
+        [ObservableProperty] private DateTime? mohletSonrakiTarix;
+
+        /// <summary>⏳ Ödənişdən sonra QALAN məbləğ (₼) ✓</summary>
+        [ObservableProperty] private decimal mohletQaliqMebleg;
+
+        /// <summary>🏷️ MAYA (kök payı) — bu ödənişin əsas borc hissəsi (₼) ✓</summary>
+        [ObservableProperty] private decimal mohletMayaPayi;
+
+        /// <summary>✅ «Möhlət seçilib?» — panelin aktivliyi üçün ✓</summary>
+        public bool MohletSecilib => SelectedGozlenilenMohlet is OdenisMohlet;
+
+        /// <summary>📊 «MAYA (kök): X ₼ · Bölünən mənfəət: Y ₼» izahı ✓</summary>
+        public string MohletKokMetni =>
+            $"🏷️ Maya (kök) payı: {MohletMayaPayi:N2} ₼   ·   💰 Bölünən mənfəət: {MohletBolguBazasi:N2} ₼" +
+            (MohletOdenisMebleg > 0m
+                ? $"   ·   💵 Ödəniş: {MohletOdenisMebleg:N2} ₼"
+                : string.Empty);
+
+        /// <summary>⏳ Qalan məbləğ mətni (qismən ödənişdə ✓)</summary>
+        public string MohletQaliqMetni => MohletQaliqMebleg <= 0m
+            ? "✓ Tam ödəniş — qalıq yoxdur"
+            : $"⏳ Qalan: {MohletQaliqMebleg:N2} ₼ — nə vaxt ödəniləcək?";
+
+        /// <summary>🔘 Təsdiq düyməsinin mətni ✓</summary>
+        public string MohletOdenisDugmeMetni => MohletQismenOdenis
+            ? "⚠  QİSMƏN ÖDƏNİŞİ TƏSDİQ ET"
+            : "✅  ÖDƏNİŞİ TƏSDİQ ET";
+
+        /// <summary>💬 Panelin status/izah mətni ✓</summary>
+        /// <summary>💬 Panelin status/izah mətni ✓</summary>
+        [ObservableProperty] private string mohletOdenisStatusMetni =
+            "① Cədvəldən möhlət seçin  ② TAM ÖDƏNİŞ / TAM ÖDƏNİLMƏDİ seçin  ③ Məbləğ və tarixləri yoxlayın  ④ «ÖDƏNİŞİ TƏSDİQ ET»";
+
+        /// <summary>✅ Ödəniş təsdiqlənə BİLƏRMİ? (bütün yoxlamalar ✓)</summary>
+        public bool MohletOdenisOlunur
+        {
+            get
+            {
+                if (SelectedGozlenilenMohlet is not OdenisMohlet m || m.Id <= 0)
+                {
+                    return false;
+                }
+
+                if (MohletOdenisMebleg <= 0m || MohletOdenisMebleg > m.Mebleg + 0.005m)
+                {
+                    return false;
+                }
+
+                if (MohletOdenisTarixi is not DateTime)
+                {
+                    return false;
+                }
+
+                // ⏳ Qismən ödənişdə «qalan nə vaxt» MÜTLƏQ lazımdır ✓
+                if (MohletQaliqMebleg > 0.005m && MohletSonrakiTarix is not DateTime)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        /// <summary>🔄 «Qismən» seçildikdə «tam» söndürülür ✓ (radio davranışı)</summary>
+        partial void OnMohletQismenOdenisChanged(bool value)
+        {
+            if (value && MohletTamOdenis)
+            {
+                MohletTamOdenis = false;
+            }
+
+            MohletOdenisiniYenile();
+        }
+
+        /// <summary>🔄 «Tam» seçildikdə «qismən» söndürülür ✓ (radio davranışı)</summary>
+        partial void OnMohletTamOdenisChanged(bool value)
+        {
+            if (value && MohletQismenOdenis)
+            {
+                MohletQismenOdenis = false;
+            }
+
+            MohletOdenisiniYenile();
+        }
+
+        /// <summary>💵 Məbləğ dəyişdi → qalıq, MAYA və bölgü yenilənir ✓</summary>
+        partial void OnMohletOdenisMeblegChanged(decimal value)
+        {
+            MohletQaliqMebleg = SelectedGozlenilenMohlet is OdenisMohlet m
+                ? Math.Max(0m, Math.Round(m.Mebleg - value, 2))
+                : 0m;
+
+            // 🏷️ MAYA (kök payı) avtomatik yenidən hesablanır ✓
+            MohletMayaPayi = MohletKokPayiHesabla(value);
+
+            MohletBolguMaya = MohletMayaPayi;   // → baza yenilənir ✓
+
+            MohletOdenisiniYenile();
+        }
+
+        partial void OnMohletOdenisTarixiChanged(DateTime? value) => MohletOdenisiniYenile();
+
+        partial void OnMohletSonrakiTarixChanged(DateTime? value) => MohletOdenisiniYenile();
+
+        /// <summary>🔢 <b>Bu ödənişin MAYA (kök) payı</b> ✓✓✓ (v6.2.78)</summary>
+        private decimal MohletKokPayiHesabla(decimal mebleg)
+        {
+            if (mebleg <= 0m || SelectedGozlenilenMohlet is not OdenisMohlet mohlet)
+            {
+                return 0m;
+            }
+
+            // ── 💳 KREDİTƏ BAĞLI MÖHLƏT ────────────────────────────────
+            if (mohlet.CreditId is int creditId)
+            {
+                var kredit = _kreditKeshi.FirstOrDefault(k => k.Id == creditId);
+
+                return kredit is null ? 0m : Math.Round(kredit.OdenisKokPayi(mebleg), 2);
+            }
+
+            // ── 🧾 NİSYƏ SATIŞA BAĞLI MÖHLƏT ──────────────────────────
+            if (mohlet.SaleId is int saleId)
+            {
+                var satis = _satisKeshi.FirstOrDefault(s => s.Id == saleId);
+
+                if (satis is null || satis.SatisQiymeti <= 0m)
+                {
+                    return 0m;
+                }
+
+                var nisbet = Math.Clamp(mebleg / satis.SatisQiymeti, 0m, 1m);
+
+                return Math.Round(satis.MayaDeyeri * nisbet, 2);
+            }
+
+            return 0m;
+        }
+
+        /// <summary>Bütün ödəniş göstəricilərini UI-a bildirir ✓.</summary>
+        private void MohletOdenisiniYenile()
+        {
+            OnPropertyChanged(nameof(MohletSecilib));
+            OnPropertyChanged(nameof(MohletOdenisOlunur));
+            OnPropertyChanged(nameof(MohletOdenisDugmeMetni));
+            OnPropertyChanged(nameof(MohletQaliqMetni));
+            OnPropertyChanged(nameof(MohletKokMetni));
+            OnPropertyChanged(nameof(MohletBolguHedefMetni));
+            OnPropertyChanged(nameof(MohletBolguMenbe));
+            OnPropertyChanged(nameof(MohletXeyirMetni));
+            OnPropertyChanged(nameof(MohletBolguCemi));
+            OnPropertyChanged(nameof(MohletBolguFergi));
+            OnPropertyChanged(nameof(MohletBolguXulase));
+            OnPropertyChanged(nameof(MohletBolguFergMetni));
+            OnPropertyChanged(nameof(MohletBolguFergReng));
+        }
+
+        /// <summary>
+        /// 🕓 <b>Seçilmiş möhlət üçün ödəniş panelini HAZIRLAYIR</b> ✓✓✓
+        /// <para>Məbləğ = möhlətin tam məbləği ✓ · Tarix = bu gün ✓ ·
+        /// MAYA = avtomatik kök payı ✓ · bölgü dərhal hesablanır ✓</para>
+        /// </summary>
+        private void MohletOdenisiniHazirla()
+        {
+            if (SelectedGozlenilenMohlet is not OdenisMohlet mohlet)
+            {
+                MohletOdenisMebleg = 0m;
+                MohletQaliqMebleg = 0m;
+                MohletMayaPayi = 0m;
+                MohletBolguMaya = 0m;
+                MohletOdenisTarixi = DateTime.Today;
+                MohletSonrakiTarix = null;
+                MohletOdenisStatusMetni =
+                    "🕓 Ödəniş üçün cədvəldən möhlət SEÇİN ✗ — məbləğ, tarixlər və tərəfdaş bölgüsü avtomatik hazırlanacaq ✓";
+
+                MohletBolguBazasiniYenile();
+                MohletOdenisiniYenile();
+                return;
+            }
+
+            MohletTamOdenis = true;
+            MohletQismenOdenis = false;
+
+            MohletOdenisMebleg = mohlet.Mebleg;
+            MohletQaliqMebleg = 0m;
+            MohletOdenisTarixi = DateTime.Today;
+
+            MohletSonrakiTarix = mohlet.Tarix > DateTime.Today
+                ? mohlet.Tarix
+                : DateTime.Today.AddDays(7);
+
+            MohletMayaPayi = MohletKokPayiHesabla(mohlet.Mebleg);
+            MohletBolguMaya = MohletMayaPayi;
+
+            MohletOdenisStatusMetni =
+                $"✅ «{mohlet.MenbeMetni}» seçildi — ödəniləcək {mohlet.Mebleg:N2} ₼ hazırdır ✓";
+
+            MohletBolguBazasiniYenile();
+            MohletBolguHesabla();
+            MohletOdenisiniYenile();
+        }
+
+        /// <summary>
+        /// ✅ <b>MÖHLƏT ÖDƏNİŞİNİ TƏSDİQLƏYİR</b> ✓✓✓ (v6.2.78)
+        /// <list type="number">
+        ///   <item><b>TAM ÖDƏNİŞ</b> → möhlət «ödənildi» olur ✓ (yalnız tarix yazılır ✓)</item>
+        ///   <item><b>TAM ÖDƏNİLMƏDİ</b> → ödənilən hissə ayrıca «ödənildi» sətri olur ✓
+        ///         və qalan hissə YENİ TARİXLƏ möhlətlərdə qalır ✓</item>
+        ///   <item>💳 Kreditə bağlı möhlətdə <b>tərəfdaş payları yazılır</b> ✓ →
+        ///         «👥 Tərəfdaşlar» tabında «Möhlət ödənişi» kimi görünür ✓✓✓</item>
+        /// </list>
+        /// <para>⚠ Kassa balansı DƏYİŞMİR ✗ — pul `OdenisMohlet` vasitəsilə artıq daxil olur ✓</para>
+        /// </summary>
+        [RelayCommand]
+        private async Task MohletOdenisiniTesdiqleAsync()
+        {
+            if (SelectedGozlenilenMohlet is not OdenisMohlet mohlet || mohlet.Id <= 0)
+            {
+                _dialogs.ShowWarning("Əvvəlcə cədvəldən möhləti SEÇİN ✗");
+                return;
+            }
+
+            if (!MohletOdenisOlunur)
+            {
+                _dialogs.ShowWarning(
+                    "⚠ Ödəniş məlumatları tam deyil ✗\n\n" +
+                    $"• Məbləğ 0-dan böyük və {mohlet.Mebleg:N2} ₼-dən çox olmamalıdır ✓\n" +
+                    "• Ödəniş tarixi seçilməlidir ✓\n" +
+                    "• Qismən ödənişdə «qalan nə vaxt ödəniləcək» tarixi MÜTLƏQ lazımdır ✓");
+                return;
+            }
+
+            var odenis = Math.Round(Math.Min(MohletOdenisMebleg, mohlet.Mebleg), 2);
+            var tarix = MohletOdenisTarixi!.Value.Date;
+            var tam = Math.Abs(mohlet.Mebleg - odenis) < 0.005m;
+            var qaliq = Math.Round(mohlet.Mebleg - odenis, 2);
+            var payCemi = MohletBolguTetbiq ? MohletBolguCemi : 0m;
+
+            if (!_dialogs.Confirm(
+                    $"📌 {mohlet.MenbeMetni}\n" +
+                    $"Möhlətin məbləği : {mohlet.Mebleg:N2} ₼\n\n" +
+                    (tam ? "✅ TAM ÖDƏNİŞ\n" : "⚠ TAM ÖDƏNİLMƏDİ (qismən)\n") +
+                    $"💵 Ödənilən       : {odenis:N2} ₼\n" +
+                    $"📅 Ödəniş tarixi  : {tarix:dd.MM.yyyy}\n" +
+                    (tam ? string.Empty
+                         : $"⏳ Qalan          : {qaliq:N2} ₼ → {MohletSonrakiTarix:dd.MM.yyyy}\n") +
+                    $"\n🏷️ Maya (kök)     : {MohletMayaPayi:N2} ₼\n" +
+                    $"💰 Bölünən mənfəət: {MohletBolguBazasi:N2} ₼\n" +
+                    (MohletBolguTetbiq && payCemi > 0m
+                        ? $"👥 Tərəfdaş payları: {MohletBolguXulase}\n"
+                        : "👥 Tərəfdaş bölgüsü: tətbiq olunmur\n") +
+                    "\nÖdəniş yazılsın? ✓",
+                    "💳 Möhlət ödənişi"))
+            {
+                return;
+            }
+
+            try
+            {
+                MohletOdenisStatusMetni = "⏳ Ödəniş yazılır…";
+
+                if (tam)
+                {
+                    mohlet.Odenilib = true;
+                    mohlet.OdenilmeTarixi = tarix;
+                    await _mohletler.UpdateAsync(mohlet);
+                }
+                else
+                {
+                    // ① ÖDƏNİLƏN HİSSƏ — ayrıca «ödənildi» sətri ✓
+                    var odenilmis = await _mohletler.AddAsync(new OdenisMohlet
+                    {
+                        Menbe = mohlet.Menbe,
+                        CreditId = mohlet.CreditId,
+                        SaleId = mohlet.SaleId,
+                        Tarix = tarix,
+                        Mebleg = odenis,
+                        Sira = mohlet.Sira,
+                        Qeyd = $"⏳ Qismən ödəniş ✓ (möhlət {mohlet.Mebleg:N2} ₼ idi)"
+                    });
+
+                    odenilmis.Odenilib = true;
+                    odenilmis.OdenilmeTarixi = tarix;
+                    await _mohletler.UpdateAsync(odenilmis);
+
+                    // ② QALAN HİSSƏ — YENİ TARİXLƏ möhlətdə qalır ✓
+                    mohlet.Mebleg = qaliq;
+                    mohlet.Tarix = MohletSonrakiTarix!.Value.Date;
+                    await _mohletler.UpdateAsync(mohlet);
+                }
+
+                // ③ 👥 TƏRƏFDAŞ PAYLARI (yalnız kreditə bağlı möhlətdə ✓)
+                var paySayi = await MohletBolguPaylariniYazAsync(mohlet, odenis, tarix);
+
+                await LoadAsync();
+
+                MohletOdenisStatusMetni =
+                    $"✅ ÖDƏNİŞ YAZILDI — {odenis:N2} ₼ · {tarix:dd.MM.yyyy}" +
+                    (tam ? " (tam)" : $" · qalıq {qaliq:N2} ₼") +
+                    (paySayi > 0 ? $" · {paySayi} tərəfdaş payı ✓" : string.Empty);
+
+                _dialogs.ShowInfo(
+                    "✅ MÖHLƏT ÖDƏNİŞİ YAZILDI ✓✓✓\n\n" +
+                    $"📌 {mohlet.MenbeMetni}\n" +
+                    $"💵 Ödənildi : {odenis:N2} ₼\n" +
+                    $"📅 Tarix    : {tarix:dd.MM.yyyy}\n" +
+                    (tam ? string.Empty
+                         : $"⏳ Qalıq    : {qaliq:N2} ₼ → {MohletSonrakiTarix:dd.MM.yyyy}\n") +
+                    $"\n🏷️ Maya (kök)      : {MohletMayaPayi:N2} ₼\n" +
+                    $"💰 Bölünən mənfəət : {MohletBolguBazasi:N2} ₼\n" +
+                    (paySayi > 0
+                        ? $"👥 Tərəfdaş payları: {MohletBolguXulase}\n\n" +
+                          "ℹ️ «👥 Tərəfdaşlar» tabında «Möhlət ödənişi» kimi görünür ✓"
+                        : "\nℹ️ Tərəfdaş bölgüsü yazılmadı (bölgü söndürülüb və ya möhlət kreditə bağlı deyil)"),
+                    "💳 Möhlət ödənişi — nəticə");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Möhlət ödənişi yazıla bilmədi");
+                MohletOdenisStatusMetni = "❌ Xəta: " + ex.Message;
+                _dialogs.ShowError("Möhlət ödənişi yazıla bilmədi: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 👥 <b>Möhlət ödənişinin tərəfdaş paylarını BAZAYA yazır</b> ✓✓✓ (v6.2.78)
+        /// <para>
+        /// 💳 Kreditə bağlı möhlətdə <c>CreditTransaction</c> yaradılır —
+        /// növ: <see cref="Catalog.MohletOdenisNovu"/> («Möhlət ödənişi» ✓) →
+        /// <b>Gəlir sayılmır</b> ✗ (kassada ikiqat olmaz ✗✓✓), yalnız paylar yazılır ✓
+        /// </para>
+        /// <returns>Yazılan pay sətirlərinin sayı ✓</returns>
+        /// </summary>
+        private async Task<int> MohletBolguPaylariniYazAsync(OdenisMohlet mohlet, decimal odenis, DateTime tarix)
+        {
+            if (!MohletBolguTetbiq || odenis <= 0m || MohletBolguBazasi <= 0m)
+            {
+                return 0;
+            }
+
+            // ⚠ Yalnız KREDİTƏ bağlı möhlətlər ✓ (nisyə satışda bölgü satışda edilir ✓)
+            if (mohlet.CreditId is not int creditId || creditId <= 0)
+            {
+                return 0;
+            }
+
+            var paylar = new List<PartnerShare>();
+            var sira = 0;
+
+            foreach (var row in MohletTerefdaslari)
+            {
+                var model = row.ToModel(sira++);
+
+                if (model.Mebleg > 0m)
+                {
+                    paylar.Add(model);
+                }
+            }
+
+            if (paylar.Count == 0)
+            {
+                return 0;
+            }
+
+            await _credits.AddTransactionAsync(new CreditTransaction
+            {
+                CreditId = creditId,
+                Nov = Catalog.MohletOdenisNovu,
+                Mebleg = odenis,
+                Tarix = tarix,
+                Odenilib = true,
+                Tesvir = $"⏳ Möhlət ödənişi · maya {MohletMayaPayi:N2} ₼ · mənfəət {MohletBolguBazasi:N2} ₼",
+                TerefdasBolguTetbiqOlunub = true,
+                BolguBazasi = MohletBolguBazasi,
+                TerefdasPaylari = paylar
+            });
+
+            _logger.LogInformation(
+                "⏳ Möhlət ödənişi + tərəfdaş bölgüsü: kredit #{Id} · {Mebleg:N2} ₼ · {Pay} pay · {Tarix:dd.MM.yyyy}",
+                creditId, odenis, paylar.Count, tarix);
+
+            return paylar.Count;
+        }
 
         /// <summary>🔄 Bölgü bazasını möhlət məbləğindən yeniləyir ✓.</summary>
         private void MohletBolguBazasiniYenile()
@@ -499,15 +920,10 @@ namespace EnterpriseAeroStudio.ViewModels
             }
         }
 
-        /// <summary>🕓 Seçilmiş möhlət dəyişdi → bölgü yenilənir ✓.</summary>
+        /// <summary>🕓 Seçilmiş möhlət dəyişdi → ÖDƏNİŞ PANELİ hazırlanır ✓ (v6.2.78)</summary>
         partial void OnSelectedGozlenilenMohletChanged(OdenisMohlet? value)
         {
-            MohletBolguBazasiniYenile();
-
-            if (!MohletBolguManual)
-            {
-                MohletBolguHesabla();
-            }
+            MohletOdenisiniHazirla();
         }
 
         /// <summary>☑ Bölgü açıldı/bağlandı ✓.</summary>
@@ -1066,6 +1482,22 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ================================================================
                 var butunMohletler = await _mohletler.GetAllAsync(cancellationToken);
 
+                // ================================================================
+                //  📦 v6.2.78 — KREDİT / SATIŞ KEŞİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  Möhlətin MAYA (kök) payını SINXRON hesablamaq üçün ✓ —
+                //  hər klikdə bazaya sorğu getmir ✗✓✓ (performans ✓)
+                // ================================================================
+                try
+                {
+                    _kreditKeshi = (await _credits.GetCreditsAsync(cancellationToken)).ToList();
+                    _satisKeshi = (await _satislar.GetSalesAsync(cancellationToken)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Kassa: kredit/satış keşi yüklənmədi ✗ (MAYA 0 qalacaq)");
+                }
+
                 var gozlenilen = butunMohletler
                     .Where(m => !m.Odenilib)
                     .OrderBy(m => m.Tarix)
@@ -1115,8 +1547,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 //  👥 v6.2.77 — MÖHLƏT BÖLGÜSÜ YENİLƏNİR ✓✓✓
                 // ----------------------------------------------------------------
                 //  ⚠ Seçilmiş möhlət artıq siyahıda yoxdursa (ödənildi / silindi)
-                //    → seçim sıfırlanır ✓ və bölgü BÜTÜN gözlənilənlər üzrə
-                //    yenidən qurulur ✓✓✓
+                //    → seçim sıfırlanır ✓ və ödəniş paneli BOŞALIR ✓✓✓
                 // ================================================================
                 if (SelectedGozlenilenMohlet is OdenisMohlet secili
                     && !GozlenilenMohletler.Any(m => m.Id == secili.Id))
@@ -1124,8 +1555,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     SelectedGozlenilenMohlet = null;
                 }
 
-                MohletBolguBazasiniYenile();
-                MohletBolguHesabla();
+                MohletOdenisiniHazirla();
 
                 // ================================================================
                 //  ④ 🏷️ BÖLMƏLƏR ÜZRƏ CƏM + 📒 JURNAL (filtrlərlə ✓)

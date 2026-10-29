@@ -4525,19 +4525,17 @@
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <!-- ⏳ v6.2.51 — QİSMƏN ÖDƏNİŞ (istifadəçi tələbi ✓✓✓) -->
-                                                        <Button Content="⏳ TAM ÖDƏNİLMƏDİ" Height="26" Padding="7,0" FontSize="10"
-                                                                FontWeight="SemiBold" Background="#C98A12" Foreground="White"
-                                                                BorderThickness="0" Cursor="Hand" Margin="0,0,5,0"
-                                                                ToolTip="Qismən ödəniş ✓ — nə qədər ödənildi · nə vaxt · qalan nə vaxt ödəniləcək ✓"
-                                                                Command="{Binding DataContext.Kassa.MohletQismenOdeCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                                                CommandParameter="{Binding}"/>
-                                                        <Button Content="✅ TAM ÖDƏNİLDİ" Height="26" Padding="7,0" FontSize="10"
-                                                                FontWeight="SemiBold" Background="#17A379" Foreground="White"
-                                                                BorderThickness="0" Cursor="Hand" Margin="0,0,5,0"
-                                                                ToolTip="Tam ödəniş ✓ — ÖDƏNİŞ TARİXİ soruşulur ✓ → məbləğ kassaya DAXİL olur ✓"
-                                                                Command="{Binding DataContext.Kassa.MohletOdenildiCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                                                CommandParameter="{Binding}"/>
+                                                        <!-- ============================================================
+                                                             📊 v6.2.78 — ÖDƏNİŞ DÜYMƏLƏRİ SİLİNDİ ✗✓✓
+                                                             ★ İstifadəçi tələbi: möhlətin üstünə basıb SEÇİRİK ✓ və
+                                                               ödəniş SAĞDAKI paneldən edilir ✓ (TAM / QİSMƏN + tarixlər
+                                                               + MAYA + tərəfdaş bölgüsü ✓✓✓)
+                                                             ⚠ Köhnə «⏳ TAM ÖDƏNİLMƏDİ» / «✅ TAM ÖDƏNİLDİ» düymələri
+                                                               tərəfdaş paylarını YAZMIRDI ✗ → SİLİNDİ ✓
+                                                             ============================================================ -->
+                                                        <TextBlock Text="→ sağdaki paneldən" FontSize="10"
+                                                                   Foreground="#8798AD" VerticalAlignment="Center"
+                                                                   Margin="0,0,6,0"/>
                                                         <Button Content="💾" Height="26" Width="28" FontSize="11"
                                                                 Background="#4C7DFF" Foreground="White"
                                                                 BorderThickness="0" Cursor="Hand" Margin="0,0,5,0"
@@ -4584,7 +4582,87 @@
                                         <Border Background="#141D28" Padding="10,7" Margin="11,9,11,0" CornerRadius="6">
                                             <TextBlock Text="{Binding Kassa.MohletBolguHedefMetni}" FontSize="11"
                                                        Foreground="#F3C24B" TextWrapping="Wrap"
-                                                       ToolTip="Cədvəldən bir möhlət seçin ✓ — bölgü HƏMİN möhlətin məbləği üzrə hesablanır ✓&#x0a;Seçim yoxdursa BÜTÜN gözlənilən möhlətlərin cəmi üzrə göstərilir ✓"/>
+                                                       ToolTip="Cədvəldən möhlətin üstünə basın ✓ — ödəniş paneli HƏMİN möhlət üzrə hazırlanır ✓"/>
+                                        </Border>
+
+                                        <!-- ============================================================ -->
+                                        <!-- 💳 v6.2.78 — ÖDƏNİŞ NÖVÜ: TAM ÖDƏNİŞ / TAM ÖDƏNİLMƏDİ ✓✓✓   -->
+                                        <!-- ============================================================ -->
+                                        <Border Background="#131C26" CornerRadius="8" Margin="11,8,11,0" Padding="10,8"
+                                                BorderBrush="#24406F" BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="ÖDƏNİŞ NÖVÜ" FontSize="10" FontWeight="Bold"
+                                                           Foreground="#A9B8C8" Margin="0,0,0,6"/>
+
+                                                <UniformGrid Columns="2">
+                                                    <RadioButton Content="✅  TAM ÖDƏNİŞ" GroupName="MohletOdenisNovu"
+                                                                 FontSize="11.5" FontWeight="SemiBold" Foreground="#41D39A"
+                                                                 Margin="0,0,6,0" VerticalContentAlignment="Center"
+                                                                 IsChecked="{Binding Kassa.MohletTamOdenis}"
+                                                                 ToolTip="Möhlətin HAMISI ödənilir ✓ — yalnız «nə vaxt ödəndi» yazılır ✓"/>
+                                                    <RadioButton Content="⚠  TAM ÖDƏNİLMƏDİ" GroupName="MohletOdenisNovu"
+                                                                 FontSize="11.5" FontWeight="SemiBold" Foreground="#F3C24B"
+                                                                 VerticalContentAlignment="Center"
+                                                                 IsChecked="{Binding Kassa.MohletQismenOdenis}"
+                                                                 ToolTip="QİSMƏN ödəniş ✓ — ödəniş tarixi + «qalan nə vaxt ödəniləcək» soruşulur ✓"/>
+                                                </UniformGrid>
+
+                                                <!-- 💵 MƏBLƏĞ — default: möhlətin tam məbləği ✓ -->
+                                                <Grid Margin="0,8,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="MƏBLƏĞ (₼)" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"
+                                                               ToolTip="Ödənilən məbləğ ✓ — default olaraq möhlətin TAM məbləği yazılır ✓"/>
+                                                    <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
+                                                             FontWeight="SemiBold" Foreground="#41D39A"
+                                                             VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
+                                                             Text="{Binding Kassa.MohletOdenisMebleg, UpdateSourceTrigger=PropertyChanged}"
+                                                             ToolTip="Ödənilən məbləğ ✓ — default: möhlətin tam məbləği ✓&#x0a;Azaldılsa → avtomatik QİSMƏN ödəniş olur ✓"/>
+                                                </Grid>
+
+                                                <!-- 📅 ÖDƏNİŞ TARİXİ -->
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="ÖDƏNİŞ TARİXİ" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                    <DatePicker Grid.Column="1" Height="24" Margin="10,0,0,0" FontSize="11.5"
+                                                                SelectedDate="{Binding Kassa.MohletOdenisTarixi}"
+                                                                ToolTip="Pulun HƏQİQƏTƏN gəldiyi tarix ✓"/>
+                                                </Grid>
+
+                                                <!-- ⏳ QALAN — yalnız QİSMƏN ödənişdə görünür ✓ -->
+                                                <StackPanel Visibility="{Binding Kassa.MohletQismenOdenis, Converter={StaticResource BoolToVis}}">
+                                                    <Grid Margin="0,6,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="QALAN TARİX" FontSize="10" FontWeight="Bold"
+                                                                   Foreground="#F3C24B" VerticalAlignment="Center"
+                                                                   ToolTip="Qalan məbləğ NƏ VAXT ödəniləcək ✓"/>
+                                                        <DatePicker Grid.Column="1" Height="24" Margin="10,0,0,0" FontSize="11.5"
+                                                                    SelectedDate="{Binding Kassa.MohletSonrakiTarix}"
+                                                                    ToolTip="Qalan məbləğin ödəniləcəyi tarix ✓"/>
+                                                    </Grid>
+
+                                                    <TextBlock Text="{Binding Kassa.MohletQaliqMetni}" FontSize="10.5"
+                                                               FontWeight="SemiBold" Foreground="#F3C24B"
+                                                               Margin="0,5,0,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- ===== 🏷️ MAYA (KÖK) + BÖLÜNƏN MƏNFƏƏT — avtomatik ✓ ===== -->
+                                        <Border Background="#141D28" Padding="10,7" Margin="11,8,11,0" CornerRadius="6">
+                                            <TextBlock Text="{Binding Kassa.MohletKokMetni}" FontSize="10.5"
+                                                       Foreground="#A9C4FF" TextWrapping="Wrap"
+                                                       ToolTip="MAYA (kök) payı AVTOMATİK hesablanır ✓ —&#x0a;• Kredit: ödəniş × (kök ÷ kreditin qiyməti) ✓&#x0a;• Nisyə satış: maya × (ödəniş ÷ satış qiyməti) ✓&#x0a;Yalnız QALAN hissə (mənfəət) tərəfdaşlar arasında bölünür ✓✓✓"/>
                                         </Border>
 
                                         <!-- ===== XEYİR (baza) ===== -->
@@ -4612,7 +4690,7 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="MAYA (₼)" FontSize="10" FontWeight="Bold"
+                                                    <TextBlock Text="MAYA (kök) ₼" FontSize="10" FontWeight="Bold"
                                                                Foreground="#A9B8C8" VerticalAlignment="Center"/>
                                                     <TextBox Grid.Column="1" Height="24" FontSize="12" Margin="10,0,0,0"
                                                              FontWeight="SemiBold" Foreground="#7EA8FF"
@@ -4721,6 +4799,20 @@
                                                            Foreground="{Binding Kassa.MohletBolguFergReng}"/>
                                             </StackPanel>
                                         </Border>
+
+                                        <!-- ============================================================ -->
+                                        <!-- ✅ v6.2.78 — ÖDƏNİŞİ TƏSDİQ ET (əsas düymə ✓)                -->
+                                        <!-- ============================================================ -->
+                                        <Button Content="{Binding Kassa.MohletOdenisDugmeMetni}"
+                                                Style="{StaticResource iOSButton}" Margin="11,0,11,8" Height="34"
+                                                FontSize="12.5" FontWeight="Bold"
+                                                Background="#17A379" Foreground="White"
+                                                IsEnabled="{Binding Kassa.MohletOdenisOlunur}"
+                                                Command="{Binding Kassa.MohletOdenisiniTesdiqleCommand}"
+                                                ToolTip="Ödənişi + tərəfdaş bölgüsünü BAZAYA yazır ✓&#x0a;⚠ Xəta varsa düymə BAĞLIDIR ✗ (məbləğ / tarix / qalan tarix yoxlanılır ✓)"/>
+
+                                        <TextBlock Text="{Binding Kassa.MohletOdenisStatusMetni}" FontSize="10.5"
+                                                   Foreground="#4EC3F5" Margin="11,0,11,10" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
                                 </Grid>

@@ -146,6 +146,26 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         public const string IlkinBolguNovu = "İlkin bölgü";
 
+        // ====================================================================
+        //  ⏳ v6.2.78 — MÖHLƏT ÖDƏNİŞİ (tərəfdaş bölgüsü ilə) ✓✓✓
+        // --------------------------------------------------------------------
+        //  Kassa tabında möhlət ödəniləndə həmin pulun MƏNFƏƏT hissəsi
+        //  tərəfdaşlar arasında bölünür ✓ → paylar `CreditTransaction`-a bağlanır ✓
+        //
+        //  ⚠ <b>«Gəlir» DEYİL</b> ✗ — səbəb: möhlət pulu KASSAYA ARTIQ
+        //    `OdenisMohlet` vasitəsilə düşür ✓ → «Gəlir» yazsaq KASSADA
+        //    İKİQAT olardı ✗✓✓ (istifadəçi şikayəti ✓)
+        //
+        //  📌 Bu növü HANSI hesablamalar NƏZƏRƏ ALMIR (yoxlanılıb ✓):
+        //     • KassaHesabi.KreditDaxilolmasidir ✗ (yalnız Gəlir / erkən bağlama / ödənilmiş gecikmə)
+        //     • Maliyyə Paneli `IsKreditGeliri`        ✗ (eyni filtr)
+        //     • Kredit qrafiki (Gəlir / Möhlət / Gecikmə) ✗
+        //     • ReportBuilder · OdenisQrafiki          ✗
+        //  ✅ Yalnız **TƏRƏFDAŞ PAYLARI** yaranır ✓ → «👥 Tərəfdaşlar» tabında görünür ✓
+        // ====================================================================
+        public const string MohletOdenisNovu = "Möhlət ödənişi";
+
+
         /// <summary>
         /// 👥 <b>ƏLAVƏ TƏRƏFDAŞ BÖLGÜSÜ</b> — tarixli, çoxsaylı bölgü ✓✓✓ (v6.2.35)
         /// <para>

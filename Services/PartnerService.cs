@@ -324,8 +324,13 @@ namespace EnterpriseAeroStudio.Services
             // ================================================================
             var gecikme = transaction.Nov == "Gecikmə";
 
+            // ⏳ v6.2.78 — MÖHLƏT ÖDƏNİŞİ ayrıca mənbə kimi göstərilir ✓✓✓
+            //  (Kassa tabında möhlət ödəniləndə paylar bu növlə yazılır ✓)
+            var mohletOdenisi = string.Equals(transaction.Nov, Catalog.MohletOdenisNovu,
+                                              StringComparison.Ordinal);
+
             return new ShareInfo(
-                gecikme ? "Gecikmə" : "Kredit Əlavə Gəlir",
+                gecikme ? "Gecikmə" : mohletOdenisi ? "Möhlət ödənişi" : "Kredit Əlavə Gəlir",
                 CarName(txCredit?.Car),
                 txCredit?.MuqavileNomresi ?? string.Empty,
                 txCredit?.Mustəri ?? string.Empty,
