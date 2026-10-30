@@ -256,3 +256,19 @@ Write-Host "     ③ Yer seçin (default C:\Program Files\021Cars ✓) → [ QUR
 Write-Host "     ④ Proqram masaüstündeki qısayoldan açılır ✓" -ForegroundColor Cyan
 Write-Host "     ⑤ Silmək üçün: {Quraşdırma yeri}\Uninstaller.exe ✓✓✓" -ForegroundColor Cyan
 Write-Host ""
+
+# ============================================================================
+#  ⚠⚠ MÜTLƏQ SON ADDIM — GitHub RELEASE ✓✓✓  (v6.2.80-də unudulmuşdu ✗)
+# ----------------------------------------------------------------------------
+#  Proqramın «🚀 Güncəllə» funksiyası yalnız GitHub RELEASES-i oxuyur ✗ —
+#  yalnız `git tag` + `git push` etsək, istifadəçilər yeni versiyanı
+#  GÖRMÜR ✗ (v6.2.80-də məhz bu baş verdi ✗✗)
+#
+#  ✅ Ona görə hər build-dən sonra BUNU da işə salın:
+#        cd ..\  ;  .\Release-Yarat.ps1
+# ============================================================================
+Write-Host "  ⚠ NÖVBƏTİ ADDIM (MÜTLƏQ!):" -ForegroundColor Yellow
+Write-Host "        cd .." -ForegroundColor Yellow
+Write-Host "        .\Release-Yarat.ps1      ← GitHub Release + installer yüklənməsi" -ForegroundColor Yellow
+Write-Host "     (bu addım olmadan proqram «yeni versiya var» popup-u GÖSTƏRMİR ✗)" -ForegroundColor Yellow
+Write-Host ""
