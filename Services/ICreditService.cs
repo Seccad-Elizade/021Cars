@@ -121,6 +121,18 @@ namespace EnterpriseAeroStudio.Services
             decimal odenilenMebleg,
             DateTime tarix,
             string? qeyd = null,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            // ================================================================
+            //  👥 v6.2.82 — TƏRƏFDAŞ BÖLGÜSÜ (GƏLİR İLƏ EYNİ) ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi tələbi: «Növ: biz tərəfdən bağlanmaya da tərəfdaş
+            //    bölgüsü əlavə et — gəlirdəki kimi eynisini» ✓
+            //  ⚠ ƏVVƏL: bu axın heç bir `CreditTransaction` yazmırdı ✗ →
+            //    paylar heç yerdə saxlanmırdı ✗ (Tərəfdaşlar tabı boş ✗)
+            //  ✅ İNDİ: paylar verilirsə → «Biz tərəfdən bağlanmış» tipli
+            //    əməliyyat qeydi yaradılır ✓ və paylar ona bağlanır ✓✓✓
+            // ================================================================
+            IReadOnlyList<PartnerShare>? terefdasPaylari = null,
+            decimal? bolguBazasi = null);
     }
 }

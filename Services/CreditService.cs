@@ -1003,7 +1003,9 @@ namespace EnterpriseAeroStudio.Services
             decimal odenilenMebleg,
             DateTime tarix,
             string? qeyd = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            IReadOnlyList<PartnerShare>? terefdasPaylari = null,
+            decimal? bolguBazasi = null)
         {
             if (odenilenMebleg <= 0m)
             {
@@ -1077,6 +1079,43 @@ namespace EnterpriseAeroStudio.Services
                     kohneMasin.Status = Catalog.BizBaglamaCarStatus;
                     _cars.Update(kohneMasin);
                     await _cars.SaveChangesAsync(cancellationToken);
+                }
+
+                // ================================================================
+                //  👥 v6.2.82 — TƏRƏFDAŞ BÖLGÜSÜ QEYDİ ✓✓✓ (GƏLİR İLƏ EYNİ)
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «Növ: biz tərəfdən bağlanmaya da
+                //    tərəfdaş bölgüsü əlavə et — gəlirdəki kimi eynisini»
+                //  ✅ Paylar verilibsə → «Biz tərəfdən bağlanmış» tipli
+                //    `CreditTransaction` YARADILIR ✓ və paylar ona bağlanır ✓
+                //    → «🏷️ Kredit Əlavə Gəlir/Xərc» cədvəlində görünür ✓
+                //    → «👥 Tərəfdaşlar» jurnalına DÜŞÜR ✓✓✓
+                //  🛡️ Pay verilməyibsə heç bir əlavə qeyd yaradılmır ✗
+                //     (köhnə davranış TAM qorunur ✓)
+                // ================================================================
+                if (terefdasPaylari is { Count: > 0 })
+                {
+                    var payCemi = Math.Round(terefdasPaylari.Sum(p => p.Mebleg), 2);
+
+                    var baza = bolguBazasi is decimal b && b > 0m ? b : payCemi;
+
+                    // ✅ `AddTransactionAsync` — paylar `SavePartnerSharesAsync`
+                    //    ilə BİRLİKDƏ yazılır ✓ (gəlirdəki EYNİ yol ✓✓✓)
+                    await AddTransactionAsync(new CreditTransaction
+                    {
+                        CreditId = credit.Id,
+                        Nov = Catalog.BizBaglamaStatus,
+                        Mebleg = odenilenMebleg,
+                        Tarix = tarix.Date,
+                        Tesvir = "🔒 Biz tərəfdən bağlama — tərəfdaş bölgüsü ilə ✓",
+                        TerefdasBolguTetbiqOlunub = true,
+                        BolguBazasi = baza,
+                        TerefdasPaylari = terefdasPaylari.ToList()
+                    }, cancellationToken);
+
+                    _logger.LogInformation(
+                        "👥 Biz tərəfdən bağlama: tərəfdaş bölgüsü yazıldı ✓ — baza {Baza:N2} ₼ · pay cəmi {Pay:N2} ₼",
+                        baza, payCemi);
                 }
 
                 // ④ ✅ YENİ SƏTİR YARADILMIR ✗✓✓ — EYNİ maşın parkda qalır ✓

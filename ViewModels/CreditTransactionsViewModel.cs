@@ -148,10 +148,33 @@ namespace EnterpriseAeroStudio.ViewModels
         public bool IsErkenBaglama => Nov == "Vaxtından tez bağlama";
 
         /// <summary>
+        /// 🔒 <b>Növ = «Biz tərəfdən bağlanmış»?</b> ✓✓✓ (v6.2.82)
+        /// <para>
+        /// Müştəri krediti ödəyə bilmədi → pulu BİZ verdik ✓, maşın parka qayıtdı ✓.
+        /// </para>
+        /// <para>
+        /// ★ İstifadəçi tələbi: «Kredit əlavə gəlir/xərcdə Növ biz tərəfdən
+        /// bağlanmaya da tərəfdaş bölgüsü əlavə et — gəlirdəki kimi eynisini,
+        /// sanki copy-paste» ✓✓✓
+        /// </para>
+        /// </summary>
+        public bool IsBizBaglama => Nov == Catalog.BizBaglamaStatus;
+
+        /// <summary>
+        /// 👥 <b>TƏRƏFDAŞ BÖLGÜSÜ APARILAN NÖVLƏR</b> ✓✓✓ (v6.2.82)
+        /// <para>
+        /// «Gəlir» ✓ və «Biz tərəfdən bağlanmış» ✓ — hər ikisində bölgü
+        /// <b>TAM EYNİ</b> işləyir ✓ (baza = məbləğ − kök payı ✓,
+        /// faiz payları + qalıq payçıları ✓, manual rejim ✓)
+        /// </para>
+        /// </summary>
+        public bool IsBolguNovu => IsGelir || IsBizBaglama;
+
+        /// <summary>
         /// 👥 TƏRƏFDAŞ BÖLGÜSÜ PANELİ görünməlidirmi? ✓✓✓
         /// («Gəlir» və «Vaxtından tez bağlama» növləri üçün ✓)
         /// </summary>
-        public bool IsBolguPaneli => IsGelir || IsErkenBaglama;
+        public bool IsBolguPaneli => IsBolguNovu || IsErkenBaglama;
 
         /// <summary>
         /// 💰 <b>GÜZƏŞT (₼)</b> ✓✓✓ — kreditin QALIĞINDAN çıxılan pul ✓
@@ -1009,7 +1032,13 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 var netice = await _creditService.BizTerefdenBaglaAsync(
-                    SelectedCredit.Id, Mebleg, baglamaTarixi, null);
+                    SelectedCredit.Id, Mebleg, baglamaTarixi, null,
+                    CancellationToken.None,
+                    // 👥 v6.2.82 — tərəfdaş bölgüsü (GƏLİR ilə EYNİ) ✓✓✓
+                    terefdasPaylari: BolguModelleri(),
+                    bolguBazasi: BolguTetbiqOlunub || BolguManual
+                        ? Math.Max(0m, BolguBazasi > 0m ? BolguBazasi : BolguBazasiHesabla(Mebleg))
+                        : (decimal?)null);
 
                 if (!netice.Ugurlu)
                 {
@@ -1169,7 +1198,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     TerefdasBolguTetbiqOlunub =
                         Nov == "Gecikmə"
                             ? false                        // ✅ ödənilməmiş → bölgü yox ✓
-                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir",
+                            // 🔒 v6.2.82 — «Biz tərəfdən bağlanmış» da GƏLİR kimidir ✓
+                            : (BolguTetbiqOlunub || BolguManual) && IsBolguNovu,
                     // 💰 «Vaxtından tez bağlama» → BolguBazasi = MƏBLƏĞ ✓✓✓
                     //  ⚠ ƏVVƏL burada GÜZƏŞT yazılırdı ✗ → yadda saxlanan baza
                     //    ekrandakından fərqli olurdu ✗ («eksik» fərq yaranırdı ✓)
@@ -1182,7 +1212,8 @@ namespace EnterpriseAeroStudio.ViewModels
                             // ⚡ v6.2.58 — MANUAL rejimdə Baza = MƏBLƏĞ − MAYA ✓✓✓
                             //  ⚠ ƏVVƏL: köhnə `BolguBazasi` yazılırdı ✗ → «Əlavə et»
                             //     basanda baza ƏVVƏLKİ formasına qayıdırdı ✗✓✓
-                            : (BolguTetbiqOlunub || BolguManual) && Nov == "Gəlir"
+                            //  🔒 v6.2.82 — «Biz tərəfdən bağlanmış» da GƏLİR kimidir ✓
+                            : (BolguTetbiqOlunub || BolguManual) && IsBolguNovu
                                 ? (BolguManual
                                     ? Math.Max(0m, Math.Round(Mebleg - BolguMaya, 2))
                                     : BolguBazasi)
@@ -1661,7 +1692,7 @@ namespace EnterpriseAeroStudio.ViewModels
             //  ✅ İNDİ: kredit seçiləndə/kəmi dəyişəndə baza AVTOMATİK
             //    yenidən hesablanır ✓ → kök çıxılır ✓ → qalan hissə bölünür ✓✓✓
             // ================================================================
-            if (value is not null && BolguTetbiqOlunub && Mebleg > 0m && Nov == "Gəlir")
+            if (value is not null && BolguTetbiqOlunub && Mebleg > 0m && IsBolguNovu)
             {
                 BolguBazasi = BolguBazasiHesabla(Mebleg);
                 BolguHesabla();
@@ -2329,7 +2360,8 @@ namespace EnterpriseAeroStudio.ViewModels
             //       paylar görünmürdü ✗ (Tərəfdaşlar tab-ı boş qalırdı ✗✓✓)
             //  ✅ İNDİ: manual rejimdə paylar BİRBAŞA yazılır ✓ (faiz lazım DEYİL ✗)
             // ================================================================
-            if ((!BolguTetbiqOlunub && !BolguManual) || Nov != "Gəlir")
+            // 🔒 v6.2.82 — «Biz tərəfdən bağlanmış» da GƏLİR kimi pay YAZIR ✓
+            if ((!BolguTetbiqOlunub && !BolguManual) || !IsBolguNovu)
             {
                 // ================================================================
                 //  ⚠️ GECİKMƏ (cərimə) → TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓ (v6.2.28)
@@ -2363,7 +2395,8 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         partial void OnMeblegChanged(decimal value)
         {
-            if (Nov != "Gəlir")
+            // 🚀 v6.2.82 — «Biz tərəfdən bağlanmış» da GƏLİR kimi işləyir ✓
+            if (!IsBolguNovu)
             {
                 return;
             }
@@ -2580,6 +2613,8 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(IsGecikme));
             OnPropertyChanged(nameof(IsGelir));
             OnPropertyChanged(nameof(IsErkenBaglama));   // 📕 vaxtından tez bağlama ✓
+            OnPropertyChanged(nameof(IsBizBaglama));    // 🔒 biz tərəfdən bağlanma ✓ (v6.2.82)
+            OnPropertyChanged(nameof(IsBolguNovu));     // 👥 bölgü aparılan növlər ✓
             OnPropertyChanged(nameof(IsBolguPaneli));    // 👥 bölgü paneli görünüşü ✓
             // 📤🤝 YENİ NÖVLƏR — «Transfer olunmaq» · «Barter» · «Barter köhnə» ✓
             OnPropertyChanged(nameof(IsTransferOlunmaq));
@@ -2619,6 +2654,19 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
             // ================================================================
+            //  🔒 v6.2.82 — «BİZ TƏRƏFDƏN BAĞLANMIŞ» → GƏLİR İLƏ EYNİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ Növ bu növə keçəndə bölgü paneli açılır ✓ və baza
+            //    «məbləğ − kök payı» düsturu ilə hesablanır ✓ (gəlirdəki kimi ✓)
+            // ================================================================
+            if (value == Catalog.BizBaglamaStatus && BolguTetbiqOlunub && Mebleg > 0m && SelectedCredit is not null)
+            {
+                BolguBazasi = BolguBazasiHesabla(Mebleg);
+                BolguHesabla();
+                BolguYenile();
+            }
+
+            // ================================================================
             //  📤 «TRANSFER OLUNMAQ» → MƏBLƏĞ AVTOMATİK = MAŞININ NİSYƏ QİYMƏTİ ✓
             // ----------------------------------------------------------------
             //  Seçilən kreditin «Kreditləşdirilən» məbləği avtomatik yazılır ✓ —
@@ -2639,8 +2687,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 BarterSexsleriniYenile();
             }
 
-            // Növ «Gəlir» olub bölgü açıqdırsa — baza dərhal hesablanır.
-            if (value == "Gəlir" && BolguTetbiqOlunub && Mebleg > 0m)
+            // Növ «Gəlir» və ya «Biz tərəfdən bağlanmış» olub bölgü açıqdırsa — baza dərhal hesablanır.
+            if ((value == "Gəlir" || value == Catalog.BizBaglamaStatus) && BolguTetbiqOlunub && Mebleg > 0m)
             {
                 BolguBazasi = BolguBazasiHesabla(Mebleg);
                 BolguHesabla();

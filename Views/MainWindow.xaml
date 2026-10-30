@@ -2928,6 +2928,13 @@
                                     <TextBlock FontSize="10" Foreground="#A9B8C8" Margin="2,3,0,0" TextWrapping="Wrap"
                                                Text="1️⃣ Məbləğ = müştərinin verəcəyi ✓   2️⃣ Güzəşt = qalıqdan çıxılan ✓"/>
                                 </StackPanel>
+                                <!-- 🔒 BİZ TƏRƏFDƏN BAĞLANMA — bölgü izahı ✓✓✓ (v6.2.82) -->
+                                <StackPanel Margin="4" Visibility="{Binding CreditTransactions.IsBizBaglama, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="🔒 Biz tərəfdən bağlanma" Style="{StaticResource FieldLabel}"/>
+                                    <TextBlock FontSize="10" Foreground="#A9B8C8" Margin="2,3,0,0" TextWrapping="Wrap" Width="330"
+                                               Text="💵 Pul KASSADAN çıxır (XƏRC) ✓ · 🚗 Maşın parka qayıdır ✓&#10;👥 Tərəfdaş bölgüsü «Gəlir» ilə EYNİ işləyir ✓ (baza = məbləğ − kök payı ✓)"/>
+                                </StackPanel>
+
                                 <StackPanel Margin="4">
                                     <TextBlock Text="Təsvir" Style="{StaticResource FieldLabel}"/>
                                     <TextBox Width="200" Text="{Binding CreditTransactions.Tesvir, UpdateSourceTrigger=PropertyChanged}"/>
