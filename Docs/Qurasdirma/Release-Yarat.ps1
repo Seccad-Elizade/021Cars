@@ -136,49 +136,40 @@ try {
 if ($YalnizYoxla) {
     Log ("Assets: " + (($rel.assets | ForEach-Object { $_.name }) -join ", "))
     exit 0
+}
 
 # ── 4) Köhnə asset silinir (eyni ad) ────────────────────────────────────────
 $assetAdi = Split-Path -Leaf $Asset
 
-$movcud = @()
-try { $movcud = Invoke-RestMethod -Uri "https://api.github.com/repos/Seccad-Elizade/021Cars/releases/$($rel.id)/assets" -Headers $h -Method Get -TimeoutSec 40 } catch { }
+try
+{
+    $movcud = @()
+    try { $movcud = Invoke-RestMethod -Uri "https://api.github.com/repos/Seccad-Elizade/021Cars/releases/$($rel.id)/assets" -Headers $h -Method Get -TimeoutSec 40 } catch { }
 
-foreach ($a in $movcud) {
-    if ($a.name -eq $assetAdi) {
-        Log ("Köhnə asset silinir — id=" + $a.id)
-        try { Invoke-RestMethod -Uri "https://api.github.com/repos/Seccad-Elizade/021Cars/releases/assets/$($a.id)" -Headers $h -Method Delete -TimeoutSec 90 | Out-Null }
-        catch { Log ("Asset silinmədi ✗ — " + $_.Exception.Message) }
+    foreach ($a in $movcud) {
+        if ($a.name -eq $assetAdi) {
+            Log ("Köhnə asset silinir — id=" + $a.id)
+            try { Invoke-RestMethod -Uri "https://api.github.com/repos/Seccad-Elizade/021Cars/releases/assets/$($a.id)" -Headers $h -Method Delete -TimeoutSec 90 | Out-Null }
+            catch { Log ("Asset silinmədi ✗ — " + $_.Exception.Message) }
+        }
     }
+
+    # ── 5) Yükləmə (Invoke-RestMethod -InFile → stream, HttpClient lazım deyil ✓)
+    Log ("Yüklənir: " + $assetAdi + " (" + $olcuMB + " MB) …")
+
+    $uri = "https://uploads.github.com/repos/Seccad-Elizade/021Cars/releases/$($rel.id)/assets?name=$assetAdi"
+
+    $cavab = Invoke-RestMethod -Uri $uri -Headers $h -Method Post `
+        -ContentType "application/octet-stream" -InFile $Asset -TimeoutSec 1800
+
+    Log ("YÜKLƏNDİ ✓ — asset id=" + $cavab.id + " · ölçü=" + $cavab.size)
 }
-
-# ── 5) Yükləmə ──────────────────────────────────────────────────────────────
-Add-Type -AssemblyName System.Net.Http     # PS 5.1 üçün vacibdir ✗
-
-Log ("Yüklənir: " + $assetAdi + " (" + $olcuMB + " MB) …")
-
-$klient = New-Object System.Net.Http.HttpClient
-$klient.Timeout = [TimeSpan]::FromMinutes(30)
-$klient.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", $tok)
-$klient.DefaultRequestHeaders.UserAgent.ParseAdd("021Cars-release-helper")
-
-$axin   = [IO.File]::OpenRead($Asset)
-$mezmun = New-Object System.Net.Http.StreamContent($axin)
-$mezmun.Headers.ContentType = New-Object System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream")
-
-$uri = "https://uploads.github.com/repos/Seccad-Elizade/021Cars/releases/$($rel.id)/assets?name=$assetAdi"
-
-$cavab = $klient.PostAsync($uri, $mezmun).GetAwaiter().GetResult()
-$metn  = $cavab.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-
-$axin.Dispose(); $klient.Dispose()
-
-if (-not $cavab.IsSuccessStatusCode) {
-    Write-Host ("  XƏTA: yükləmə alınmadı ✗ — " + [int]$cavab.StatusCode) -ForegroundColor Red
-    Write-Host $metn -ForegroundColor DarkRed
+catch
+{
+    Log ("XƏTA (yükləmə mərhələsi) ✗ — " + $_.Exception.Message)
+    Log ("Sətir: " + $_.InvocationInfo.ScriptLineNumber)
     exit 1
 }
-
-Log "YÜKLƏNDİ ✓"
 
 # ── 6) Yoxlama ──────────────────────────────────────────────────────────────
 $son = Invoke-RestMethod -Uri "https://api.github.com/repos/Seccad-Elizade/021Cars/releases/latest" -Headers $h -Method Get -TimeoutSec 40
@@ -192,5 +183,3 @@ Write-Host "  ===========================================================" -Fore
 Write-Host ""
 Write-Host "  ✅ Proqram artıq bu versiyanı GÖRÜR ✓ (köhnə versiya → popup çıxacaq)" -ForegroundColor Green
 Write-Host ""
-
-}
