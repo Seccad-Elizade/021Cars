@@ -210,7 +210,11 @@ namespace EnterpriseAeroStudio.ViewModels
                 await YekunlariYenileAsync();
 
                 // ④ Avtomobil siyahısı (kiçikdir ✓) + qrup/kateqoriya siyahıları
-                var cars = await _carService.GetCarsAsync();
+                //  ⚡ v6.2.80 — YÜNGÜL siyahı (xərc CƏMLƏRİ SQL-də ✓) + ARXA FON ✓
+                //  ⚠ ƏVVƏL: `GetCarsAsync()` hər maşının BÜTÜN xərclərini
+                //     yaddaşa yükləyirdi ✗ → bu tab AÇILIŞDA yükləndiyi üçün
+                //     «proqram birinci açılışda donur» ✗✓✓
+                var cars = await Task.Run(() => _carService.GetCarsLightAsync());
                 Editor.SetCars(cars);
 
                 AvailableCars.Clear();

@@ -110,7 +110,9 @@ namespace EnterpriseAeroStudio.Services
         public async Task<IReadOnlyList<CarItem>> GetSoldCarsAsync(CancellationToken cancellationToken = default)
         {
             // Arxiv: satılmış VƏ barter əvəzi verilmiş avtomobillər.
-            var cars = await _cars.GetWithExpensesAsync(cancellationToken);
+            // ⚡ v6.2.80 — YÜNGÜL siyahı ✓ (xərc CƏMLƏRİ SQL-də ✓,
+            //   əvvəl hər maşının BÜTÜN xərcləri yaddaşa yüklənirdi ✗)
+            var cars = await _cars.GetWithExpenseTotalsAsync(cancellationToken);
             var list = cars
                 .Where(c => string.Equals(c.Status, Catalog.SoldStatus, StringComparison.Ordinal)
                          || string.Equals(c.Status, Catalog.BarterGivenStatus, StringComparison.Ordinal)
@@ -122,14 +124,12 @@ namespace EnterpriseAeroStudio.Services
         }
 
         /// <inheritdoc />
-        public async Task<IReadOnlyList<CarItem>> GetBarterCandidatesAsync(
+        public Task<IReadOnlyList<CarItem>> GetBarterCandidatesAsync(
             int? excludeCarId = null,
             CancellationToken cancellationToken = default)
-        {
-            var cars = await _cars.GetWithExpensesAsync(cancellationToken);
-
-            return BarterCandidates(cars, excludeCarId);
-        }
+            // ⚡ v6.2.80 — AĞIR variant yerinə YÜNGÜL variant ✓
+            //  (nəticə EYNİDİR ✓ — sadəcə xərc sətirləri yaddaşa yüklənmir ✗)
+            => GetBarterCandidatesLightAsync(excludeCarId, cancellationToken);
 
         /// <summary>
         /// Barter üçün seçilə bilən avtomobilləri süzür ✓

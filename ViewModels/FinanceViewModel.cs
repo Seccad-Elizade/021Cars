@@ -824,7 +824,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ================================================================
                 var (allCars, sold, xərclər, kreditlər, əməliyyatlar, satışlar, paylar, elIle, odenisler) = await Task.Run(async () =>
                 {
-                    var c = await _carService.GetAllCarsAsync();
+                    var c = await _carService.GetAllCarsLightAsync();   // ⚡ v6.2.80 ✓ yüngül
                     var s = await _carService.GetSoldCarsAsync();
                     var e = await _expenseService.GetExpensesAsync();
                     var kr = await _creditService.GetCreditsAsync();

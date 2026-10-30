@@ -316,12 +316,19 @@ namespace EnterpriseAeroStudio
                 }
 
                 // ================================================================
-                //  ④ 🔢 BİRLƏŞDİRMƏDƏN SONRA SIRA NÖMRƏLƏRİ YENİDƏN YOXLANILIR ✓✓✓
+                //  ④ 🔢 SIRA NÖMRƏLƏRİ — ARXA FONDA YOXLANILIR ✓✓✓ (v6.2.80)
                 // ----------------------------------------------------------------
-                //  🩹 USB-dən gələn maşının sıra nömrəsi «0» qalıbsa → burada düzəlir ✓
+                //  🩹 USB-dən gələn maşının sıra nömrəsi «0» qalıbsa → düzəlir ✓
                 //  ✅ İstifadəçinin ÖZ nömrəsi (məs. 312 ✓) HEÇ VAXT dəyişmir ✗✓✓
+                //
+                //  ⚠ ƏVVƏL: `SiraNomreleriDuzelt()` BURADA, UI axınında,
+                //    `GetAwaiter().GetResult()` ilə BLOKLAYICI çağırılırdı ✗ →
+                //    proqram açılarkən pəncərə görünməzdən əvvəl donurdu ✗✓✓
+                //  ✅ İNDİ: arxa fonda ✓ — açılış ANİ olur ✓, düzəliş isə
+                //    pəncərə açıldıqdan sonra səssizcə tamamlanır ✓✓✓
+                //    (məlumat İTMİR ✗ — tam eyni əməliyyatdır ✓)
                 // ================================================================
-                SiraNomreleriDuzelt();
+                _ = Task.Run(() => SiraNomreleriDuzelt());
 
                 // ================================================================
                 //  🔐 GİRİŞ PƏNCƏRƏSİ — PROQRAM AÇILANDA İLK BU GƏLİR ✓✓✓
@@ -348,70 +355,145 @@ namespace EnterpriseAeroStudio
                 //     (əvvəl YALNIZ «61» kimi rəqəm idi ✗✓✓)
                 //  ⚠ Maşın tapılmazsa → refId (61) ✓ — proqram çökmür ✗
                 // ================================================================
+                // ================================================================
+                //  🗃️ v6.2.80 — QOVLUQ ADI KEŞİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  Media siyahısı hər çəkilişdə eyni maşını TƏKRAR soruşur ✗ →
+                //  qısa (3 saniyəlik) keş cavabı DƏRHAL verir ✓ (DB-yə getmir ✗)
+                // ================================================================
+                var qovluqAdiKeshi = new System.Collections.Concurrent.ConcurrentDictionary<
+                    (string Tip, int Id), (string? Ad, DateTime Vaxt)>();
+
+                var qovluqAdiKeshMuddati = TimeSpan.FromSeconds(3);
+
                 EnterpriseAeroStudio.Services.MediaService.QovluqAdiProvider = (tip, id) =>
                 {
+                    var keshAchari = (Tip: tip ?? string.Empty, Id: id);
+
+                    if (qovluqAdiKeshi.TryGetValue(keshAchari, out var keshli)
+                        && DateTime.UtcNow - keshli.Vaxt < qovluqAdiKeshMuddati)
+                    {
+                        return keshli.Ad;
+                    }
+
+                    string? cavab = null;
+
                     try
                     {
-                        // 🚗 Əvvəlcə AVTOMOBİL İD-sini tapırıq ✓
-                        //    (birbaşa ✓ və ya kredit əməliyyatı vasitəsilə ✓)
+                        using var scope = _services!.CreateScope();
+
+                        var db = scope.ServiceProvider
+                            .GetRequiredService<EnterpriseAeroStudio.Data.AppDbContext>();
+
+                        // 🚗 Avtomobil İd-si (birbaşa ✓ və ya kredit əməliyyatı ilə ✓)
                         var avtomobilId = id;
 
                         if (!string.Equals(tip, EnterpriseAeroStudio.Models.MediaRefTypes.Car,
                                 StringComparison.Ordinal))
                         {
                             // 💳 KREDİT ƏMƏLİYYATI sənədi → kredit → AVTOMOBİL ✓✓✓
-                            try
+                            var kreditId = db.CreditTransactions
+                                             .AsNoTracking()
+                                             .Where(t => t.Id == id)
+                                             .Select(t => t.CreditId)
+                                             .FirstOrDefault();
+
+                            if (kreditId is not int kId)
                             {
-                                using var scope = _services.CreateScope();
-
-                                var db = scope.ServiceProvider
-                                    .GetRequiredService<EnterpriseAeroStudio.Data.AppDbContext>();
-
-                                var əməliyyat = db.CreditTransactions.FirstOrDefault(t => t.Id == id);
-
-                                var kredit = əməliyyat?.CreditId is int kId
-                                    ? db.Credits.FirstOrDefault(k => k.Id == kId)
-                                    : null;
-
-                                if (kredit?.CarId is not int cId) return null;   // ✓ ehtiyat: refId ✓
-
-                                avtomobilId = cId;
+                                qovluqAdiKeshi[keshAchari] = (null, DateTime.UtcNow);
+                                return null;      // ✓ ehtiyat: refId ✓
                             }
-                            catch
+
+                            var carId = db.Credits
+                                          .AsNoTracking()
+                                          .Where(k => k.Id == kId)
+                                          .Select(k => k.CarId)
+                                          .FirstOrDefault();
+
+                            if (carId is not int cId)
                             {
+                                qovluqAdiKeshi[keshAchari] = (null, DateTime.UtcNow);
                                 return null;      // ✓ ehtiyat: refId («61») ✓
                             }
+
+                            avtomobilId = cId;
                         }
 
-                        var avtomobilXidmeti = _services.GetRequiredService<ICarService>();
+                        // ============================================================
+                        //  ⚡🚀 YALNIZ TƏK SƏTİR OXUNUR ✓✓✓  (DONMA DÜZƏLİŞİ)
+                        // ------------------------------------------------------------
+                        //  ⚠ ƏVVƏL: `GetAllCarsAsync().GetAwaiter().GetResult()`
+                        //    → BÜTÜN avtomobillər + BÜTÜN xərcləri yaddaşa
+                        //    yükləyirdi ✗ və UI axınında bloklayırdı ✗ →
+                        //    sənəd/media siyahısı açılanda proqram DONURDU ✗✓✓
+                        //  ✅ İNDİ: indeksli TƏK SƏTİR sorğusu ✓ (~0,1 ms ✓),
+                        //    yalnız 3 sahə ✓ — park ÜMUMİYYƏTLƏ yüklənmir ✗✓✓
+                        // ============================================================
+                        var avtomobil = db.Cars
+                                          .AsNoTracking()
+                                          .Where(c => c.Id == avtomobilId)
+                                          .Select(c => new
+                                          {
+                                              c.SiraNomresi,
+                                              c.Marka,
+                                              c.QeydiyyatNisani
+                                          })
+                                          .FirstOrDefault();
 
-                        var avtomobil = avtomobilXidmeti
-                            .GetAllCarsAsync()
-                            .GetAwaiter()
-                            .GetResult()
-                            .FirstOrDefault(c => c.Id == avtomobilId);
-
-                        if (avtomobil is null)
+                        if (avtomobil is not null)
                         {
-                            return null;
+                            // ✅ Sıra № · Marka (model) · Dövlət qeydiyyat nişanı ✓✓✓
+                            var sira = avtomobil.SiraNomresi > 0
+                                ? avtomobil.SiraNomresi.ToString("000")
+                                : avtomobilId.ToString();
+
+                            cavab = $"{sira} - {avtomobil.Marka} - {avtomobil.QeydiyyatNisani}";
                         }
-
-                        // ✅ Sıra № · Marka (model) · Dövlət qeydiyyat nişanı ✓✓✓
-                        var sira = avtomobil.SiraNomresi > 0
-                            ? avtomobil.SiraNomresi.ToString("000")
-                            : avtomobil.Id.ToString();
-
-                        return $"{sira} - {avtomobil.Marka} - {avtomobil.QeydiyyatNisani}";
                     }
                     catch
                     {
-                        return null;      // ✓ ehtiyat: «61» ✓
+                        cavab = null;      // ✓ ehtiyat: «61» ✓
                     }
+
+                    qovluqAdiKeshi[keshAchari] = (cavab, DateTime.UtcNow);
+
+                    return cavab;
                 };
 
                 var window = _services.GetRequiredService<MainWindow>();
                 MainWindow = window;
                 window.Show();
+
+                // ================================================================
+                //  🔧 v6.2.80 — TEXNİKİ BAXIM ARXA FONDA ✓✓✓ (AÇILIŞ DONMASI)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL bu işlər pəncərə açılmazdan ƏVVƏL, UI axınında
+                //    bloklayıcı şəkildə icra olunurdu ✗ → «birinci açılış
+                //    çox uzun çəkir / proqram donur» ✗✓✓
+                //  ✅ İNDİ: pəncərə DƏRHAL açılır ✓, baxım isə burada,
+                //    ayrı DI scope-da, arxa fonda tamamlanır ✓✓✓
+                //  🛡️ Əməliyyatlar idempotentdir ✓ → MƏLUMAT İTMİR ✗✓✓
+                //  🛡️ Hər addım öz `try/catch`-i ilə ✓ — biri uğursuz olsa
+                //     digərləri yenə də işləyir ✓ (proqram çökmür ✗)
+                // ================================================================
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var baximScope = _services!.CreateScope();
+
+                        var baxim = baximScope.ServiceProvider
+                            .GetRequiredService<EnterpriseAeroStudio.Data.DbInitializer>();
+
+                        await baxim.BakimAsync();
+
+                        _logger?.LogInformation("🔧 Texniki baxım arxa fonda tamamlandı ✓");
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogger.Melumat("🔧 Texniki baxım alınmadı ✓ — " + ex.Message);
+                    }
+                });
 
                 // ================================================================
                 //  🆕 ☁️ YENİ KOMPÜTER — «BULUDDAN GÖTÜR?» ✓✓✓  (v6.2.12)

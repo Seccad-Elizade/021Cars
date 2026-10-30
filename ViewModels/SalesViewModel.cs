@@ -452,7 +452,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
                 UpdateStats();
 
-                var cars = await _carService.GetCarsAsync();
+                // ⚡ v6.2.80 — YÜNGÜL siyahı + ARXA FON ✓ (əvvəl BÜTÜN xərclər ✗)
+                var cars = await Task.Run(() => _carService.GetCarsLightAsync());
                 AvailableCars.Clear();
                 foreach (var car in cars.Where(c => c.Status != Catalog.SoldStatus))
                 {

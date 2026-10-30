@@ -72,6 +72,43 @@ namespace EnterpriseAeroStudio.Data.Repositories
             return cars;
         }
 
+        /// <inheritdoc />
+        public async Task<CarItem?> GetWithExpenseTotalAsync(
+            int id,
+            CancellationToken cancellationToken = default)
+        {
+            // 🚗 TƏK avtomobil ✓ (bütün park yüklənmir ✗)
+            var car = await Context.Cars
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
+            if (car is null)
+            {
+                return null;
+            }
+
+            // 📊 YALNIZ bu avtomobilin xərc cəmi ✓ (SQL `SUM` ✓)
+            // ⚠ SQLite `decimal` cəmini dəstəkləmir ✗ → `double` ilə alınır ✓
+            var cəmlər = await Context.Expenses
+                .AsNoTracking()
+                .Where(e => e.CarId == id)
+                .GroupBy(e => e.CarId!.Value)
+                .Select(g => new
+                {
+                    Butun = g.Sum(e => (double?)e.Mebleg),
+                    AlisXaric = g.Sum(e => e.Kategoriya != "Alış" ? (double?)e.Mebleg : null)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (cəmlər is not null)
+            {
+                car.ButunXerclerCemi = Math.Round((decimal)(cəmlər.Butun ?? 0d), 2);
+                car.XerclerCemi = Math.Round((decimal)(cəmlər.AlisXaric ?? 0d), 2);
+            }
+
+            return car;
+        }
+
         public async Task<CarItem?> GetWithDetailsAsync(int id, CancellationToken cancellationToken = default)
             => await Context.Cars
                             .Include(c => c.Expenses)

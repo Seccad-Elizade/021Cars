@@ -182,7 +182,8 @@ namespace EnterpriseAeroStudio.Services
             var bloklar = BloklariAyir(metn);
 
             // Mövcud avtomobillər — nömrəyə görə (təkrar yaratmamaq üçün ✓).
-            var movcud = (await _cars.GetAllCarsAsync(cancellationToken))
+            // ⚡ v6.2.80 — YÜNGÜL siyahı ✓ (xərc sətirləri yüklənmir ✗)
+            var movcud = (await _cars.GetAllCarsLightAsync(cancellationToken))
                 .Where(c => !string.IsNullOrWhiteSpace(c.QeydiyyatNisani))
                 .GroupBy(c => c.QeydiyyatNisani.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);

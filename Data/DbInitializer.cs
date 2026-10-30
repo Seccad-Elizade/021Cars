@@ -47,9 +47,19 @@ namespace EnterpriseAeroStudio.Data
             await DatabaseSeeder.SeedAsync(_context, cancellationToken);
             await SeedExpenseCatalogAsync(cancellationToken);
             await SeedPartnersAsync(cancellationToken);
-            await BackfillSiraNomresiAsync(cancellationToken);
-            await CleanupOrphansAsync(cancellationToken);
-            await RecalcCreditMonthlyAsync(cancellationToken);
+
+            // ================================================================
+            //  ⚡ v6.2.80 — AĞIR BAXIM İŞLƏRİ AÇILIŞDAN ÇIXARILDI ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL bu üç ağır əməliyyat BURADA, pəncərə görünməzdən
+            //    ƏVVƏL, UI axınında icra olunurdu ✗ (`.GetAwaiter().GetResult()` ✗):
+            //      ① BackfillSiraNomresiAsync ② CleanupOrphansAsync
+            //      ③ RecalcCreditMonthlyAsync
+            //    → böyük bazada proqram «birinci açılışda donur» ✗✓✓
+            //  ✅ İNDİ: `<see cref="BakimAsync"/>` — pəncərə açıldıqdan
+            //    SONRA arxa fonda çağırılır ✓. Əməliyyatlar TAM EYNİDİR ✓
+            //    (idempotent ✓ → məlumat İTMİR ✗, sadəcə gecikmədən ✓)
+            // ================================================================
 
             // ⛔ v6.2.34 — «CloseFinishedCreditsAsync» ÇAĞIRILMIR ✗✓✓
             //   ★ İstifadəçi tələbi: tam ödənilmiş kreditlər açılışda
@@ -60,6 +70,85 @@ namespace EnterpriseAeroStudio.Data
             LogPartnerMathSelfCheck();
             LogCreditMathSelfCheck();
             _logger.LogInformation("Verilənlər bazası uğurla hazırlandı.");
+        }
+
+        /// <summary>
+        /// 🔧 <b>ARXA FONDA TEXNİKİ XİDMƏT</b> ✓✓✓ (v6.2.80)
+        /// <para>
+        /// Açılışı <b>DONMADAN</b> keçirmək üçün ağır baxım işləri burada
+        /// toplanır: sıra nömrələrinin düzəldilməsi ✓, «yetim» qeydlərin
+        /// təmizlənməsi ✓ və aylıq ödənişin yenidən hesablanması ✓.
+        /// </para>
+        /// <para>
+        /// ⚠ Bütün əməliyyatlar <b>idempotentdir</b> ✓ — nə vaxt işləsə
+        /// nəticə eynidir ✓, ona görə açılışdan sonraya keçirmək
+        /// <b>heç bir məlumat itkisi yaratmır</b> ✗✓✓
+        /// </para>
+        /// </summary>
+        public async Task BakimAsync(CancellationToken cancellationToken = default)
+        {
+            // ⏳ v6.2.80 — ƏVVƏLCƏ QISA FASİLƏ ✓✓✓
+            //  ⚠ Səbəb: açılışda UI ilk cədvəlləri oxuyur ✗ — eyni anda
+            //    yazsaq SQLite «database is locked» verə bilər ✗✓✓
+            //  ✅ 4 saniyə sonra başlayır ✓ → istifadəçi heç nə hiss etmir ✓
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(4), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            // 🔁 Hər addım: 2 cəhd ✓ (kilid xətası olsa 1,5 s sonra təkrarlanır ✓)
+            await BirAddimAsync(
+                () => BackfillSiraNomresiAsync(cancellationToken),
+                "Sıra nömrəsi düzəlişi");
+
+            await BirAddimAsync(
+                () => CleanupOrphansAsync(cancellationToken),
+                "Yetim qeydlərin təmizlənməsi");
+
+            await BirAddimAsync(
+                () => RecalcCreditMonthlyAsync(cancellationToken),
+                "Aylıq ödənişin yenidən hesablanması");
+        }
+
+        /// <summary>
+        /// 🛡️ Bir baxım addımını <b>2 cəhdlə</b> icra edir ✓ (v6.2.80).
+        /// <para>
+        /// SQLite kilidi («database is locked») kimi keçici xətalar
+        /// proqramı <b>çökdürmür</b> ✗ — sadəcə təkrarlanır ✓.
+        /// </para>
+        /// </summary>
+        private async Task BirAddimAsync(Func<Task> addim, string ad)
+        {
+            for (var cehd = 1; cehd <= 2; cehd++)
+            {
+                try
+                {
+                    await addim();
+                    return;
+                }
+                catch (Exception ex) when (cehd < 2)
+                {
+                    _logger.LogWarning(ex, "{Ad} alınmadı — təkrar cəhd edilir.", ad);
+
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(1500));
+                    }
+                    catch
+                    {
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "{Ad} alınmadı.", ad);
+                    return;
+                }
+            }
         }
 
 

@@ -1896,7 +1896,32 @@ namespace EnterpriseAeroStudio.ViewModels
             try
             {
                 IsBusy = true;
-                var credits = await _creditService.GetCreditsAsync();
+
+                // ================================================================
+                //  ⚡🚀 v6.2.80 — AĞIR OXUMALAR ARXA FONDA ✓✓✓  (DONMA DÜZƏLİŞİ)
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: «Kreditlər tabında maşın seçəndə
+                //    avtomobillər ÇOX GEC gəlir / ümumiyyətlə BOŞ qalır ✗ və
+                //    proqram DONUR, sonra özünə gəlir ✗»
+                // ----------------------------------------------------------------
+                //  🐞 ƏSL SƏBƏBLƏR (hər üçü aradan qaldırıldı ✓):
+                //    ① `GetCarsAsync()` HƏR avtomobilin BÜTÜN xərclərini yaddaşa
+                //       yükləyirdi ✗ (`Include(c => c.Expenses)` ✗) → minlərlə
+                //       xərc sətri → BÖYÜK gecikmə + RAM ✗✓✓
+                //       ✅ İNDİ: `GetCarsLightAsync()` — xərc CƏMLƏRİ SQL-də
+                //          `GROUP BY` ilə ✓ (Avto Park tabı ilə EYNİ yol ✓)
+                //    ② Oxumalar UI axınında icra olunurdu ✗ →
+                //       ✅ İNDİ: `Task.Run` ilə ARXA FONDA ✓ (UI donmur ✗)
+                //    ③ Avtomobil siyahısı YALNIZ kredit siyahısından SONRA
+                //       yüklənirdi ✗ → combo uzun müddət BOŞ görünürdü ✗
+                //       ✅ İNDİ: hər ikisi BİR arxa fon işində PARALEL hazırlanır ✓
+                // ================================================================
+                var (credits, carsHam) = await Task.Run(async () =>
+                {
+                    var c = await _creditService.GetCreditsAsync();
+                    var k = await _carService.GetCarsLightAsync();
+                    return (c, k);
+                });
 
                 // 📄 PDF ixracı üçün BÜTÜN kreditlər saxlanılır ✓ (bağlılar da ✓)
                 _butunKreditler = credits.ToList();
@@ -1957,24 +1982,55 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 // 💾 Düzəldilən nömrələr bazaya yazılır ✓ → ☁️ Firebase-ə də düzgün gedir ✓✓✓
+                var yazilanDuzelis = 0;
+
                 foreach (var düzəldilən in siraDüzəldiləcək)
                 {
-                    try { await _creditService.UpdateCreditAsync(düzəldilən); } catch { }
+                    try
+                    {
+                        await _creditService.UpdateCreditAsync(düzəldilən);
+                        yazilanDuzelis++;
+                    }
+                    catch { }
+                }
+
+                // ================================================================
+                //  🔁 v6.2.80 — ÖZ YAZMALARIMIZ «XARİCİ DƏYİŞİKLİK» SAYILMASIN ✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: avtomatik nömrə düzəlişi bazaya yazılırdı ✗ → fayl
+                //    izləyicisi bunu «xarici dəyişiklik» sanırdı ✗ →
+                //    BÜTÜN tablar yenidən yüklənirdi ✗ → KASSA/KREDİT tabında
+                //    DAVAMLI DONMA ✗✓✓ (istifadəçi: «donur, sonra düzelir»)
+                //  ✅ İNDİ: hadisə yayılır ✓ → MainViewModel «bu bizim
+                //    dəyişikliyimizdir» işarəsi qoyur ✓ → təkrar yükləmə YOX ✗
+                // ================================================================
+                if (anyFilled || yazilanDuzelis > 0)
+                {
+                    try
+                    {
+                        CreditsChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch
+                    {
+                        // 🛡️ hadisə xətası yükləməni DAYANDIRMIR ✓
+                    }
                 }
 
                 ApplyContractFilter();      // cədvəlin axtarış filtri tətbiq olunur
                 ApplyScheduleFilter();      // ödəniş qrafiki tabının kredit seçimi yenilənir
 
-                var cars = await _carService.GetCarsAsync();
+                // 🚘 AVTOMOBİL SİYAHISI — ARTIQ YUXARIDA (arxa fonda ✓) hazırdır ✓
                 AvailableCars.Clear();
-                foreach (var car in cars)
+
+                foreach (var car in carsHam)
                 {
                     AvailableCars.Add(car);
                 }
+
                 ApplyCarFilter();
 
                 // 🛡️ v6.2.41 — NULL qeydlər kəsilir ✓ (bütün LINQ sorğuları qorunur ✓)
-                _creditTransactions = (await _creditService.GetTransactionsAsync())
+                _creditTransactions = (await Task.Run(() => _creditService.GetTransactionsAsync()))
                     .Where(t => t is not null)
                     .ToList();
 
@@ -2009,7 +2065,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 //  YAZILIRDI ✗ → «⏳ Məlumatlar yüklənir...» tez-tez görünürdü ✗
                 //  və hər seçimdə gecikmə yaranırdı ✗✓✓
                 //  İNDİ: maşın parkdan çıxdıqdan sonra bu blok HEÇ NƏ ETMİR ✓
-                var aktivCarIds = cars.Select(c => c.Id).ToHashSet();
+                var aktivCarIds = carsHam.Select(c => c.Id).ToHashSet();
 
                 foreach (var tx in _creditTransactions
                              .Where(t => t.Nov == "Transfer" || t.Nov == "Transfer olunmaq")
@@ -2038,8 +2094,9 @@ namespace EnterpriseAeroStudio.ViewModels
             }
 
 
-            // 👥 Kredit səviyyəli XEYİR bölgüləri — bir sorğu ilə xəritə.
-            _creditSharesMap = (await _creditService.GetCreditSharesMapAsync())
+            // 👥 Kredit səviyyəli XEYİR bölgüləri — bir sorğu ilə xəritə ✓
+            //  ⚡ v6.2.80 — ARXA FONDA ✓ (UI axını gözləmir ✗)
+            _creditSharesMap = (await Task.Run(() => _creditService.GetCreditSharesMapAsync()))
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
 
                 // Əvvəlki seçimi saxlamaq (filtrdən asılı olmayaraq), yoxdursa ilkini seçmək.

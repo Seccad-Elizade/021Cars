@@ -783,9 +783,11 @@ namespace EnterpriseAeroStudio.Services
 
             try
             {
-                // ✓ Xərclərlə birlikdə TAM məlumat ✓
-                var tam = (await _cars.GetWithExpensesAsync(cancellationToken))
-                    .FirstOrDefault(c => c.Id == car.Id);
+                // ⚡ v6.2.80 — YALNIZ TƏK avtomobil + xərc CƏMİ ✓
+                //  ⚠ ƏVVƏL: `GetWithExpensesAsync()` BÜTÜN parkı və BÜTÜN
+                //    xərcləri yaddaşa yükləyirdi ✗ (yalnız 1 maşının mayası
+                //    üçün ✗) → kredit yaradılarkən/bağlanarkən DONMA ✗✓✓
+                var tam = await _cars.GetWithExpenseTotalAsync(car.Id, cancellationToken);
 
                 if (tam is not null)
                 {

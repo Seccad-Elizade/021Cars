@@ -198,7 +198,8 @@ namespace EnterpriseAeroStudio.ViewModels
 
             if (car is null && credit.CarId is int carId)
             {
-                var hamisi = await _carService.GetAllCarsAsync();
+                // ⚡ v6.2.80 — YÜNGÜL siyahı + ARXA FON ✓ (əvvəl BÜTÜN xərclər yüklənirdi ✗)
+                var hamisi = await Task.Run(() => _carService.GetAllCarsLightAsync());
                 car = hamisi.FirstOrDefault(c => c.Id == carId);
             }
 

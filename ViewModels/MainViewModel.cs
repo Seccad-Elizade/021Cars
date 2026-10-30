@@ -1494,8 +1494,27 @@ namespace EnterpriseAeroStudio.ViewModels
             // 📊 Status: cədvəldəki ÜMUMİ qeyd sayı göstərilir ✓ (səhifə sayı deyil ✗✓✓)
             StatusMessage = $"Hazır — {CarPark.TotalCars} avtomobil, {Expenses.UmumiSay} xərc qeydi.";
 
-            // Veb server AVTOMATİK işə salınır (brauzerde ve telefonlarda giris ucun).
-            await Web.AutoStartAsync();
+            // ================================================================
+            //  🌐 v6.2.80 — VEB SERVER ARXA FONDA İŞƏ SALINIR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ⚠ ƏVVƏL: `await Web.AutoStartAsync()` gözlənilirdi ✗ →
+            //    server cavab verənə qədər (hər 700 ms yoxlama ✓, 30 s-ə qədər ✗)
+            //    açılış statusu «Məlumatlar yüklənir...»-də qalırdı ✗ →
+            //    istifadəçi «proqram dondu» hiss edirdi ✗✓✓
+            //  ✅ İNDİ: yükləmə statusu DƏRHAL «Hazır» olur ✓, server isə
+            //    arxa fonda qalxır ✓ (UI heç vaxt gözləmir ✗) · xəta udulur ✓
+            // ================================================================
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Web.AutoStartAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Veb server avtomatik başlamadı: " + ex.Message);
+                }
+            });
         }
     }
 }
