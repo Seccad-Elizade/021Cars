@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EnterpriseAeroStudio.Collections;
 using EnterpriseAeroStudio.Models;
 using EnterpriseAeroStudio.Services;
 using Microsoft.Extensions.Logging;
@@ -54,19 +55,19 @@ namespace EnterpriseAeroStudio.ViewModels
         // ====================================================================
 
         /// <summary>Tərəfdaşlar — burada əlavə/silmə/faiz dəyişikliyi edilir.</summary>
-        public ObservableCollection<Partner> Partners { get; } = new();
+        public BulkObservableCollection<Partner> Partners { get; } = new();
 
         /// <summary>Tərəfdaş kartları: qazanılmış / verilmiş / qalıq / dövriyyə.</summary>
-        public ObservableCollection<PartnerCardRow> Cards { get; } = new();
+        public BulkObservableCollection<PartnerCardRow> Cards { get; } = new();
 
         /// <summary>Bölgü jurnalı: hansı maşından, hansı ayda, kimə nə qədər.</summary>
-        public ObservableCollection<PartnerLedgerRow> Ledger { get; } = new();
+        public BulkObservableCollection<PartnerLedgerRow> Ledger { get; } = new();
 
         /// <summary>Aylıq dövriyyə.</summary>
-        public ObservableCollection<PartnerMonthlyRow> Monthly { get; } = new();
+        public BulkObservableCollection<PartnerMonthlyRow> Monthly { get; } = new();
 
         /// <summary>Tərəfdaşlara xaric edilən pullar.</summary>
-        public ObservableCollection<PartnerPayment> Payments { get; } = new();
+        public BulkObservableCollection<PartnerPayment> Payments { get; } = new();
 
         /// <summary>Filtr üçün tərəfdaş adları («Hamısı» + adlar).</summary>
         public ObservableCollection<string> TerefdasAdlari { get; } = new();
@@ -275,11 +276,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 // 1) Tərəfdaşlar (əlavə / silmə / faiz üçün).
                 var partners = await _partnerService.GetPartnersAsync();
 
-                Partners.Clear();
-                foreach (var partner in partners)
-                {
-                    Partners.Add(partner);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓
+                Partners.ReplaceAll(partners);
 
                 // 2) Analitika — BÜTÜN mənbələrdən.
                 _ledgerAll = (await _partnerService.BuildLedgerAsync(from, to)).ToList();
@@ -304,11 +302,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 ApplyFilters();
 
                 // 4) Ödəniş tarixçəsi.
-                Payments.Clear();
-                foreach (var payment in _paymentsAll)
-                {
-                    Payments.Add(payment);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓
+                Payments.ReplaceAll(_paymentsAll);
 
                 // 5) Yekun göstəricilər.
                 var totals = await _partnerService.BuildTotalsAsync(from, to);
@@ -403,11 +398,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     Contains(r.Menbe, axtaris));
             }
 
-            Ledger.Clear();
-            foreach (var row in jurnal)
-            {
-                Ledger.Add(row);
-            }
+            // 🚀 v6.2.81 — TƏK Reset ✓ (jurnal MINLƏRLƏ sətir ola bilər ✗)
+            Ledger.ReplaceAll(jurnal);
 
             // Kartlar — BÜTÜN VAXT (tarixçə) + tərəfdaş filtrinə uyğun ✓
             //  ⚠ Dövr filtrinə BAXMIR — ümumi balans həmişə görünür ✓
@@ -418,13 +410,16 @@ namespace EnterpriseAeroStudio.ViewModels
                     string.Equals(c.Terefdas, SelectedTerefdas, StringComparison.OrdinalIgnoreCase));
             }
 
-            Cards.Clear();
+            // 🚀 v6.2.81 — TƏK Reset ✓
+            var sıralıKartlar = kartlar.OrderByDescending(c => c.Qazanilmis).ThenBy(c => c.Terefdas).ToList();
             var sira = 0;
-            foreach (var card in kartlar.OrderByDescending(c => c.Qazanilmis).ThenBy(c => c.Terefdas))
+
+            foreach (var card in sıralıKartlar)
             {
                 card.SiraNomresi = ++sira;   // 🥇🥈🥉 nişanı üçün
-                Cards.Add(card);
             }
+
+            Cards.ReplaceAll(sıralıKartlar);
 
             // Aylıq dövriyyə — tərəfdaş filtrinə uyğun.
             var aylar = _monthlyAll.AsEnumerable();
@@ -434,11 +429,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     string.Equals(m.Terefdas, SelectedTerefdas, StringComparison.OrdinalIgnoreCase));
             }
 
-            Monthly.Clear();
-            foreach (var ay in aylar)
-            {
-                Monthly.Add(ay);
-            }
+            Monthly.ReplaceAll(aylar);
 
             OnPropertyChanged(nameof(HasLedger));
             OnPropertyChanged(nameof(HasNoLedger));

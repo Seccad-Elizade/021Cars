@@ -58,7 +58,7 @@ namespace EnterpriseAeroStudio.ViewModels
         [ObservableProperty] private string attachmentInfo = "Fayl seçilməyib";
 
         /// <summary>Axtarış mətninə uyğun (filtrlənmiş) kreditlər.</summary>
-        public ObservableCollection<Credit> FilteredCredits { get; } = new();
+        public BulkObservableCollection<Credit> FilteredCredits { get; } = new();
 
         [ObservableProperty] private string creditSearchText = string.Empty;
 
@@ -665,7 +665,19 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         public async Task LoadAsync()
         {
-            await _gate.WaitAsync();
+            // ⏱️ v6.2.81 — GATE-ə 25 saniyə LİMİT ✓✓✓
+            //  ⚠ ƏVVƏL: `await _gate.WaitAsync()` SONSUZ gözləyirdi ✗ →
+            //    əvvəlki yükləmə ilişibsə, tab ƏBƏDİ «boş» qalırdı ✗✓✓
+            //  ✅ İNDİ: alınmasa → log yazılır və çıxılır ✓ (proqram donmur ✗)
+            if (!await _gate.WaitAsync(TimeSpan.FromSeconds(25)))
+            {
+                _logger.LogWarning("⏱️ Kredit əməliyyatları: əvvəlki yükləmə hələ bitməyib — gözləmə ləğv edildi ✗");
+                return;
+            }
+
+            var saat = System.Diagnostics.Stopwatch.StartNew();
+            PerfTracker.Qur("Kredit əlavə Gəlir/Xərc · yükləmə");
+
             try
             {
                 IsBusy = true;
@@ -673,6 +685,10 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ⚡🚀 AĞIR OXUMA ARXA FONDA ✓✓✓ (milyon sətirdə belə UI donmur ✗)
                 var credits = await Task.Run(() => _creditService.GetCreditsAsync());
                 var transactions = await Task.Run(() => _creditService.GetTransactionsAsync());
+
+                _logger.LogInformation(
+                    "⏱️ [Kredit Əlavə] oxuma — {Ms} ms · {K} kredit · {T} əməliyyat",
+                    saat.ElapsedMilliseconds, credits.Count, transactions.Count);
 
                 // ================================================================
                 //  📤 TRANSFER OLUNMUŞ MAŞINLAR — GƏLİR / QEYDLƏR GÖSTƏRİLMİR ✗✓✓
@@ -747,17 +763,44 @@ namespace EnterpriseAeroStudio.ViewModels
                 Transactions.ReplaceAll(sətirlər);
 
                 // ================================================================
-                //  🔧 v6.2.56 — BİR DƏFƏLİK MAYA DÜZƏLİŞİ ✓✓✓
+                //  🔧 v6.2.56 — BİR DƏFƏLİK MAYA DÜZƏLİŞİ ✓✓✓ (v6.2.81 düzəlişi)
                 //  395 ₼ → maya TAM ₼ (179,00 ✓), Baza = Məbləğ − Maya (216,00 ✓)
                 //  → 35 ay × 179 = 6 265,00 ₼ ✓ (əvvəl 6 283,70 ✗)
+                // ----------------------------------------------------------------
+                //  ⚠⚠ v6.2.81 — ƏSL SƏBƏB TAPILDI ✓✓✓
+                //    Bayraq faylı `BaseDirectory`-yə yazılırdı ✗ →
+                //    «C:\Program Files\021Cars»-da YAZMA İCAZƏSİ YOXDUR ✗ →
+                //    `File.WriteAllText` xəta verirdi ✗ → `catch` udurdu ✗ →
+                //    **HƏR YÜKLƏMƏDƏ** minlərlə `UpdateTransactionAsync`
+                //    yenidən icra olunurdu ✗✗✗ (hər biri SaveChanges + fayl
+                //    izləyicisi → KASSA/KREDİT tabında DAİMİ DONMA ✗)
+                //  ✅ İNDİ: bayraq YAZILA BİLƏN qovluqda ✓
+                //    (`%LOCALAPPDATA%\021Cars\flags` ✓) və əməliyyat
+                //    yalnız TƏK DƏFƏ icra olunur ✓✓✓
                 // ================================================================
                 try
                 {
-                    var bayraq = System.IO.Path.Combine(
+                    var bayraqQovluq = System.IO.Path.Combine(
+                        System.Environment.GetFolderPath(
+                            System.Environment.SpecialFolder.LocalApplicationData),
+                        "021Cars",
+                        "flags");
+
+                    System.IO.Directory.CreateDirectory(bayraqQovluq);
+
+                    var bayraq = System.IO.Path.Combine(bayraqQovluq, "maya_duzelis_6_2_56.flag");
+
+                    // 🛡️ Köhnə yerdə bayraq varsa → köçürülür ✓ (təkrar işləməsin ✗)
+                    var köhnəBayraq = System.IO.Path.Combine(
                         AppDomain.CurrentDomain.BaseDirectory, "maya_duzelis_6_2_56.flag");
 
-                    if (!System.IO.File.Exists(bayraq))
+                    var artıqİcraOlunub = System.IO.File.Exists(bayraq)
+                                          || System.IO.File.Exists(köhnəBayraq);
+
+                    if (!artıqİcraOlunub)
                     {
+                        var düzəldilənSay = 0;
+
                         foreach (var t in sətirlər.Where(x => x.Nov == "Gəlir" && x.BolguBazasi.HasValue))
                         {
                             var tamMaya = Math.Round(t.Mebleg - t.BolguBazasi!.Value, 0, MidpointRounding.AwayFromZero);
@@ -767,15 +810,23 @@ namespace EnterpriseAeroStudio.ViewModels
                             {
                                 t.BolguBazasi = yeniBaza;
                                 await _creditService.UpdateTransactionAsync(t);
+                                düzəldilənSay++;
                             }
                         }
 
                         System.IO.File.WriteAllText(bayraq, DateTime.Now.ToString("s"));
+
+                        if (düzəldilənSay > 0)
+                        {
+                            _logger.LogInformation(
+                                "🔧 Maya düzəlişi (v6.2.56) bir dəfə icra olundu — {Say} qeyd ✓", düzəldilənSay);
+                        }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // 🛡️ düzəliş alınmasa → proqram dayanmır ✓
+                    // 🛡️ düzəliş alınmasa → proqram dayanmır ✓ (amma log yazılır ✓)
+                    _logger.LogWarning(ex, "Maya düzəlişi icra olunmadı ✓");
                 }
 
                 // ================================================================
@@ -794,6 +845,10 @@ namespace EnterpriseAeroStudio.ViewModels
                 _logger.LogInformation(
                     "{Count} kredit əməliyyatı yükləndi ({Kredit} kredit — {Bitmis} bitmiş 🗄️).",
                     Transactions.Count, Credits.Count, bitmisKreditIdler.Count);
+
+                _logger.LogInformation(
+                    "⏱️ [Kredit Əlavə] BÜTÜN yükləmə — {Ms} ms (cədvəl {Sətir} sətir)",
+                    saat.ElapsedMilliseconds, FilteredTransactions.Count);
             }
             catch (Exception ex)
             {
@@ -804,6 +859,7 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 IsBusy = false;
                 _gate.Release();
+                PerfTracker.Bitir();
             }
         }
 
@@ -1817,17 +1873,36 @@ namespace EnterpriseAeroStudio.ViewModels
         {
             var carId = SelectedCredit?.CarId;
 
-            // ⚡ Siyahı yığılır ✓ — sonra TƏK bildirişlə yazılır ✓✓✓
-            //   (minlərlə əməliyyatda cədvəl min dəfə yenidən qurulmur ✗)
-            var seçilmişlər = carId.HasValue
+            // ================================================================
+            //  🚀 v6.2.81 — CƏDVƏLƏ SƏTİR LİMİTİ ✓✓✓ (DONMANIN QARŞISI)
+            // ----------------------------------------------------------------
+            //  ⚠ Kredit seçilməyibsə 2 200+ sətir BİRDƏN çəkilirdi ✗ →
+            //    hər DataGrid hüceyrəsi + konverter + DataTrigger ✗ →
+            //    quruluş (layout) saniyələrlə UI axınını tuturdu ✗✓✓
+            //  ✅ İNDİ: kredit seçilməyibsə ən son 500 sətir göstərilir ✓
+            //    (Yekunlar/statistika HƏMİŞƏ BÜTÜN siyahıdan hesablanır ✓)
+            //    Seçilmiş kredit varsa → o kreditin BÜTÜN sətirləri ✓
+            // ================================================================
+            const int Limit = 500;
+
+            var hamısı = carId.HasValue
                 ? Transactions.Where(t => t.CreditId == SelectedCredit!.Id).ToList()
                 : Transactions.ToList();
 
+            var seçilmişlər = hamısı.Count > Limit
+                ? hamısı.OrderByDescending(t => t.Tarix).ThenByDescending(t => t.Id).Take(Limit).ToList()
+                : hamısı;
+
             FilteredTransactions.ReplaceAll(seçilmişlər);
+
+            var limitİzahı = seçilmişlər.Count < hamısı.Count
+                ? $"   ·   ⚡ son {seçilmişlər.Count} qeyd göstərilir (cəmi {hamısı.Count}) — yekunlar BÜTÜNDÜR ✓"
+                : string.Empty;
 
             TransactionsInfo = (carId.HasValue
                 ? $"🚗 {SelectedCredit?.Car?.DisplayName ?? "Avtomobil"} — bu avtomobilin kredit tarixçəsi ({FilteredTransactions.Count} qeyd)"
                 : $"📋 Bütün avtomobillərin kredit əməliyyatları — {FilteredTransactions.Count} qeyd (müqaviləyə avtomobil bağlanmayıb)")
+                + limitİzahı
                 + "   ·   🖱️ Ctrl / Shift + sol klik = ÇOXLU SEÇİM ✓ (birlikdə silmək üçün ✓)";
         }
 
@@ -1866,11 +1941,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     return;
                 }
 
-                FilteredCredits.Clear();
-                foreach (var credit in matches)
-                {
-                    FilteredCredits.Add(credit);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓ (əvvəl N dəfə Add → combo donurdu ✗)
+                FilteredCredits.ReplaceAll(matches);
             }
             finally
             {

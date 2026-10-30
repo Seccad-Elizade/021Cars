@@ -6,6 +6,7 @@ using System.IO;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EnterpriseAeroStudio.Collections;
 using EnterpriseAeroStudio.Hosting;
 using EnterpriseAeroStudio.Models;
 using EnterpriseAeroStudio.Services;
@@ -56,15 +57,19 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         private Dictionary<int, IReadOnlyList<PartnerShare>> _creditSharesMap = new();
 
-        public ObservableCollection<Credit> Credits { get; } = new();
+        // 🚀 v6.2.81 — BULK kolleksiyalar ✓✓✓
+        //  ⚠ ƏVVƏL: `Clear() + foreach Add()` → WPF N dəfə CollectionChanged
+        //    alırdı ✗ → cədvəl/combo N dəfə yenidən qurulurdu ✗ → DONMA ✗
+        //  ✅ İNDİ: `ReplaceAll()` → TƏK `Reset` bildirişi ✓ (ani ✓)
+        public BulkObservableCollection<Credit> Credits { get; } = new();
 
         /// <summary>Axtarış mətninə uyğun kredit müqavilələri (cədvəldə canlı filtrasiya).</summary>
-        public ObservableCollection<Credit> FilteredContracts { get; } = new();
+        public BulkObservableCollection<Credit> FilteredContracts { get; } = new();
 
         [ObservableProperty] private string contractSearchText = string.Empty;
 
         /// <summary>Ödəniş qrafiki tabındaki kredit seçimi üçün filtrlənmiş siyahı.</summary>
-        public ObservableCollection<Credit> FilteredScheduleCredits { get; } = new();
+        public BulkObservableCollection<Credit> FilteredScheduleCredits { get; } = new();
 
         [ObservableProperty] private string scheduleSearchText = string.Empty;
 
@@ -252,10 +257,11 @@ namespace EnterpriseAeroStudio.ViewModels
                 .OrderBy(m => m.Tarix)
                 .Select(m => $"{m.Mebleg:N2} ₼ → {m.TarixMetni} {m.Veziyyet}"));
 
-        public ObservableCollection<CarItem> AvailableCars { get; } = new();
+        // 🚀 v6.2.81 — BULK ✓ (combo N dəfə deyil, TƏK dəfə yenilənir ✓)
+        public BulkObservableCollection<CarItem> AvailableCars { get; } = new();
 
         /// <summary>Axtarış mətninə uyğun avtomobillər (canlı filtrasiya).</summary>
-        public ObservableCollection<CarItem> FilteredCars { get; } = new();
+        public BulkObservableCollection<CarItem> FilteredCars { get; } = new();
 
         [ObservableProperty] private string carSearchText = string.Empty;
 
@@ -651,11 +657,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     return;
                 }
 
-                FilteredCars.Clear();
-                foreach (var car in matches)
-                {
-                    FilteredCars.Add(car);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓ (əvvəl N dəfə Add ✗)
+                FilteredCars.ReplaceAll(matches);
             }
             finally
             {
@@ -724,11 +727,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     return;
                 }
 
-                FilteredContracts.Clear();
-                foreach (var credit in matches)
-                {
-                    FilteredContracts.Add(credit);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓ (əvvəl N dəfə Add → combo N dəfə yenilənirdi ✗)
+                FilteredContracts.ReplaceAll(matches);
 
                 // Axtarış nəticəsində seçilmiş müqavilə görünmürsə, ilk uyğun müqavilə seçilir
                 // (məlumat kartı və ödəniş qrafiki boş qalmasın).
@@ -760,7 +760,7 @@ namespace EnterpriseAeroStudio.ViewModels
         // ====================================================================
 
         /// <summary>🔒 Biz tərəfdən bağlanmış kreditlər (axtarışla süzülmüş ✓).</summary>
-        public ObservableCollection<Credit> BizBaglanmisKreditler { get; } = new();
+        public BulkObservableCollection<Credit> BizBaglanmisKreditler { get; } = new();
 
         /// <summary>🔒 Axtarış mətni — dəyişdikcə siyahı süzülür ✓.</summary>
         [ObservableProperty] private string bizBaglamaAxtaris = string.Empty;
@@ -786,12 +786,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 .OrderByDescending(c => c.Id)
                 .ToList();
 
-            BizBaglanmisKreditler.Clear();
-
-            foreach (var c in siyahi)
-            {
-                BizBaglanmisKreditler.Add(c);
-            }
+            // 🚀 v6.2.81 — TƏK Reset ✓
+            BizBaglanmisKreditler.ReplaceAll(siyahi);
 
             OnPropertyChanged(nameof(BizBaglamaCountText));
         }
@@ -1242,11 +1238,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     return;
                 }
 
-                FilteredScheduleCredits.Clear();
-                foreach (var credit in matches)
-                {
-                    FilteredScheduleCredits.Add(credit);
-                }
+                FilteredScheduleCredits.ReplaceAll(matches);
             }
             finally
             {
@@ -1892,7 +1884,16 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         public async Task LoadAsync()
         {
-            await _gate.WaitAsync();
+            // ⏱️ v6.2.81 — GATE-ə limit ✓ (əvvəl sonsuz gözləyirdi ✗ → tab boş qalırdı ✗)
+            if (!await _gate.WaitAsync(TimeSpan.FromSeconds(25)))
+            {
+                _logger.LogWarning("⏱️ Kreditlər: əvvəlki yükləmə hələ bitməyib — gözləmə ləğv edildi ✗");
+                return;
+            }
+
+            var saat = System.Diagnostics.Stopwatch.StartNew();
+            PerfTracker.Qur("Kreditlər · yükləmə");
+
             try
             {
                 IsBusy = true;
@@ -1916,12 +1917,34 @@ namespace EnterpriseAeroStudio.ViewModels
                 //       yüklənirdi ✗ → combo uzun müddət BOŞ görünürdü ✗
                 //       ✅ İNDİ: hər ikisi BİR arxa fon işində PARALEL hazırlanır ✓
                 // ================================================================
-                var (credits, carsHam) = await Task.Run(async () =>
+                // ================================================================
+                //  🚘 ① AVTOMOBİLLƏR ƏN ƏVVƏL və AYRI QORUNUR ✓✓✓ (v6.2.81)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: maşın siyahısı kreditlərlə BİR yerdə oxunurdu ✗ →
+                //    kredit tərəfində hər hansı xəta olsa combo BOŞ qalırdı ✗✓✓
+                //  ✅ İNDİ: maşınlar AYRICA yüklənir ✓ (kredit xətası ona
+                //    TƏSİR ETMİR ✗) və dərhal combo-ya yazılır ✓✓✓
+                // ================================================================
+                IReadOnlyList<CarItem> carsHam = Array.Empty<CarItem>();
+
+                try
                 {
-                    var c = await _creditService.GetCreditsAsync();
-                    var k = await _carService.GetCarsLightAsync();
-                    return (c, k);
-                });
+                    carsHam = await Task.Run(() => _carService.GetCarsLightAsync());
+
+                    AvailableCars.ReplaceAll(carsHam);
+                    ApplyCarFilter();
+
+                    _logger.LogInformation(
+                        "🚘 Kreditlər tabı: {Say} avtomobil combo-ya yükləndi ✓ ({Ms} ms)",
+                        carsHam.Count, saat.ElapsedMilliseconds);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "🚘 Kreditlər tabı: avtomobil siyahısı yüklənmədi ✗");
+                }
+
+                // ② KREDİTLƏR ✓
+                var credits = await Task.Run(() => _creditService.GetCreditsAsync());
 
                 // 📄 PDF ixracı üçün BÜTÜN kreditlər saxlanılır ✓ (bağlılar da ✓)
                 _butunKreditler = credits.ToList();
@@ -1944,7 +1967,13 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 var keepId = SelectedCredit?.Id;
-                Credits.Clear();
+
+                // 🚀 v6.2.81 — Siyahı TƏK `Reset` ilə yazılır ✓✓✓
+                //  ⚠ ƏVVƏL: `Credits.Clear()` + hər kredit üçün `Add` ✗ →
+                //    cədvəl 200+ dəfə yenidən qurulurdu ✗ → Kreditlər tabı
+                //    açılanda proqram DONURDU ✗✓✓
+                var görünənKreditler = new List<Credit>(credits.Count);
+
                 var sira = 1;
 
                 // 🔢 «0» nömrəli kreditlər → ardıcıl nömrə alıb YADDA SAXLANILIR ✓✓✓
@@ -1978,8 +2007,11 @@ namespace EnterpriseAeroStudio.ViewModels
                     }
 
                     sira++;
-                    Credits.Add(credit);
+                    görünənKreditler.Add(credit);
                 }
+
+                // 🚀 TƏK bildirişlə yazılır ✓ (əvvəl 200+ Add ✗)
+                Credits.ReplaceAll(görünənKreditler);
 
                 // 💾 Düzəldilən nömrələr bazaya yazılır ✓ → ☁️ Firebase-ə də düzgün gedir ✓✓✓
                 var yazilanDuzelis = 0;
@@ -2019,13 +2051,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 ApplyContractFilter();      // cədvəlin axtarış filtri tətbiq olunur
                 ApplyScheduleFilter();      // ödəniş qrafiki tabının kredit seçimi yenilənir
 
-                // 🚘 AVTOMOBİL SİYAHISI — ARTIQ YUXARIDA (arxa fonda ✓) hazırdır ✓
-                AvailableCars.Clear();
-
-                foreach (var car in carsHam)
-                {
-                    AvailableCars.Add(car);
-                }
+                // 🚘 AVTOMOBİL SİYAHISI — artıq YUXARIDA yükləndi ✓ (təkrar yazmırıq ✗)
+                ApplyCarFilter();
 
                 ApplyCarFilter();
 
@@ -2126,6 +2153,10 @@ namespace EnterpriseAeroStudio.ViewModels
                     }
                 }
                 _logger.LogInformation("{Count} kredit yükləndi.", Credits.Count);
+
+                _logger.LogInformation(
+                    "⏱️ [Kreditlər] BÜTÜN yükləmə — {Ms} ms · {K} kredit · {C} maşın · {T} əməliyyat",
+                    saat.ElapsedMilliseconds, Credits.Count, AvailableCars.Count, _creditTransactions.Count);
             }
             catch (Exception ex)
             {
@@ -2136,6 +2167,7 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 IsBusy = false;
                 _gate.Release();
+                PerfTracker.Bitir();
             }
         }
 
@@ -3713,12 +3745,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     {
                         var sıralı = SortContracts(FilteredContracts.ToList());
 
-                        FilteredContracts.Clear();
-
-                        foreach (var k in sıralı)
-                        {
-                            FilteredContracts.Add(k);
-                        }
+                        FilteredContracts.ReplaceAll(sıralı);
                     }
                 }
             }

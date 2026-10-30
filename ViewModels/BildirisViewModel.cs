@@ -155,7 +155,12 @@ namespace EnterpriseAeroStudio.ViewModels
                     return (k, t, m, s);
                 }, cancellationToken);
 
-                _butun = OdenisQrafiki.Qur(kreditler, emeliyyatlar, mohletler, satislar);
+                // 🚀 v6.2.81 — QRAFİQ QURULUŞU DA ARXA FONDA ✓✓✓
+                //  ⚠ ƏVVƏL: `Qur(...)` UI axınında idi ✗ → yüzlərlə kredit ×
+                //    36 taksit = minlərlə sətir ✗ → tab açılanda DONMA ✗✓✓
+                _butun = await Task.Run(() =>
+                    OdenisQrafiki.Qur(kreditler, emeliyyatlar, mohletler, satislar),
+                    cancellationToken);
 
                 BugunMetni = DateTime.Today.ToString("dd MMMM yyyy");
 

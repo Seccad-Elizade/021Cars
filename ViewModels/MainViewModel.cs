@@ -902,7 +902,26 @@ namespace EnterpriseAeroStudio.ViewModels
                         Interval = TimeSpan.FromSeconds(AvtoYenilemeSaniye)
                     };
 
-                    _avtoYenile.Tick += async (_, _) => await HamisiniYenileAsync();
+                    _avtoYenile.Tick += async (_, _) =>
+                    {
+                        // 🚀 v6.2.81 — Pəncərə AKTİV DEYİLSƏ yeniləmə YOX ✗✓✓
+                        //  ⚠ ƏVVƏL: istifadəçi başqa proqramda işləyəndə də
+                        //    hər 30 saniyədə cədvəllər yenidən qurulurdu ✗ →
+                        //    geri qayıdanda «donmuş» görünürdü ✗✓✓
+                        //  ✅ İNDİ: yalnız pəncərə aktiv olanda yenilənir ✓
+                        try
+                        {
+                            var pəncərə = System.Windows.Application.Current?.MainWindow;
+
+                            if (pəncərə is not null && !pəncərə.IsActive)
+                            {
+                                return;
+                            }
+                        }
+                        catch { }
+
+                        await HamisiniYenileAsync();
+                    };
                     _avtoYenile.Start();
                 }
 

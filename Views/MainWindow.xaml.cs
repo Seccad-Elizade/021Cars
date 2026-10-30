@@ -331,8 +331,12 @@ namespace EnterpriseAeroStudio.Views
                     catch { }
                 }
 
+                // 🚀 v6.2.81 — BLOKLAYICI `Invoke` → `BeginInvoke` ✓✓✓
+                //  ⚠ `Dispatcher.Invoke` çağıran (fon) axını UI axını boşalana
+                //    qədər BLOKLAYIR ✗ → UI məşğul olanda qarşılıqlı gözləmə ✗
+                //  ✅ İndi UI axını heç vaxt gözlədilmir ✓ (yalnız növbəyə yazılır ✓)
                 if (Dispatcher.CheckAccess()) İş();
-                else Dispatcher.Invoke(İş);
+                else Dispatcher.BeginInvoke(İş, System.Windows.Threading.DispatcherPriority.Background);
             }
             catch { }
         }

@@ -557,11 +557,25 @@ namespace EnterpriseAeroStudio
                 // ================================================================
                 if (window.DataContext is ViewModels.MainViewModel anaVm)
                 {
-                    // ⏱️ 30 saniyə ✓ (ƏVVƏL 5 ✗) — böyük bazada hər 5 saniyəlik
-                    // tam yeniləmə «işləyərkən donma» yaradırdı ✗✓✓
-                    // ✅ Real dəyişikliklər onsuz da ANİ tutulur ✓ (fayl izləyicisi ✓)
-                    anaVm.AvtoYenilemeyeBasla(30);
+                    // ⏱️ 90 saniyə ✓ (v6.2.81 — 30 → 90) · UI DONMUR ✗
+                    //  ✅ Real dəyişikliklər onsuz da ANİ tutulur ✓ (fayl izləyicisi ✓)
+                    anaVm.AvtoYenilemeyeBasla(90);
                 }
+
+                // 🩺 v6.2.81 — UI DONMA NƏZARƏTÇİSİ ✓✓✓
+                //  • Fon nəzarətçisi: UI 2,5 s-dən çox bloklanarsa loga yazır ✓
+                //  • Nəbz: UI axınında 250 ms-lik DispatcherTimer ✓
+                //  (istifadəçi yalnız log faylını göndərir → dəqiq diaqnoz ✓)
+                EnterpriseAeroStudio.Services.UiWatchdog.Başlat();
+
+                var nəbzTimeri = new System.Windows.Threading.DispatcherTimer(
+                    System.Windows.Threading.DispatcherPriority.Send)
+                {
+                    Interval = TimeSpan.FromMilliseconds(250)
+                };
+
+                nəbzTimeri.Tick += (_, _) => EnterpriseAeroStudio.Services.UiWatchdog.Nəbz();
+                nəbzTimeri.Start();
 
                 // ✅ Əsas pəncərə açıldı → NORMAL bağlanma rejimi bərpa olunur ✓✓✓
                 //  (əsas pəncərə bağlananda proqram düzgün bağlanır ✓)

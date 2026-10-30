@@ -250,7 +250,7 @@ namespace EnterpriseAeroStudio.ViewModels
         //    istifadəçinin özünün yazdığı hərəkətlər üçündür ✓✓✓
         // ====================================================================
         /// <summary>Əl ilə yazılmış hərəkətlər (ən yenidən köhnəyə ✓).</summary>
-        public ObservableCollection<KassaHereket> ManuelHereketler { get; } = new();
+        public BulkObservableCollection<KassaHereket> ManuelHereketler { get; } = new();
 
         /// <summary>Əl ilə heç bir hərəkət yoxdurmu? (boş panel yazısı üçün ✓)</summary>
         public bool HereketYoxdur => ManuelHereketler.Count == 0;
@@ -375,10 +375,10 @@ namespace EnterpriseAeroStudio.ViewModels
         //  ③ ✅ ÖDƏNİLMİŞ — pul GƏLDİ ✓ → kassaya DAXİL olundu ✓✓✓
         // ====================================================================
         /// <summary>🕓 Ödənilməmiş möhlətlər (tarixə görə ✓ — ən yaxını əvvəldə ✓).</summary>
-        public ObservableCollection<OdenisMohlet> GozlenilenMohletler { get; } = new();
+        public BulkObservableCollection<OdenisMohlet> GozlenilenMohletler { get; } = new();
 
         /// <summary>✅ Son ödənilmiş möhlətlər (ən yenisi əvvəldə ✓).</summary>
-        public ObservableCollection<OdenisMohlet> OdenilmisMohletler { get; } = new();
+        public BulkObservableCollection<OdenisMohlet> OdenilmisMohletler { get; } = new();
 
         /// <summary>✅ Ödənilmiş (kassaya daxil olmuş) möhlətlərin CƏMİ (₼).</summary>
         [ObservableProperty] private decimal odenilmisCem;
@@ -1583,12 +1583,8 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ================================================================
                 var elIle = await _kassa.GetHereketlerAsync(cancellationToken);
 
-                ManuelHereketler.Clear();
-
-                foreach (var hereket in elIle)
-                {
-                    ManuelHereketler.Add(hereket);
-                }
+                // 🚀 v6.2.81 — TƏK Reset ✓
+                ManuelHereketler.ReplaceAll(elIle);
 
                 // ================================================================
                 //  ③ ⏳ MÖHLƏTLƏR  («nə vaxt, nə qədər pul gələcək» ✓✓✓)
@@ -1631,17 +1627,9 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Take(300)
                     .ToList();
 
-                GozlenilenMohletler.Clear();
-                foreach (var mohlet in gozlenilen)
-                {
-                    GozlenilenMohletler.Add(mohlet);
-                }
+                GozlenilenMohletler.ReplaceAll(gozlenilen);
 
-                OdenilmisMohletler.Clear();
-                foreach (var mohlet in odenilmis)
-                {
-                    OdenilmisMohletler.Add(mohlet);
-                }
+                OdenilmisMohletler.ReplaceAll(odenilmis);
 
                 OdenilmisCem = butunMohletler.Where(m => m.Odenilib).Sum(m => m.Mebleg);
 
