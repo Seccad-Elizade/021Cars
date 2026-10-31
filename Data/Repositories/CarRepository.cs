@@ -1,4 +1,5 @@
 using EnterpriseAeroStudio.Models;
+using EnterpriseAeroStudio.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace EnterpriseAeroStudio.Data.Repositories
@@ -115,13 +116,44 @@ namespace EnterpriseAeroStudio.Data.Repositories
                             .Include(c => c.Credits)
                             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
+        /// <summary>
+        /// 🚘 <b>DUBLİKAT DÖVLƏT NÖMRƏSİ YOXLAMASI</b> ✓✓✓ (v6.2.83)
+        /// <para>
+        /// ⚠ ƏVVƏL: <b>ARXİVDƏKİ</b> (satılmış · barter · transfer ·
+        /// «biz tərəfdən bağlanmış») maşınlar da sayılırdı ✗ →
+        /// istifadəçi satılmış maşını yenidən əlavə edə bilmirdi ✗
+        /// («artıq mövcuddur» ✗✓✓)
+        /// </para>
+        /// <para>
+        /// ✅ İNDİ: yalnız <b>AKTİV</b> maşınlar yoxlanılır ✓ (arxiv
+        /// maşınları mane olmur ✗) · nömrə <b>normallaşdırılır</b> ✓
+        /// (boşluq və defis fərqi olmur: «88-DE-692» = «88DE692» ✓)
+        /// </para>
+        /// </summary>
         public async Task<bool> RegistrationExistsAsync(string registration, int? excludeId = null, CancellationToken cancellationToken = default)
         {
-            var normalized = (registration ?? string.Empty).Trim().ToUpperInvariant();
+            var normalized = NormalizeRegistration(registration);
+
+            if (normalized.Length == 0)
+            {
+                return false;
+            }
+
+            var arxivdə = Catalog.ArchivedStatuses;
+
             return await Context.Cars.AnyAsync(
-                c => c.QeydiyyatNisani.ToUpper() == normalized &&
+                c => c.QeydiyyatNisani.ToUpper().Replace("-", "").Replace(" ", "") == normalized &&
+                     (c.Status == null || !arxivdə.Contains(c.Status)) &&
                      (!excludeId.HasValue || c.Id != excludeId.Value),
                 cancellationToken);
         }
+
+        /// <summary>🔤 Nömrəni normallaşdırır: böyük hərf · boşluq/defis YOX ✓</summary>
+        private static string NormalizeRegistration(string? registration)
+            => (registration ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant()
+                .Replace("-", string.Empty)
+                .Replace(" ", string.Empty);
     }
 }

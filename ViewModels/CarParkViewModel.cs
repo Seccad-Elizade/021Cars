@@ -147,7 +147,10 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 if (await _carService.RegistrationExistsAsync(Editor.QeydiyyatNisani))
                 {
-                    _dialogs.ShowWarning($"\"{Editor.QeydiyyatNisani}\" nömrəli avtomobil artıq mövcuddur.");
+                    _dialogs.ShowWarning(
+                        $"\"{Editor.QeydiyyatNisani}\" nömrəli AKTİV avtomobil artıq mövcuddur.\n\n" +
+                        "ℹ️ Satılmış · barter · transfer · arxivdəki maşınlar bu yoxlamaya DAXİL DEYİL ✓\n" +
+                        "(onlar üçün eyni nömrə ilə YENİ qeyd yarada bilərsiniz ✓)");
                     return;
                 }
 
@@ -213,7 +216,10 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 if (await _carService.RegistrationExistsAsync(car.QeydiyyatNisani, car.Id))
                 {
-                    _dialogs.ShowWarning($"\"{car.QeydiyyatNisani}\" nömrəli avtomobil artıq mövcuddur.\nDəyişiklik yadda saxlanmadı.");
+                    _dialogs.ShowWarning(
+                        $"\"{car.QeydiyyatNisani}\" nömrəli AKTİV avtomobil artıq mövcuddur.\n" +
+                        "Dəyişiklik yadda saxlanmadı.\n\n" +
+                        "ℹ️ Satılmış / arxivdəki maşınlar bu yoxlamaya daxil deyil ✓");
                 }
                 else
                 {

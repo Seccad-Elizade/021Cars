@@ -218,6 +218,38 @@ namespace EnterpriseAeroStudio.Services
             string.Equals(status, TransferStatus, StringComparison.Ordinal) ||
             string.Equals(status, CreditStatus, StringComparison.Ordinal);
 
+        /// <summary>
+        /// 🗄️ <b>ARXİV STATUSLARI</b> ✓✓✓ (v6.2.83)
+        /// <para>
+        /// Bu statusdakı avtomobillər <b>bizim aktiv parkımızda DEYİL</b> ✗ —
+        /// satılıb, barterə verilib, transfer edilib və ya «biz tərəfdən
+        /// bağlanıb» ✓
+        /// </para>
+        /// <para>
+        /// ★ İstifadəçi şikayəti: «88-DE-692 nömrəli maşın artıq satılıb,
+        /// krediti də bitib — amma yenidən əlavə edəndə "artıq mövcuddur"
+        /// xəbərdarlığı gəlir ✗»
+        /// </para>
+        /// <para>
+        /// ✅ Bu statuslar <b>dublikat yoxlamasında NƏZƏRƏ ALINMIR</b> ✓ →
+        /// satılmış maşını yenidən (yeni alış kimi) əlavə etmək OLUR ✓✓✓
+        /// </para>
+        /// </summary>
+        public static bool IsArchived(string? status) =>
+            string.Equals(status, SoldStatus, StringComparison.Ordinal) ||
+            string.Equals(status, BarterGivenStatus, StringComparison.Ordinal) ||
+            string.Equals(status, TransferStatus, StringComparison.Ordinal) ||
+            string.Equals(status, BizBaglamaCarStatus, StringComparison.Ordinal);
+
+        /// <summary>🗄️ Arxiv statuslarının siyahısı ✓ (SQL <c>NOT IN</c> üçün ✓)</summary>
+        public static readonly string[] ArchivedStatuses =
+        {
+            SoldStatus,
+            BarterGivenStatus,
+            TransferStatus,
+            BizBaglamaCarStatus
+        };
+
         // ====================================================================
         //  TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ  (kredit əlavə gəlir/xərc)
         // --------------------------------------------------------------------
