@@ -824,11 +824,36 @@ namespace EnterpriseAeroStudio.Services
         {
             //  ⚠ TƏKRAR yazının qarşısı: bu maşın/müqavilə üçün transfer
             //    satışı artıq varsa → yenidən yazılmır ✓
-            var movcud = await _sales.FindAsync(
-                s => s.CarId == credit.CarId && s.MuqavileNomresi == credit.MuqavileNomresi,
-                cancellationToken);
+            //  ✅ v6.2.83 — eyni müqavilə nömrəsi ilə İKİNCİ kredit yaratmaq
+            //     İCAZƏLİ olduğu üçün yoxlama markerlə DƏQİQLƏŞDİRİLDİ ✓✓✓
+            //     ① yeni qeydlər: «kredit #<Id>» markeri ilə ✓
+            //     ② köhnə qeydlər (marker yoxdur): maşın + müqavilə ilə ✓
+            var marker = $"kredit #{credit.Id}";
 
-            if (movcud.Count > 0)
+            var namizədlər = await _sales.FindAsync(
+                s => s.CarId == credit.CarId, cancellationToken);
+
+            var artıqVar = namizədlər.Any(s =>
+            {
+                var qeyd = s.Qeyd ?? string.Empty;
+
+                if (qeyd.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;      // ① bu kredit üçün artıq yazılıb ✓
+                }
+
+                // ② marker YOXDUR → köhnə qayda ✓ (maşın + müqavilə)
+                if (qeyd.Contains("kredit #", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;     // marker var, amma BAŞQA kreditindir ✓
+                }
+
+                return string.Equals(
+                    s.MuqavileNomresi?.Trim(), credit.MuqavileNomresi?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+            });
+
+            if (artıqVar)
             {
                 return;
             }
@@ -887,7 +912,8 @@ namespace EnterpriseAeroStudio.Services
                 Qeyd = ($"📤 Transfer — {credit.Mustəri} → {sahib} · " +
                         $"SATIŞ {satisQiymeti:N2} − MAYA {maya:N2} = " +
                         $"XEYİR {xeyir:N2} ₼  ·  şəxsin verdiyi PUL {pul:N2} ₼ " +
-                        $"(nisyə {nisye:N2} ₼ — satış qiymətinin içindədir ✓)").Replace(",", " ")
+                        $"(nisyə {nisye:N2} ₼ — satış qiymətinin içindədir ✓) " +
+                        $"· kredit #{credit.Id}").Replace(",", " ")
             };
 
             await _sales.AddAsync(sale, cancellationToken);

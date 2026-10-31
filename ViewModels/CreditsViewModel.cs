@@ -2243,15 +2243,35 @@ namespace EnterpriseAeroStudio.ViewModels
                             $"   • {c.MuqavileNomresi} — {c.Mustəri} · {c.Status}" +
                             (string.IsNullOrWhiteSpace(c.Car?.DisplayName) ? string.Empty : $" · {c.Car!.DisplayName}")));
 
-                    _dialogs.ShowWarning(
-                        $"🛡️ «{contractNo}» nömrəli müqavilə ARTIQ MÖVCUDDUR ✗\n\n" +
+                    // ============================================================
+                    //  ✅ v6.2.83 — BLOK YOX, TƏSDİQ ✓✓✓
+                    // ------------------------------------------------------------
+                    //  ★ İstifadəçi tələbi: «aktiv kredit olsa da eyni müqavilə
+                    //    nömrəsi ilə yeni kredit yaratmağa İCAZƏ VERİLMƏLİDİR ✓»
+                    //  ⚠ ƏVVƏL: sərt blok idi ✗ → iş dayanırdı ✗ (məs. köhnə
+                    //    krediti düzəltmək/sındırmaq lazım olanda əl-qolu bağlı ✗)
+                    //  ✅ İNDİ: xəbərdarlıq + «Bəli» ilə DAVAM ETMƏK olur ✓
+                    //     (nəticə log-a yazılır ✓ → audit izi qalır ✓)
+                    // ============================================================
+                    var davamAktiv = _dialogs.Confirm(
+                        $"⚠️ «{contractNo}» nömrəli müqavilə ARTIQ MÖVCUDDUR ✓\n\n" +
                         $"{kim}\n\n" +
-                        "Bu kredit HƏRƏKƏTDƏDİR (aktiv ✓) — eyni nömrə ilə ikinci kredit\n" +
-                        "yaradıla bilməz ✗\n\n" +
-                        "Zəhmət olmasa başqa müqavilə nömrəsi yazın ✓\n" +
-                        "(yaxud həmin krediti siyahıdan seçib düzəliş edin ✓)");
+                        "Bu kredit HƏRƏKƏTDƏDİR (aktiv ✓) — eyni nömrə ilə İKİNCİ kredit\n" +
+                        "yaradılması hesabatlarda iki eyni müqavilə nömrəsi yaradacaq ✗\n\n" +
+                        "Yenə də YENİ kredit yaradılsın? ✓\n\n" +
+                        "   • ✅ Bəli  → eyni nömrə ilə yeni kredit yaradılır\n" +
+                        "   • ❌ Xeyr  → başqa müqavilə nömrəsi yazın\n" +
+                        "     (yaxud həmin krediti siyahıdan seçib düzəliş edin ✓)",
+                        "⚠️ Müqavilə nömrəsi artıq aktivdir");
 
-                    return;
+                    if (!davamAktiv)
+                    {
+                        return;
+                    }
+
+                    _logger.LogWarning(
+                        "⚠️ Eyni müqavilə nömrəsi ilə İKİNCİ kredit yaradılır: «{Nomre}» — mövcud aktiv: {Kim}",
+                        contractNo, kim.Replace(Environment.NewLine, " | "));
                 }
 
                 if (eyniNomreli.Count > 0)
