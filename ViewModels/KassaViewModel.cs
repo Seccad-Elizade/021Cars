@@ -790,6 +790,15 @@ namespace EnterpriseAeroStudio.ViewModels
                 else
                 {
                     // ① ÖDƏNİLƏN HİSSƏ — ayrıca «ödənildi» sətri ✓
+                    // ============================================================
+                    //  🔗 v6.2.83 — MARKER: ƏSAS möhlətin Id-si + İLKİN tarixi ✓✓✓
+                    //  → geri almada (↩) əsas möhlət TAM bərpa olunur ✓ və bu
+                    //    sətir SİLİNİR ✓ → ƏLAVƏ möhlət YARANMIR ✗✓✓
+                    // ============================================================
+                    var esasId = mohlet.Id;
+                    var ilkinTarix = mohlet.Tarix;
+                    var esasMebleg = mohlet.Mebleg;
+
                     var odenilmis = await _mohletler.AddAsync(new OdenisMohlet
                     {
                         Menbe = mohlet.Menbe,
@@ -798,7 +807,8 @@ namespace EnterpriseAeroStudio.ViewModels
                         Tarix = tarix,
                         Mebleg = odenis,
                         Sira = mohlet.Sira,
-                        Qeyd = $"⏳ Qismən ödəniş ✓ (möhlət {mohlet.Mebleg:N2} ₼ idi)"
+                        Qeyd = $"⏳ Qismən ödəniş ✓ (möhlət {esasMebleg:N2} ₼ idi) · " +
+                               $"əsas #{esasId} · ilkin tarix: {ilkinTarix:dd.MM.yyyy}"
                     });
 
                     odenilmis.Odenilib = true;
@@ -1265,7 +1275,23 @@ namespace EnterpriseAeroStudio.ViewModels
                     Tarix = odenisTarixi,
                     Mebleg = odenilen,
                     Sira = mohlet.Sira,
-                    Qeyd = "⏳ Qismən ödəniş ✓"
+
+                    // ============================================================
+                    //  🔗 v6.2.83 — ƏLAQƏ MARKERİ ✓✓✓ (GERİ ALMA DÜZƏLİŞİ)
+                    // ------------------------------------------------------------
+                    //  ★ İstifadəçi şikayəti: «07.09.2026 · 5 000 ₼ möhlətdən
+                    //    1 000 ₼ ödədim → qalıq 4 000 ₼ oldu ✓. Sonra həmin
+                    //    1 000 ₼-ı GERİ ALDIM ✗ → 4 000 ₼ düzgün 5 000 ₼-a
+                    //    qayıtdı ✓ AMMA yanında ƏLAVƏ 1 000 ₼-lıq möhlət
+                    //    yarandı ✗✗ → ortada 1 000 ₼ «peyda oldu» ✗»
+                    // ------------------------------------------------------------
+                    //  🐞 KÖK SƏBƏB: geri almada bu sətir sadəcə
+                    //     «ödənilmədi» edilirdi ✗ → 1 000 ₼-lıq YENİ möhlət ✗
+                    //  ✅ İNDİ: bu sətir **ƏSAS möhlətin Id-si** və
+                    //     **İLKİN TARİXİ** ilə işarələnir ✓ → geri almada
+                    //     dəqiq bərpa olunur və sətir SİLİNİR ✓✓✓
+                    // ============================================================
+                    Qeyd = $"⏳ Qismən ödəniş ✓ · əsas #{mohlet.Id} · ilkin tarix: {mohlet.Tarix:dd.MM.yyyy}"
                 });
 
                 // ✅ v6.2.53 — BİRBAŞA yeniləmə ✓ (SetOdenildiAsync səssiz uğursuz olurdu ✗)
@@ -1380,47 +1406,33 @@ namespace EnterpriseAeroStudio.ViewModels
             try
             {
                 // ================================================================
-                //  ✅ v6.2.51 — LƏĞV: BİRBAŞA UpdateAsync ilə yazılır ✓✓✓
-                //  ⚠ ƏVVƏL: SetOdenildiAsync(...) nəticəsi YOXLANILMIRDI ✗ →
-                //     uğursuz olsa belə proqram «ləğv olundu» deyirdi ✗ (səssiz ✗)
-                //  ✅ İNDİ: entity-nin özü yenilənir ✓ + nəticə yoxlanılır ✓
+                //  🔍 v6.2.83 — BU SƏTİR «QİSMƏN ÖDƏNİŞ»DİRMİ? ✓✓✓
+                // ----------------------------------------------------------------
+                //  Qismən ödəniş = AYRICA ödəniş qeydidir ✗ (möhlət deyil ✓)
+                //  → geri alanda «ödənilmədi» edilməməlidir ✗
+                //  → əsas möhlət bərpa olunur ✓ və bu sətir SİLİNİR ✓✓✓
                 // ================================================================
-                mohlet.Odenilib = false;
-                mohlet.OdenilmeTarixi = null;
+                var qismenMi = mohlet.Odenilib
+                               && (mohlet.Qeyd ?? string.Empty)
+                                   .Contains("Qismən", StringComparison.OrdinalIgnoreCase);
 
-                // ================================================================
-                //  💰 v6.2.52 — «A»: QİSMƏN ÖDƏNİŞ GERİ ALINIRSA
-                //  → orijinal möhlətin MƏBLƏĞİ və TARİXİ tam BƏRPA olunur ✓✓✓
-                //  ⚠ ƏVVƏL: yalnız bu sətir «ödənilmədi» olurdu ✗ →
-                //     orijinalın AZALDILMIŞ məbləği qalırdı ✗ → pul «yox olurdu» ✗✓✓
-                // ================================================================
-                if (mohlet.Qeyd?.Contains("Qismən", StringComparison.OrdinalIgnoreCase) == true)
+                var esasBerpaMebleg = (decimal?)null;
+                var silinenPaylar = 0;
+
+                if (qismenMi)
                 {
-                    var orijinal = GozlenilenMohletler.FirstOrDefault(m =>
-                        m.Id != mohlet.Id
-                        && !m.Odenilib
-                        && m.CreditId == mohlet.CreditId
-                        && m.SaleId == mohlet.SaleId
-                        && m.Sira == mohlet.Sira
-                        && string.Equals(m.Menbe, mohlet.Menbe, StringComparison.Ordinal));
-
-                    if (orijinal is not null)
-                    {
-                        // ① məbləğ geri qaytarılır ✓ (5 000 → 2 000 ödənildi → 5 000 ✓)
-                        orijinal.Mebleg = Math.Round(orijinal.Mebleg + mohlet.Mebleg, 2);
-
-                        // ② orijinal tarix bərpa olunur ✓
-                        orijinal.Tarix = mohlet.Tarix;
-
-                        await _mohletler.UpdateAsync(orijinal);
-
-                        _logger.LogInformation(
-                            "↩ Qismən ödəniş geri alındı → orijinal bərpa: #{Id} · {Mebleg:N2} ₼ ({Tarix:dd.MM.yyyy})",
-                            orijinal.Id, orijinal.Mebleg, orijinal.Tarix);
-                    }
+                    // ♻️ QİSMƏN ÖDƏNİŞ → əsas möhlət TAM bərpa + ödəniş sətri SİLİNİR ✓
+                    //  (məntiq XİDMƏTDƏDİR ✓ → test oluna bilir ✓✓✓)
+                    esasBerpaMebleg = await _mohletler.QismenOdenisiGeriQaytarAsync(mohlet.Id);
                 }
+                else
+                {
+                    // ✅ ADİ (TAM) ÖDƏNİŞ → yalnız işarə geri alınır ✓
+                    mohlet.Odenilib = false;
+                    mohlet.OdenilmeTarixi = null;
 
-                await _mohletler.UpdateAsync(mohlet);
+                    await _mohletler.UpdateAsync(mohlet);
+                }
 
                 // ================================================================
                 //  🗑️ v6.2.79 — TƏRƏFDAŞ PAYLARI DA SİLİNİR ✓✓✓
@@ -1430,7 +1442,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 //  🔗 Marker (`möhlət #Id`) ilə DƏQİQ sətir tapılır ✓ →
                 //     payları ilə birlikdə silinir ✓
                 // ================================================================
-                var silinenPaylar = await MohletBolguPaylariniSilAsync(mohlet.Id);
+                silinenPaylar = await MohletBolguPaylariniSilAsync(mohlet.Id);
 
                 OdenilmisMohletler.Remove(mohlet);
 
@@ -1446,7 +1458,10 @@ namespace EnterpriseAeroStudio.ViewModels
                     "↩️ GERİ ALINDI ✓✓✓\n\n" +
                     $"📌 {mohlet.MenbeMetni}\n" +
                     $"Məbləğ: {mohlet.Mebleg:N2} ₼\n\n" +
-                    "✅ Möhlət yenidən «GÖZLƏNİLƏN MÖHLƏTLƏR» siyahısındadır ✓\n" +
+                    (esasBerpaMebleg is decimal bərpa
+                        ? $"✅ ƏSAS möhlət TAM bərpa olundu: {bərpa:N2} ₼ ✓\n" +
+                          "✅ Əlavə möhlət sətri YARADILMADI ✓ (ödəniş qeydi silindi ✓)\n"
+                        : "✅ Möhlət yenidən «GÖZLƏNİLƏN MÖHLƏTLƏR» siyahısındadır ✓\n") +
                     "⚠ Pul kassadan ÇIXARILDI ✓ (jurnal yeniləndi ✓)" +
                     (silinenPaylar > 0
                         ? $"\n🗑️ Tərəfdaş bölgüsü də SİLİNDİ ✓ ({silinenPaylar} sətir)"
@@ -1458,6 +1473,45 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 _logger.LogError(ex, "Möhlətin işarəsi geri alına bilmədi");
                 _dialogs.ShowError("Geri alına bilmədi: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// 🩹 <b>KÖHNƏ «QİSMƏN ÖDƏNİŞ QALIĞI» AVTO-DÜZƏLİŞİ — BİR DƏFƏLİK</b> ✓✓✓
+        /// <para>
+        /// 5 000 + 1 000 kimi «əlavə» möhlət sətirləri köhnə xətanın qalığıdır ✗ →
+        /// <see cref="IMohletService.KohnəQismenQaliqlariDuzeltAsync"/> ilə təmizlənir ✓
+        /// </para>
+        /// <para>🛡️ Bayraq faylı (`%LOCALAPPDATA%\021Cars\flags`) → yalnız BİR DƏFƏ ✓</para>
+        /// </summary>
+        /// <returns><c>true</c> — düzəliş edildi ✓ (siyahı təzədən oxunmalıdır ✓)</returns>
+        private async Task<bool> KohnəQismenQaliqlariBirDəfəDüzəltAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var qovluq = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "021Cars", "flags");
+
+                System.IO.Directory.CreateDirectory(qovluq);
+
+                var bayraq = System.IO.Path.Combine(qovluq, "mohlet_qismen_duzelis_6_2_83.flag");
+
+                if (System.IO.File.Exists(bayraq))
+                {
+                    return false;      // ✓ artıq icra olunub
+                }
+
+                var say = await _mohletler.KohnəQismenQaliqlariDuzeltAsync(cancellationToken);
+
+                System.IO.File.WriteAllText(bayraq, DateTime.Now.ToString("s"));
+
+                return say > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Möhlət qalıqları düzəldilmədi ✗ (proqram işləyir ✓)");
+                return false;
             }
         }
 
@@ -1514,7 +1568,33 @@ namespace EnterpriseAeroStudio.ViewModels
                 // 🗑️ v6.2.79 — möhlətə bağlı TƏRƏFDAŞ BÖLGÜSÜ də silinir ✓✓✓
                 var silinenPaylar = await MohletBolguPaylariniSilAsync(mohlet.Id);
 
-                await _mohletler.DeleteAsync(mohlet.Id);
+                // ================================================================
+                //  ♻️ v6.2.83 — QİSMƏN ÖDƏNİŞ SİLİNİRSƏ → ƏSAS MÖHLƏT BƏRPA ✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL: yalnız bu sətir silinirdi ✗ → əsas möhlət AZALMIŞ
+                //    (4 000 ₼) qalırdı ✗ → 1 000 ₼ «İTİRDİ» ✗✓✓
+                //  ✅ İNDİ: silmədən əvvəl əsas möhlət TAM bərpa olunur ✓
+                //    (4 000 + 1 000 = 5 000 ✓) və sonra ödəniş sətri silinir ✓
+                // ================================================================
+                var qismenMi = mohlet.Odenilib
+                               && (mohlet.Qeyd ?? string.Empty)
+                                   .Contains("Qismən", StringComparison.OrdinalIgnoreCase);
+
+                if (qismenMi)
+                {
+                    var bərpa = await _mohletler.QismenOdenisiGeriQaytarAsync(mohlet.Id);
+
+                    if (bərpa is decimal məbləğ)
+                    {
+                        _logger.LogInformation(
+                            "🗑 Qismən ödəniş silindi → əsas möhlət bərpa: {Mebleg:N2} ₼ ✓", məbləğ);
+                    }
+                }
+                else
+                {
+                    await _mohletler.DeleteAsync(mohlet.Id);
+                }
+
                 await LoadAsync();
 
                 MelumatDegisdi();
@@ -1590,6 +1670,24 @@ namespace EnterpriseAeroStudio.ViewModels
                 //  ③ ⏳ MÖHLƏTLƏR  («nə vaxt, nə qədər pul gələcək» ✓✓✓)
                 // ================================================================
                 var butunMohletler = await _mohletler.GetAllAsync(cancellationToken);
+
+                // ================================================================
+                //  🩹 v6.2.83 — KÖHNƏ «QİSMƏN ÖDƏNİŞ QALIĞI» AVTO-DÜZƏLİŞİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  🐞 KÖK SƏBƏB (istifadəçi şikayəti): 5 000 ₼ möhlətdən 1 000 ₼
+                //     ödənilib (qalıq 4 000 ✓). Sonra geri alımda köhnə kod
+                //     ödəniş sətrini «ödənilmədi» edirdi ✗ → 4 000 + 1 000
+                //     = 6 000 ₼ görünürdü ✗ («ortadan 1 000 ₼ çıxdı» ✗✓✓)
+                //  ✅ İNDİ: «ödənilməmiş» VƏ təsvirində «Qismən ödəniş» olan
+                //     sətir = köhnə xətanın qalığıdır ✗ → əsas möhlətə
+                //     QAYTARILIR ✓ və sətir SİLİNİR ✓ (bir dəfəlik ✓)
+                //  🛡️ Yalnız BİR DƏFƏ işləyir (bayraq faylı ✓) · xəta udulur ✓
+                // ================================================================
+                if (await KohnəQismenQaliqlariBirDəfəDüzəltAsync(cancellationToken))
+                {
+                    // 🔄 düzəliş oldu → siyahı TƏZƏDƏN oxunur ✓
+                    butunMohletler = await _mohletler.GetAllAsync(cancellationToken);
+                }
 
                 // ================================================================
                 //  📦 v6.2.78 — KREDİT / SATIŞ KEŞİ ✓✓✓

@@ -62,6 +62,33 @@ namespace EnterpriseAeroStudio.Services
         /// <summary>Tək möhləti silir.</summary>
         Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 
+        // ====================================================================
+        //  ♻️ v6.2.83 — QİSMƏN ÖDƏNİŞİN GERİ ALINMASI ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi şikayəti: 5 000 ₼ möhlətdən 1 000 ₼ ödənildi
+        //    (qalıq 4 000 ✓). Geri alanda 4 000 → 5 000 oldu ✓ AMMA
+        //    yanında ƏLAVƏ 1 000 ₼-lıq möhlət yarandı ✗ («ortadan pul çıxdı»).
+        //  ✅ Bu metod qismən ödəniş sətrini ƏSAS möhlətlə birləşdirir:
+        //     əsas möhlətin məbləği TAM bərpa olunur ✓ və ödəniş sətri
+        //     SİLİNİR ✓ → əlavə möhlət YARANMIR ✗✓✓
+        // ====================================================================
+        /// <summary>
+        /// ♻️ Qismən ödənişi geri qaytarır — əsas möhlət bərpa olunur ✓,
+        /// ödəniş sətri silinir ✓.
+        /// </summary>
+        /// <param name="qismenMohletId">Qismən ödəniş sətrinin Id-si.</param>
+        /// <returns>Bərpa olunmuş məbləğ (₼) ✓ · əsas tapılmasa <c>null</c> ✗</returns>
+        Task<decimal?> QismenOdenisiGeriQaytarAsync(
+            int qismenMohletId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 🩹 Köhnə versiyalarda yaranmış «qismən ödəniş qalığı» sətirlərini
+        /// təmizləyir ✓ (bir dəfəlik ✓).
+        /// </summary>
+        /// <returns>Düzəldilən sətir sayı ✓</returns>
+        Task<int> KohnəQismenQaliqlariDuzeltAsync(CancellationToken cancellationToken = default);
+
         /// <summary>Bir kreditin BÜTÜN möhlətlərini silir.</summary>
         Task<int> DeleteForCreditAsync(int creditId, CancellationToken cancellationToken = default);
 
