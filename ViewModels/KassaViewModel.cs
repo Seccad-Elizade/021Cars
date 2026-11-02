@@ -658,30 +658,39 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>💰 Bölgü bazası üçün MƏNBƏ məbləğ = ÖDƏNİLƏCƏK məbləğ ✓ (v6.2.78)</summary>
         public decimal MohletBolguMenbe => MohletOdenisMebleg;
 
-        /// <summary>«Xeyir = Möhlət məbləği − Maya = … ₼» ✓</summary>
-        public string MohletXeyirMetni =>
-            $"Xeyir = Möhlət məbləği − Maya = {MohletBolguMenbe:N2} − {MohletBolguMaya:N2} = {MohletBolguBazasi:N2} ₼";
+        /// <summary>«Xeyir = Möhlət məbləği − Maya = … ₼» ✓ — bölgü söndürülsə izah dəyişir ✓</summary>
+        public string MohletXeyirMetni => MohletBolguTetbiq
+            ? $"Xeyir = Möhlət məbləği − Maya = {MohletBolguMenbe:N2} − {MohletBolguMaya:N2} = {MohletBolguBazasi:N2} ₼"
+            : $"⛔ Bölgü SÖNDÜRÜLÜB ✗ — heç bir mənfəət bölünmür ✓  ·  MAYA (kök): {MohletBolguMaya:N2} ₼";
 
-        /// <summary>Payların cəmi (yalnız ☑ tərəfdaşlar ✓).</summary>
-        public decimal MohletBolguCemi => MohletTerefdaslari.Where(r => r.Aktiv).Sum(r => r.Mebleg);
+        /// <summary>Payların cəmi (yalnız ☑ tərəfdaşlar ✓) — BÖLGÜ SÖNDÜRÜLÜBSƏ 0 ✓✓✓</summary>
+        public decimal MohletBolguCemi => MohletBolguTetbiq
+            ? MohletTerefdaslari.Where(r => r.Aktiv).Sum(r => r.Mebleg)
+            : 0m;
 
         /// <summary>Cəm ilə baza arasındaki fərq ✓.</summary>
-        public decimal MohletBolguFergi => MohletBolguCemi - MohletBolguBazasi;
+        public decimal MohletBolguFergi => MohletBolguCemi - (MohletBolguTetbiq ? MohletBolguBazasi : 0m);
 
         /// <summary>Xülasə: «Zaur 95,40 ₼ · Eşqin 79,50 ₼ · …» ✓</summary>
-        public string MohletBolguXulase => MohletTerefdaslari.Count == 0
-            ? "Bölgü hazır deyil"
-            : string.Join(" · ", MohletTerefdaslari
-                .Where(r => r.Aktiv)
-                .Select(r => $"{r.Terefdas} {r.Mebleg:N2} ₼"));
+        public string MohletBolguXulase => !MohletBolguTetbiq
+            ? "⛔ Bölgü SÖNDÜRÜLÜB — heç kimə pay verilmir ✓ (yenidən açmaq üçün ☑ edin)"
+            : MohletTerefdaslari.Count == 0
+                ? "Bölgü hazır deyil"
+                : string.Join(" · ", MohletTerefdaslari
+                    .Where(r => r.Aktiv)
+                    .Select(r => $"{r.Terefdas} {r.Mebleg:N2} ₼"));
 
         /// <summary>Fərq mətni ✓.</summary>
-        public string MohletBolguFergMetni => MohletBolguFergi == 0m
-            ? "✓ Dəqiq bölünüb — fərq yoxdur"
-            : $"⚠ Fərq: {MohletBolguFergi:N2} ₼";
+        public string MohletBolguFergMetni => !MohletBolguTetbiq
+            ? "⛔ Bölgü söndürülüb — yoxlanılır heç nə yoxdur ✗"
+            : MohletBolguFergi == 0m
+                ? "✓ Dəqiq bölünüb — fərq yoxdur"
+                : $"⚠ Fərq: {MohletBolguFergi:N2} ₼";
 
         /// <summary>Fərq rəngi ✓.</summary>
-        public string MohletBolguFergReng => MohletBolguFergi == 0m ? "#41D39A" : "#F2677F";
+        public string MohletBolguFergReng => !MohletBolguTetbiq
+            ? "#8798AD"
+            : MohletBolguFergi == 0m ? "#41D39A" : "#F2677F";
 
         /// <summary>Bölgü paneli görünsün? (ən azı bir gözlənilən möhlət varsa ✓)</summary>
         public bool MohletBolguGorunur => GozlenilenMohletler.Count > 0;
@@ -728,9 +737,18 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>✅ «Möhlət seçilib?» — panelin aktivliyi üçün ✓</summary>
         public bool MohletSecilib => SelectedGozlenilenMohlet is OdenisMohlet;
 
-        /// <summary>📊 «MAYA (kök): X ₼ · Bölünən mənfəət: Y ₼» izahı ✓</summary>
+        /// <summary>
+        /// 📊 «MAYA (kök): X ₼ · Bölünən mənfəət: Y ₼» izahı ✓
+        /// <para>
+        /// ⚠ v6.2.90 — bölgü SÖNDÜRÜLDÜKDƏ «Bölünən mənfəət» <b>0</b> kimi göstərilir ✓
+        /// (əvvəl bölgü söndürülsə də məbləğ yazılırdı ✗ → «hamısı bölünür» təəssüratı ✗✓✓)
+        /// </para>
+        /// </summary>
         public string MohletKokMetni =>
-            $"🏷️ Maya (kök) payı: {MohletMayaPayi:N2} ₼   ·   💰 Bölünən mənfəət: {MohletBolguBazasi:N2} ₼" +
+            $"🏷️ Maya (kök) payı: {MohletMayaPayi:N2} ₼   ·   " +
+            (MohletBolguTetbiq
+                ? $"💰 Bölünən mənfəət: {MohletBolguBazasi:N2} ₼"
+                : "⛔ Bölgü SÖNDÜRÜLÜB — bölünən mənfəət HESABLANMIR ✗") +
             (MohletOdenisMebleg > 0m
                 ? $"   ·   💵 Ödəniş: {MohletOdenisMebleg:N2} ₼"
                 : string.Empty);
@@ -1180,6 +1198,16 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>🔄 Bölgü bazasını möhlət məbləğindən yeniləyir ✓.</summary>
         private void MohletBolguBazasiniYenile()
         {
+            // ⛔ v6.2.90 — BÖLGÜ SÖNDÜRÜLÜBSƏ baza (bölünən mənfəət) = 0 ✓✓✓
+            //  ★ İstifadəçi: «bölgünü söndürdüyüm halda qalanını bölünən mənfəət
+            //    adlandırır ✗» → indi 0 göstərilir ✓ və heç nə bölünmür ✗✓✓
+            if (!MohletBolguTetbiq)
+            {
+                MohletBolguBazasi = 0m;
+                MohletBolguYenile();
+                return;
+            }
+
             var baza = Math.Round(MohletBolguMenbe - MohletBolguMaya, 2);
 
             MohletBolguBazasi = baza > 0m ? baza : 0m;
@@ -1202,6 +1230,8 @@ namespace EnterpriseAeroStudio.ViewModels
             OnPropertyChanged(nameof(MohletBolguRejimMetni));
             OnPropertyChanged(nameof(MohletBolguManualIzahMetni));
             OnPropertyChanged(nameof(MohletBolguGorunur));
+            OnPropertyChanged(nameof(MohletKokMetni));
+            OnPropertyChanged(nameof(MohletBolguTetbiq));
         }
 
         /// <summary>🏷️ MAYA dəyişdi → baza yenidən hesablanır ✓.</summary>
@@ -1238,6 +1268,25 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 MohletBolguBazasiniYenile();
                 MohletBolguHesabla();
+            }
+            else
+            {
+                // ================================================================
+                //  ⛔ v6.2.90 — BÖLGÜ SÖNDÜRÜLDÜ → PAYLAR SIFIRLANIR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi: «bölgünü söndürdüyüm halda mayada nə yazılıbsa
+                //    onu götürür və qalanını BÖLÜNƏN MƏNFƏƏT adlandırır ✗»
+                //  ✅ İNDİ: bölgü söndürüləndə pay cədvəli BOŞALDIRILIR ✓,
+                //     «bölünən mənfəət» 0 kimi göstərilir ✓,
+                //     heç kimə pay YAZILMIR ✗✓✓
+                //  📌 MAYA (kök) isə qalır ✓ — o, maşının mayasıdır (bölgüdən asılı deyil ✓)
+                // ================================================================
+                foreach (var row in MohletTerefdaslari)
+                {
+                    row.Mebleg = 0m;
+                }
+
+                MohletBolguYenile();
             }
         }
 
@@ -1316,6 +1365,13 @@ namespace EnterpriseAeroStudio.ViewModels
         {
             MohletTerefdaslariniTamamla();
             MohletBolguBazasiniYenile();
+
+            // ⛔ v6.2.90 — bölgü SÖNDÜRÜLÜBSƏ heç nə bölünmür ✗ ✓✓✓
+            if (!MohletBolguTetbiq)
+            {
+                MohletBolguYenile();
+                return;
+            }
 
             // ✍️ Manual rejim → məbləğlər ƏL İLƏDİR ✓ (üzərinə yazılmır ✗)
             if (MohletBolguManual)

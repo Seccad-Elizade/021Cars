@@ -84,6 +84,22 @@ namespace EnterpriseAeroStudio.Services
             {
                 var gecikmə = DateTime.UtcNow - _sonNəbz;
 
+                // ================================================================
+                //  💤 v6.2.90 — KOMPÜTER YATANDA (sleep/hibernate) DONMA SAYILMIR ✗✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ Loqda «UI DONDU — 7685 saniyə» yazılmışdı ✗ (2 saat ✗) —
+                //    bu, proqram donması DEYİL ✗, kompüterin yuxuya getməsidir ✗
+                //  ✅ 60 saniyədən uzun fasilə → nəbz sıfırlanır ✓, xəbərdarlıq YOX ✗
+                // ================================================================
+                if (gecikmə.TotalSeconds > 60)
+                {
+                    _sonNəbz = DateTime.UtcNow;
+                    _donmaBaşladı = null;
+                    _xəbərdarlıqYazıldı = false;
+
+                    return;
+                }
+
                 if (gecikmə <= Hədd)
                 {
                     return;
