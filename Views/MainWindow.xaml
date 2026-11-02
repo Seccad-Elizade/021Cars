@@ -2428,11 +2428,47 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
+                        <!-- ============================================================ -->
+                        <!-- 🧭 v6.2.84 — BƏLƏDÇİ: qrafik necə oxunur? (təzə istifadəçi) -->
+                        <!-- ============================================================ -->
+                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,14" Padding="16,12">
+                            <StackPanel>
+                                <TextBlock Text="🧭 BU CƏDVƏL NECƏ OXUNUR?" FontSize="12.5" FontWeight="Bold" Foreground="#4EC3F5"/>
+
+                                <UniformGrid Columns="3" Margin="0,9,0,0">
+                                    <StackPanel Margin="0,0,14,0">
+                                        <TextBlock Text="①  AYI TAPIN" FontSize="11" FontWeight="Bold" Foreground="#F3C24B"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="«PLAN TARİXİ» = pulun gəlməli olduğu gün. «AYLIQ ÖDƏNİŞ (plan)» həmin ay üçün məbləğdir."/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,14,0">
+                                        <TextBlock Text="②  PULU HARAYA YAZIR" FontSize="11" FontWeight="Bold" Foreground="#5ADF90"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="Hər ödənişin içində: 🏷️ ƏSAS BORC (maşının dəyəri) + 💵 FAİZ (mənfəət). Mənfəət tərəfdaşlara bölünür."/>
+                                    </StackPanel>
+
+                                    <StackPanel>
+                                        <TextBlock Text="③  VƏZİYYƏTƏ BAXIN" FontSize="11" FontWeight="Bold" Foreground="#45D2EC"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="Yaşıl = ödənilib ✓ · Qırmızı = az ödənilib / gecikmə ✗ · Sarı = möhlət · «✅ ÖDƏNİLDİ?» işarəsi ilə ödənişi qeyd edin."/>
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <Border Background="#0C131C" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
+                                        BorderBrush="#2B3949" BorderThickness="1">
+                                    <TextBlock FontSize="10.5" Foreground="#8798AD" TextWrapping="Wrap"
+                                               Text="ℹ️ «QALIQ BORC» sütunu həmin ödənişdən SONRA qalan borcu göstərir — ən aşağı sətirdə 0,00 ₼ = kredit bitib ✓   ·   «ÖDƏNİŞ SAYI» 1-dən çoxdursa, ay hissə-hissə ödənilib ✓   ·   Sütun başlıqlarının üzərinə siçanı gətirin → izah görünür ✓"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Kredit seçimi -->
-                        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                        <Border Grid.Row="1" Style="{StaticResource GlassCard}" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="Ödəniş qrafikinə baxmaq üçün krediti seçin" Style="{StaticResource FieldLabel}"/>
                                 <ComboBox Width="520" HorizontalAlignment="Left" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
@@ -2450,7 +2486,7 @@
                             </StackPanel>
                         </Border>
                         <!-- Seçilmiş kredit üzrə yekun göstəricilər -->
-                        <StackPanel Grid.Row="1" Margin="0,0,0,14">
+                        <StackPanel Grid.Row="2" Margin="0,0,0,14">
                             <UniformGrid Columns="8">
                                 <Border Style="{StaticResource KartMavi}" Margin="4">
                                     <StackPanel>
@@ -2571,11 +2607,13 @@
                                            ToolTip="⚠️ Ödənilməmiş cərimə pulu kreditin QALIĞINA əlavə olunur ✓ (ödənilmiş cərimə əlavə olunmur ✗)"/>
                             </Border>
                         </StackPanel>
-                        <Border Grid.Row="2" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
+                        <Border Grid.Row="3" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
                             <DockPanel>
                                 <TextBlock DockPanel.Dock="Top" Text="📅 Ödəniş Qrafiki — hər ayı işarələyin; hissə-hissə ödənişlər avtomatik cəmlənir.  🔴 qırmızı = az ödəniş / aktiv gecikmə,  🟢 yaşıl = artıq ödəniş,  🔵 mavi = artıq ödənişin son aylardan çıxılan hissəsi,  🟠 narıncı = müddətdən kənar,  🟡 sarı = möhlət (rəsmi gecikdirmə),  ⚠️ çəhrayı = gecikmə (cərimə ilə).  Sətir fonu da vəziyyətə uyğun rənglənir." FontSize="13" FontWeight="Bold" Margin="6,4,6,2" TextWrapping="Wrap"/>
                                 <TextBlock DockPanel.Dock="Top" Text="{Binding Credits.ScheduleInfo}" FontSize="11" Foreground="#4EC3F5" Margin="6,0,6,8"/>
                                 <DataGrid ItemsSource="{Binding Credits.Schedule}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                          FrozenColumnCount="2"
+                                          RowHeight="30"
                                           RowStyle="{StaticResource ScheduleRowStyle}"
                                           ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
@@ -2615,20 +2653,33 @@
                                         <DataGridTextColumn Header="📅 PLAN TARİXİ" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="Auto"
                                                             ToolTipService.ToolTip="Kredit qrafikinə görə ödənişin EDİLMƏLİ OLDUĞU tarix (başlama tarixi + taksit ayı)"
                                                             ElementStyle="{StaticResource OutOfRangeDateText}"/>
-                                        <DataGridTextColumn Header="💰 Aylıq Ödəniş (plan)" Binding="{Binding NetOdenis, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource PaymentAmountCellText}"/>
-                                        <DataGridTextColumn Header="Əsas Borc" Binding="{Binding EsasBorclu, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Faiz" Binding="{Binding Faiz, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Qalıq" Binding="{Binding Qaliq, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTemplateColumn Header="Ödənilib?" Width="Auto">
+                                        <DataGridTextColumn Header="💰 AYLIQ ÖDƏNİŞ (plan)" Binding="{Binding NetOdenis, Converter={StaticResource Currency}}" Width="Auto"
+                                                            ToolTipService.ToolTip="Bu ay üçün plana düşən ödəniş (kredit + faiz) ✓"
+                                                            ElementStyle="{StaticResource PaymentAmountCellText}"/>
+                                        <DataGridTextColumn Header="🏷️ ƏSAS BORC (maya)" Binding="{Binding EsasBorclu, Converter={StaticResource Currency}}" Width="Auto"
+                                                            ToolTipService.ToolTip="Ödənişin MAYAYA (əsas borca) düşən hissəsi ✓ — bu, maşının dəyəridir"
+                                                            ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="💵 FAİZ (mənfəət)" Binding="{Binding Faiz, Converter={StaticResource Currency}}" Width="Auto"
+                                                            ToolTipService.ToolTip="Ödənişin FAİZƏ (mənfəətə) düşən hissəsi ✓ — tərəfdaşlar arasında bölünür"
+                                                            ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="📉 QALIQ BORC" Binding="{Binding Qaliq, Converter={StaticResource Currency}}" Width="Auto"
+                                                            ToolTipService.ToolTip="Bu ödənişdən SONRA qalan ümumi borc ✓"
+                                                            ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTemplateColumn Header="✅ ÖDƏNİLDİ?" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <CheckBox IsChecked="{Binding Odenilib, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              ToolTip="Ödənilib → işarələyin ✓ (sətir yaşıl olur)"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Ödəniş sayı" Binding="{Binding OdenisSayi}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="Ödənilən (AZN)" Binding="{Binding OdenilenMebleg, Converter={StaticResource Currency}}" Width="Auto" ElementStyle="{StaticResource OutOfRangeAmountText}"/>
+                                        <DataGridTextColumn Header="🔢 ÖDƏNİŞ SAYI" Binding="{Binding OdenisSayi}" Width="Auto"
+                                                            ToolTipService.ToolTip="Bu ay üçün neçə ödəniş qeydə alınıb (hissə-hissə ödəniş ola bilər)"
+                                                            ElementStyle="{StaticResource OutOfRangeCellText}"/>
+                                        <DataGridTextColumn Header="💳 ÖDƏNİLƏN (₼)" Binding="{Binding OdenilenMebleg, Converter={StaticResource Currency}}" Width="Auto"
+                                                            ToolTipService.ToolTip="Faktiki ödənilmiş məbləğ (hamısı cəmlənir)"
+                                                            ElementStyle="{StaticResource OutOfRangeAmountText}"/>
                                         <DataGridTemplateColumn Header="✅ ÖDƏNİŞ EDİLDİYİ TARİX" Width="Auto">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
@@ -4376,6 +4427,256 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- ========== 📒 KASSA JURNALI (dövrdəki bütün hərəkətlər) ========== -->
+                        <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="11"
+                                               Foreground="#A9B8C8" Text="{Binding Kassa.SetirlerInfo}"/>
+                                    <TextBlock Text="📒 KASSA JURNALI — daxil olan &amp; çıxan pul" FontSize="13.5"
+                                               FontWeight="Bold" Foreground="#F5F8FC"/>
+                                </DockPanel>
+
+                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Text="BÜTÜN sətirlər AVTOMATİK yaranır ✓ (satışlar ✓ ilkin ödənişlər ✓ kredit ödənişləri ✓ ödənilmiş möhlətlər ✓ bütün xərclər ✓ tərəfdaşa FAKTİKİ verilən pul ✓) — əl ilə yazılanlar isə aşağıdaki bölmədədir ✓. ⚠ Hesablanmış tərəfdaş payı kassadan DƏRHAL çıxmır ✗ — «pul ver» edilənə qədər kassada qalır ✓. ⚠ Cədvəldə filtr tətbiq etmək yuxarıdaki CƏMLƏRİ dəyişmir ✗ (onlar həmişə dövr üzrədir ✓✓✓)"/>
+
+                                <DataGrid ItemsSource="{Binding Kassa.Setirler}"
+                                          AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                          HeadersVisibility="Column"
+                                          MaxHeight="420" Margin="0,12,0,0"
+                                          Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
+                                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
+                                          RowBackground="#121A26" AlternatingRowBackground="#141D28"
+                                          Foreground="#DCE5EF">
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="📅 TARİX" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding TarixMetni}" FontSize="11.5"
+                                                               Foreground="#DCE5EF"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="NÖV" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding NovMetni}" FontSize="11.5" FontWeight="SemiBold"
+                                                               Foreground="{Binding MeblegRengi}"
+                                                               VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="BÖLMƏ" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Qrup}" FontSize="11.5" Foreground="#A9B8C8"
+                                                               VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="KATEQORİYA" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Kateqoriya}" FontSize="11.5"
+                                                               Foreground="#DCE5EF" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="İZAHAT" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Aciqlama}" FontSize="11.5"
+                                                               Foreground="#C6D2E0" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Aciqlama}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="ÜSUL" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding OdenisUsulu}" FontSize="11"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+
+                                        <DataGridTemplateColumn Header="MƏBLƏĞ" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding MeblegMetni}" FontSize="12.5"
+                                                               FontWeight="Bold" Foreground="{Binding MeblegRengi}"
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ========== ✍ ƏL İLƏ KASSA HƏRƏKƏTLƏRİ ========== -->
+                        <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="✍ ƏL İLƏ KASSA HƏRƏKƏTİ — kassaya qoyulan / kassadan götürülən pul" FontSize="13.5"
+                                           FontWeight="Bold" Foreground="#4EC3F5"/>
+
+                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Text="Bu bölmə YALNIZ əl ilə yazılan hərəkətlər üçündür ✓ («kassaya pul qoyuldu» ✓ · «sahibə verildi» ✓ · «banka köçürüldü» ✓). Qalan bütün kassa hərəkətləri AVTOMATİK hesablanır ✓ → yuxarıdaki jurnalda görünür ✓✓✓"/>
+
+                                <WrapPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="📅 Tarix" Style="{StaticResource FieldLabel}"/>
+                                        <DatePicker Width="128" SelectedDate="{Binding Kassa.YeniHereket.Tarix}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="➕/➖ Növ" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox Width="122" ItemsSource="{Binding Kassa.Novlar}"
+                                                  SelectedItem="{Binding Kassa.YeniHereket.Nov}"
+                                                  ToolTip="Daxilolma = kassaya GƏLƏN pul ✓ · Xərc = kassadan ÇIXAN pul ✗"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="🏷️ Kateqoriya (sərbəst yazıla bilər)" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox Width="210" IsEditable="True" ItemsSource="{Binding Kassa.Kateqoriyalar}"
+                                                  Text="{Binding Kassa.YeniHereket.Kateqoriya, UpdateSourceTrigger=PropertyChanged}"
+                                                  ToolTip="Siyahıdan seçin ✓ və ya özünüz yazın ✓ (məs. «Yeni ortaq qoydu»)"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="💰 Məbləğ (₼)" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Width="120" FontWeight="Bold" Foreground="#F3C24B"
+                                                 Text="{Binding Kassa.YeniHereket.Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="💳 Ödəniş üsulu" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox Width="140" ItemsSource="{Binding Kassa.PaymentMethods}"
+                                                  SelectedItem="{Binding Kassa.YeniHereket.OdenisUsulu}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="📝 Qeyd" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Width="240" Text="{Binding Kassa.YeniHereket.Qeyd, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Əlavə izahat (məs. «telefonla razılaşdıq» ✓)"/>
+                                    </StackPanel>
+                                    <Button Content="➕ ƏLAVƏ ET" Style="{StaticResource iOSButton}" Background="#17A379"
+                                            Foreground="White" Margin="14,20,4,0" FontWeight="SemiBold"
+                                            Command="{Binding Kassa.HereketElaveEtCommand}"/>
+                                    <Button Content="🧹 Təmizlə" Style="{StaticResource iOSButton}" Background="#2B3949"
+                                            Foreground="White" Margin="4,20,4,0"
+                                            Command="{Binding Kassa.HereketTemizleCommand}"/>
+                                </WrapPanel>
+
+                                <!-- ✓ HEÇ NƏ YOXDURSA -->
+                                <Border Background="#0C131C" CornerRadius="9" Padding="14,12" Margin="0,12,0,0"
+                                        BorderBrush="#202D3C" BorderThickness="1"
+                                        Visibility="{Binding Kassa.HereketYoxdur, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="ℹ Əl ilə yazılmış kassa hərəkəti yoxdur — yuxarıdaki formadan əlavə edin ✓ (jurnalın qalanı avtomatikdir ✓)"
+                                               FontSize="11.5" Foreground="#A9B8C8" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- 📋 YAZILMIŞ HƏRƏKƏTLƏR -->
+                                <ItemsControl ItemsSource="{Binding Kassa.ManuelHereketler}" Margin="0,12,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#0C131C" CornerRadius="8" Padding="12,8" Margin="0,0,0,5"
+                                                    BorderBrush="#202D3C" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="92"/>
+                                                        <ColumnDefinition Width="112"/>
+                                                        <ColumnDefinition Width="1.1*"/>
+                                                        <ColumnDefinition Width="118"/>
+                                                        <ColumnDefinition Width="1.4*"/>
+                                                        <ColumnDefinition Width="120"/>
+                                                        <ColumnDefinition Width="34"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding TarixMetni}" FontSize="11.5"
+                                                               Foreground="#DCE5EF" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding NovMetni}" FontSize="11.5"
+                                                               FontWeight="SemiBold" Foreground="{Binding NovRengi}"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Kateqoriya}" FontSize="11.5"
+                                                               Foreground="#C6D2E0" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding MeblegMetni}" FontSize="12.5"
+                                                               FontWeight="Bold" Foreground="{Binding NovRengi}"
+                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding OdenisUsulu}" FontSize="11"
+                                                               Foreground="#A9B8C8" VerticalAlignment="Center"
+                                                               Margin="14,0,0,0"/>
+                                                    <TextBlock Grid.Column="5" Text="{Binding Qeyd}" FontSize="11"
+                                                               Foreground="#8798AD" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Qeyd}"/>
+                                                    <Button Grid.Column="6" Content="✖" Height="24" Width="26" FontSize="11"
+                                                            Background="#AD3C3C" Foreground="White" BorderThickness="0"
+                                                            Cursor="Hand" ToolTip="Əl ilə yazılmış hərəkəti sil ✓"
+                                                            Command="{Binding DataContext.Kassa.HereketSilCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <!-- ============================================================ -->
+                <!-- TAB: ⏳ MÖHLƏT — ilkin ödənişə möhlət (v6.2.84)               -->
+                <!-- ============================================================ -->
+                <TabItem Header="⏳ Möhlət">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False"
+                                  Padding="0,0,6,0">
+                        <StackPanel Margin="0,16,0,0">
+                        <!-- ============================================================ -->
+                        <!-- 🧭 v6.2.84 — BƏLƏDÇİ (təzə istifadəçi üçün) ✓✓✓            -->
+                        <!-- ============================================================ -->
+                        <Border Style="{StaticResource GlassCard}" Padding="16,12" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="🧭 MÖHLƏT BÖLMƏSİ — 4 ADDIM" FontSize="12.5" FontWeight="Bold" Foreground="#F3C24B"/>
+
+                                <UniformGrid Columns="4" Margin="0,9,0,0">
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="①  SEÇİN" FontSize="11" FontWeight="Bold" Foreground="#4EC3F5"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="«GÖZLƏNİLƏN MÖHLƏTLƏR» cədvəlindən möhlətin üzərinə basın ✓"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="②  YAZIN" FontSize="11" FontWeight="Bold" Foreground="#5ADF90"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="Sağdaki paneldə məbləğ ✓ · MAYA (kök) ✓ · bölgünü yoxlayın ✓"/>
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="③  TƏSDİQLƏYİN" FontSize="11" FontWeight="Bold" Foreground="#F3C24B"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="«✅ ÖDƏNİŞİ TƏSDİQ ET» → pul KASSAYA düşür ✓ və paylar tərəfdaşlara yazılır ✓"/>
+                                    </StackPanel>
+
+                                    <StackPanel>
+                                        <TextBlock Text="④  SƏHV OLSA" FontSize="11" FontWeight="Bold" Foreground="#FA8A9E"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                   Text="«✅ ÖDƏNİLMİŞ» cədvəlində ↩ geri al (pul kassadan çıxır) · ✖ sil ✓"/>
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <Border Background="#0C131C" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
+                                        BorderBrush="#2B3949" BorderThickness="1">
+                                    <TextBlock FontSize="10.5" Foreground="#8798AD" TextWrapping="Wrap"
+                                               Text="ℹ️ Möhlət = müştərinin «sonra verəcəyəm» dediyi pul ✓ — ödənilməmiş möhlət KASSAYA daxil edilmir ✗ (yalnız proqnoz ✓). Qismən ödənişdə qalan hissə yeni tarixlə siyahıda qalır ✓. Maya = maşının dəyərinə gedən hissə ✓, qalanı tərəfdaş mənfəətidir ✓."/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <!-- ========== ⏳ MÖHLƏTLƏR — GÖZLƏNİLƏN DAXİLOLMA ========== -->
                         <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
                             <StackPanel>
@@ -4905,203 +5206,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ========== 📒 KASSA JURNALI (dövrdəki bütün hərəkətlər) ========== -->
-                        <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
-                            <StackPanel>
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="11"
-                                               Foreground="#A9B8C8" Text="{Binding Kassa.SetirlerInfo}"/>
-                                    <TextBlock Text="📒 KASSA JURNALI — daxil olan &amp; çıxan pul" FontSize="13.5"
-                                               FontWeight="Bold" Foreground="#F5F8FC"/>
-                                </DockPanel>
-
-                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
-                                           Text="BÜTÜN sətirlər AVTOMATİK yaranır ✓ (satışlar ✓ ilkin ödənişlər ✓ kredit ödənişləri ✓ ödənilmiş möhlətlər ✓ bütün xərclər ✓ tərəfdaşa FAKTİKİ verilən pul ✓) — əl ilə yazılanlar isə aşağıdaki bölmədədir ✓. ⚠ Hesablanmış tərəfdaş payı kassadan DƏRHAL çıxmır ✗ — «pul ver» edilənə qədər kassada qalır ✓. ⚠ Cədvəldə filtr tətbiq etmək yuxarıdaki CƏMLƏRİ dəyişmir ✗ (onlar həmişə dövr üzrədir ✓✓✓)"/>
-
-                                <DataGrid ItemsSource="{Binding Kassa.Setirler}"
-                                          AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                          HeadersVisibility="Column"
-                                          MaxHeight="420" Margin="0,12,0,0"
-                                          Background="#0C131C" BorderBrush="#202D3C" BorderThickness="1"
-                                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
-                                          RowBackground="#121A26" AlternatingRowBackground="#141D28"
-                                          Foreground="#DCE5EF">
-                                    <DataGrid.Columns>
-                                        <DataGridTemplateColumn Header="📅 TARİX" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding TarixMetni}" FontSize="11.5"
-                                                               Foreground="#DCE5EF"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="NÖV" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding NovMetni}" FontSize="11.5" FontWeight="SemiBold"
-                                                               Foreground="{Binding MeblegRengi}"
-                                                               VerticalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="BÖLMƏ" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Qrup}" FontSize="11.5" Foreground="#A9B8C8"
-                                                               VerticalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="KATEQORİYA" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Kateqoriya}" FontSize="11.5"
-                                                               Foreground="#DCE5EF" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="İZAHAT" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Aciqlama}" FontSize="11.5"
-                                                               Foreground="#C6D2E0" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding Aciqlama}"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="ÜSUL" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding OdenisUsulu}" FontSize="11"
-                                                               Foreground="#A9B8C8" VerticalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-
-                                        <DataGridTemplateColumn Header="MƏBLƏĞ" Width="Auto">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding MeblegMetni}" FontSize="12.5"
-                                                               FontWeight="Bold" Foreground="{Binding MeblegRengi}"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- ========== ✍ ƏL İLƏ KASSA HƏRƏKƏTLƏRİ ========== -->
-                        <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
-                            <StackPanel>
-                                <TextBlock Text="✍ ƏL İLƏ KASSA HƏRƏKƏTİ — kassaya qoyulan / kassadan götürülən pul" FontSize="13.5"
-                                           FontWeight="Bold" Foreground="#4EC3F5"/>
-
-                                <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
-                                           Text="Bu bölmə YALNIZ əl ilə yazılan hərəkətlər üçündür ✓ («kassaya pul qoyuldu» ✓ · «sahibə verildi» ✓ · «banka köçürüldü» ✓). Qalan bütün kassa hərəkətləri AVTOMATİK hesablanır ✓ → yuxarıdaki jurnalda görünür ✓✓✓"/>
-
-                                <WrapPanel Orientation="Horizontal" Margin="0,12,0,0" VerticalAlignment="Center">
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="📅 Tarix" Style="{StaticResource FieldLabel}"/>
-                                        <DatePicker Width="128" SelectedDate="{Binding Kassa.YeniHereket.Tarix}"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="➕/➖ Növ" Style="{StaticResource FieldLabel}"/>
-                                        <ComboBox Width="122" ItemsSource="{Binding Kassa.Novlar}"
-                                                  SelectedItem="{Binding Kassa.YeniHereket.Nov}"
-                                                  ToolTip="Daxilolma = kassaya GƏLƏN pul ✓ · Xərc = kassadan ÇIXAN pul ✗"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="🏷️ Kateqoriya (sərbəst yazıla bilər)" Style="{StaticResource FieldLabel}"/>
-                                        <ComboBox Width="210" IsEditable="True" ItemsSource="{Binding Kassa.Kateqoriyalar}"
-                                                  Text="{Binding Kassa.YeniHereket.Kateqoriya, UpdateSourceTrigger=PropertyChanged}"
-                                                  ToolTip="Siyahıdan seçin ✓ və ya özünüz yazın ✓ (məs. «Yeni ortaq qoydu»)"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="💰 Məbləğ (₼)" Style="{StaticResource FieldLabel}"/>
-                                        <TextBox Width="120" FontWeight="Bold" Foreground="#F3C24B"
-                                                 Text="{Binding Kassa.YeniHereket.Mebleg, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="💳 Ödəniş üsulu" Style="{StaticResource FieldLabel}"/>
-                                        <ComboBox Width="140" ItemsSource="{Binding Kassa.PaymentMethods}"
-                                                  SelectedItem="{Binding Kassa.YeniHereket.OdenisUsulu}"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="📝 Qeyd" Style="{StaticResource FieldLabel}"/>
-                                        <TextBox Width="240" Text="{Binding Kassa.YeniHereket.Qeyd, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Əlavə izahat (məs. «telefonla razılaşdıq» ✓)"/>
-                                    </StackPanel>
-                                    <Button Content="➕ ƏLAVƏ ET" Style="{StaticResource iOSButton}" Background="#17A379"
-                                            Foreground="White" Margin="14,20,4,0" FontWeight="SemiBold"
-                                            Command="{Binding Kassa.HereketElaveEtCommand}"/>
-                                    <Button Content="🧹 Təmizlə" Style="{StaticResource iOSButton}" Background="#2B3949"
-                                            Foreground="White" Margin="4,20,4,0"
-                                            Command="{Binding Kassa.HereketTemizleCommand}"/>
-                                </WrapPanel>
-
-                                <!-- ✓ HEÇ NƏ YOXDURSA -->
-                                <Border Background="#0C131C" CornerRadius="9" Padding="14,12" Margin="0,12,0,0"
-                                        BorderBrush="#202D3C" BorderThickness="1"
-                                        Visibility="{Binding Kassa.HereketYoxdur, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="ℹ Əl ilə yazılmış kassa hərəkəti yoxdur — yuxarıdaki formadan əlavə edin ✓ (jurnalın qalanı avtomatikdir ✓)"
-                                               FontSize="11.5" Foreground="#A9B8C8" TextWrapping="Wrap"/>
-                                </Border>
-
-                                <!-- 📋 YAZILMIŞ HƏRƏKƏTLƏR -->
-                                <ItemsControl ItemsSource="{Binding Kassa.ManuelHereketler}" Margin="0,12,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#0C131C" CornerRadius="8" Padding="12,8" Margin="0,0,0,5"
-                                                    BorderBrush="#202D3C" BorderThickness="1">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="92"/>
-                                                        <ColumnDefinition Width="112"/>
-                                                        <ColumnDefinition Width="1.1*"/>
-                                                        <ColumnDefinition Width="118"/>
-                                                        <ColumnDefinition Width="1.4*"/>
-                                                        <ColumnDefinition Width="120"/>
-                                                        <ColumnDefinition Width="34"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding TarixMetni}" FontSize="11.5"
-                                                               Foreground="#DCE5EF" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding NovMetni}" FontSize="11.5"
-                                                               FontWeight="SemiBold" Foreground="{Binding NovRengi}"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding Kateqoriya}" FontSize="11.5"
-                                                               Foreground="#C6D2E0" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding MeblegMetni}" FontSize="12.5"
-                                                               FontWeight="Bold" Foreground="{Binding NovRengi}"
-                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="4" Text="{Binding OdenisUsulu}" FontSize="11"
-                                                               Foreground="#A9B8C8" VerticalAlignment="Center"
-                                                               Margin="14,0,0,0"/>
-                                                    <TextBlock Grid.Column="5" Text="{Binding Qeyd}" FontSize="11"
-                                                               Foreground="#8798AD" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Qeyd}"/>
-                                                    <Button Grid.Column="6" Content="✖" Height="24" Width="26" FontSize="11"
-                                                            Background="#AD3C3C" Foreground="White" BorderThickness="0"
-                                                            Cursor="Hand" ToolTip="Əl ilə yazılmış hərəkəti sil ✓"
-                                                            Command="{Binding DataContext.Kassa.HereketSilCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                                            CommandParameter="{Binding}"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
