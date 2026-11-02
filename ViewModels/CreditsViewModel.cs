@@ -3117,7 +3117,10 @@ namespace EnterpriseAeroStudio.ViewModels
                 //     və fərq avtomatik ✓ («MAYADA FƏRQ»)
                 //     ⚠ Balans yenə də FAKTİKİ <c>principal</c> ilə azalır ✓
                 // ================================================================
-                var planMaya = Math.Round(planned - interest, 2);
+                // ⚖️ v6.2.91 — plan maya = AYLIQ KÖK ✓ (Excel: 335,00 ✓)
+                var planMaya = credit.AylıqKok > 0m
+                    ? Math.Round(credit.AylıqKok, 2)
+                    : Math.Round(planned - interest, 2);
                 if (planMaya < 0m)
                 {
                     planMaya = 0m;

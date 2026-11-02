@@ -1988,6 +1988,39 @@ namespace EnterpriseAeroStudio.ViewModels
                     _logger.LogWarning(ex, "Kassa: kredit/satış keşi yüklənmədi ✗ (MAYA 0 qalacaq)");
                 }
 
+                // ================================================================
+                //  🧹 v6.2.91 — MÖHLƏT DUBLİKATLARININ QARŞISI ✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «bəzən möhlət 2-3 dəfə ödənilmiş
+                //    kimi KOPYALANIR / DUBLİKAT olur ✗»
+                //  📌 SƏBƏB ✗: USB birləşdirməsi + skript idxalı eyni möhləti
+                //     təkrar yaradırdı ✗ (Id fərqli, məzmun eyni ✗)
+                //  ✅ İNDİ: siyahıda EYNİ (mənbə · kredit/satış · məbləğ · tarix)
+                //     olan möhlətlərdən **YALNIZ BİRİ** göstərilir ✓
+                //  🛡️ Bazadan SİLİNMİR ✗ — yalnız göstəriş təmizlənir ✓ (təhlükəsiz ✓)
+                // ================================================================
+                var görülənAçarlar = new HashSet<string>(StringComparer.Ordinal);
+                var təmizSiyahı = new List<OdenisMohlet>();
+
+                foreach (var m in butunMohletler)
+                {
+                    var açar = $"{m.Menbe}|{m.CreditId}|{m.SaleId}|{m.Mebleg:N2}|{m.Tarix:yyyyMMdd}|{m.Odenilib}";
+
+                    if (görülənAçarlar.Add(açar))
+                    {
+                        təmizSiyahı.Add(m);
+                    }
+                }
+
+                if (təmizSiyahı.Count != butunMohletler.Count)
+                {
+                    _logger.LogWarning(
+                        "🧹 Möhlət DUBLİKATLARI gizlədildi: {Say} təkrar sətir ✓ (bazadan silinmədi ✗)",
+                        butunMohletler.Count - təmizSiyahı.Count);
+                }
+
+                butunMohletler = təmizSiyahı;
+
                 var gozlenilen = butunMohletler
                     .Where(m => !m.Odenilib)
                     .OrderBy(m => m.Tarix)

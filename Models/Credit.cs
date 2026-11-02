@@ -301,7 +301,8 @@ namespace EnterpriseAeroStudio.Models
             var nisbet = plan > 0m ? Math.Min(odenis, plan) / plan : 1m;
 
             var planMaya = Math.Round(aylıqKok * nisbet, 2);
-            var artiq = Math.Max(0m, odenis - plan);
+            // ⚖️ 1%-dən kiçik fərq «artıq ödəniş» sayılmır ✓ (734 ↔ 735 ✓)
+            var artiq = odenis > plan * 1.01m ? Math.Round(odenis - plan, 2) : 0m;
 
             var cem = Math.Round(planMaya + artiq, 2);
 
