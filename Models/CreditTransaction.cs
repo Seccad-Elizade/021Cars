@@ -127,6 +127,18 @@ namespace EnterpriseAeroStudio.Models
         public bool OdenilibGorunur =>
             IsGecikme || string.Equals(Nov, "Xərc", StringComparison.Ordinal);
 
+        /// <summary>
+        /// 👥 <b>v6.2.88 — «TƏRƏFDAŞ BÖLGÜSÜ» checkbox-u</b> ✓✓✓
+        /// <para>
+        /// ★ İstifadəçi tələbi: «Gecikmə ödənilib checkbox-unun YANINDA tərəfdaş
+        /// bölgüsü checkbox-u da olsun ✓ — Gəlirdəki kimi (copy-paste ✓).
+        /// Seçməsək bölgü GÖRÜNMƏMƏLİDİR ✗ (tarixçədə çox yer tutur ✗).»
+        /// </para>
+        /// <para>📌 Yalnız <b>Gecikmə</b> sətirlərində və yalnız <b>ödənilib</b> olduqda ✓</para>
+        /// </summary>
+        [NotMapped]
+        public bool BolguSecileBilen => IsGecikme && Odenilib;
+
         /// <summary>Cədvəldə göstərilən kredit məlumatı: müqavilə | müştəri | avtomobil.</summary>
         [NotMapped]
         public string CreditInfo

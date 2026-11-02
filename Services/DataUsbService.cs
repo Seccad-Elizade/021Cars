@@ -2129,7 +2129,94 @@ namespace EnterpriseAeroStudio.Services
         }
 
         /// <summary>
-        /// ♻️ <b>İTMİŞ MƏLUMATI BƏRPA EDİR</b> ✓✓✓
+        /// 🗂️ <b>v6.2.88 — BİRLƏŞDİRİLMİŞ FAYLLARIN REYSTRİ</b> ✓✓✓
+        /// <para>
+        /// ⚠ PROBLEM ✗: hər açılışda EYNİ ehtiyat surətlər (məs.
+        /// <c>avtopark_20261102_173808.db</c>) yenidən birləşdirilirdi ✗ →
+        /// hər dəfə «+76 yeni qeyd» yazılırdı ✗ → <b>DUBLİKAT</b> riski ✗
+        /// və açılış ləngləyirdi ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ İNDİ: hər fayl <b>BİR DƏFƏ</b> birləşdirilir ✓ — adı + ölçüsü +
+        /// dəyişmə vaxtı reyestrə yazılır ✓. Fayl DƏYİŞSƏ → yenidən ✓.
+        /// </para>
+        /// <para>📂 <c>{data}\Yedekler\birləşdirilmiş.txt</c></para>
+        /// </summary>
+        private static string BirləşdirməReystriYolu =>
+            Path.Combine(Cas0201.Kok.DataQovlugu, "Yedekler", "birləşdirilmiş.txt");
+
+        /// <summary>✍️ Faylın reyestr açarı: «ad|ölçü|dəyişmə vaxtı» ✓</summary>
+        private static string ReyestrAçarı(string yol)
+        {
+            try
+            {
+                var f = new FileInfo(yol);
+
+                return $"{f.Name}|{f.Length}|{f.LastWriteTimeUtc.Ticks}";
+            }
+            catch
+            {
+                return Path.GetFileName(yol);
+            }
+        }
+
+        /// <summary>📖 Reyestri oxuyur ✓ (bir dəfə ✓)</summary>
+        private static HashSet<string> ReyestriOxu()
+        {
+            var nəticə = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                var yol = BirləşdirməReystriYolu;
+
+                if (!File.Exists(yol))
+                {
+                    return nəticə;
+                }
+
+                foreach (var s in File.ReadAllLines(yol))
+                {
+                    var təmiz = s.Trim();
+
+                    if (təmiz.Length > 0)
+                    {
+                        nəticə.Add(təmiz);
+                    }
+                }
+            }
+            catch { }
+
+            return nəticə;
+        }
+
+        /// <summary>➕ Reyestrə yazır ✓ (mövcud sətirlər saxlanılır ✓)</summary>
+        private static void ReyestreElaveEt(string açar)
+        {
+            try
+            {
+                var yol = BirləşdirməReystriYolu;
+
+                Directory.CreateDirectory(Path.GetDirectoryName(yol) ?? Cas0201.Kok.DataQovlugu);
+
+                var sətirlər = File.Exists(yol) ? File.ReadAllLines(yol).ToList() : new List<string>();
+
+                if (!sətirlər.Any(s => string.Equals(s.Trim(), açar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    sətirlər.Add(açar);
+                }
+
+                // 🧹 Reyestr şişməsin ✓ — yalnız son 400 sətir saxlanılır ✓
+                if (sətirlər.Count > 400)
+                {
+                    sətirlər = sətirlər.Skip(sətirlər.Count - 400).ToList();
+                }
+
+                File.WriteAllLines(yol, sətirlər);
+            }
+            catch { }
+        }
+
+        /// <summary>♻️ <b>İTMİŞ MƏLUMATI BƏRPA EDİR</b> ✓✓✓
         /// <para>
         /// Köhnə buraxılışlar bazanı səhv yola yazırdı ✗ və ya üzərinə yazırdı ✗ →
         /// qalmış BÜTÜN bazalar (köhnə yol ✓ · <c>.bak</c> ✓ · ehtiyat surətlər ✓)
@@ -2171,6 +2258,10 @@ namespace EnterpriseAeroStudio.Services
                 var detallar = new List<string>();
                 var görülən = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                // 🗂️ v6.2.88 — əvvəl birləşdirilmiş fayllar TƏKRAR oxunmur ✗✓✓
+                var reyestr = ReyestriOxu();
+                var atlanan = 0;
+
                 foreach (var yol in namizədlər)
                 {
                     try
@@ -2182,7 +2273,19 @@ namespace EnterpriseAeroStudio.Services
                         if (!görülən.Add(tam)) continue;
                         if (string.Equals(tam, Path.GetFullPath(əsas), StringComparison.OrdinalIgnoreCase)) continue;
 
+                        // ✅ Bu fayl artıq birləşdirilibsə → KEÇİLİR ✓ (dublikat yaranmır ✗)
+                        var açar = ReyestrAçarı(yol);
+
+                        if (reyestr.Contains(açar))
+                        {
+                            atlanan++;
+                            continue;
+                        }
+
                         var nəticə = BirləşdirUnionNet(yol, Path.GetFileName(yol));
+
+                        // ✅ Birləşdirmə uğurlu → reyestrə yazılır ✓ (təkrar oxunmaz ✗)
+                        ReyestreElaveEt(açar);
 
                         if (nəticə.Əlavə > 0)
                         {
@@ -2194,7 +2297,16 @@ namespace EnterpriseAeroStudio.Services
                     catch { }
                 }
 
-                if (qeydSayı == 0) return string.Empty;
+                if (qeydSayı == 0)
+                {
+                    if (atlanan > 0)
+                    {
+                        AppLogger.Melumat(
+                            $"♻️ İtmiş məlumat bərpası: {atlanan} fayl artıq birləşdirilib ✓ — təkrar oxunmadı ✗");
+                    }
+
+                    return string.Empty;
+                }
 
                 var mesaj = $"♻️ İTMİŞ MƏLUMAT BƏRPA OLUNDU ✓ — {qeydSayı} qeyd ({faylSayı} fayl ✓)\n" +
                             "   • " + string.Join("\n   • ", detallar) + "\n" +

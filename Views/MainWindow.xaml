@@ -2660,8 +2660,13 @@
                                 <TextBlock DockPanel.Dock="Top" Text="📅 ÖDƏNİŞ CƏDVƏLİ — hər sətir bir aydır (soldan sağa: plan → fakt → izah)" FontSize="12.5" FontWeight="Bold" Margin="6,4,6,2" TextWrapping="Wrap"/>
                                 <TextBlock DockPanel.Dock="Top" FontSize="10" Foreground="#8798AD" Margin="6,0,6,8" TextWrapping="Wrap"
                                            Text="🟢 ödənilib  ·  🔴 az ödəniş / gecikmə  ·  🟡 möhlət  ·  🔵 son aylardan çıxılan  ·  🟠 müddətdən kənar  ·  «✅ ÖDƏNİLDİ?» sütunu ilə ödənişi qeyd edin ✓"/>
+                                <!-- 🛡️ v6.2.88 — SÜTUN VİRTUALİZASİYASI SÖNDÜRÜLDÜ ✓✓✓
+                                     ⚠ CRASH: «DataGridCellsPanel.ArrangeOverride → ArgumentOutOfRangeException» ✗
+                                     Auto enli sütunlar + sütun virtualizasiyası + FrozenColumnCount birlikdə
+                                     WPF-də məlum xəta verir ✗ → söndürüldü ✓ (13 sütun — yük azdır ✗) -->
                                 <DataGrid ItemsSource="{Binding Credits.Schedule}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                           FrozenColumnCount="2"
+                                          EnableColumnVirtualization="False"
                                           RowHeight="30"
                                           RowStyle="{StaticResource ScheduleRowStyle}"
                                           ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
@@ -2694,7 +2699,7 @@
                                         <!--  ★ «300 ₼ maya ödənilibsə → 300 ₼ yazılmalıdır» ✓     -->
                                         <!--  Plan sütunu («ƏSAS BORC (maya)») dəyişmir ✗ ✓       -->
                                         <!-- ==================================================== -->
-                                        <DataGridTemplateColumn Header="🏷️ MAYADAN ÖDƏNİLİB" Width="Auto">
+                                        <DataGridTemplateColumn Header="🏷️ MAYADAN ÖDƏNİLİB" Width="130">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel VerticalAlignment="Center" ToolTip="{Binding MayaIzahi}">
@@ -2706,7 +2711,7 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn Header="📊 MAYADA FƏRQ" Width="Auto">
+                                        <DataGridTemplateColumn Header="📊 MAYADA FƏRQ" Width="120">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding MayaFerqiMetni}"
@@ -3303,6 +3308,7 @@
                                 <DataGrid ItemsSource="{Binding CreditTransactions.FilteredTransactions}" SelectedItem="{Binding CreditTransactions.SelectedTransaction}"
                                           bhv:MultiSelectBehavior.SelectedItems="{Binding CreditTransactions.SelectedTransactions}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                                          EnableColumnVirtualization="False"
                                           SelectionMode="Extended" SelectionUnit="FullRow"
                                           ColumnHeaderStyle="{StaticResource ProfessionalHeader}"
                                           GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#202D3C"
@@ -3375,6 +3381,26 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
+                                    <!-- ============================================================
+                                         👥 v6.2.88 — TƏRƏFDAŞ BÖLGÜSÜ checkbox-u ✓✓✓
+                                         ★ «Gecikmə ödənilib»-in YANINDA ✓ (Gəlirdəki kimini ✓)
+                                         📌 Yalnız GECİKMƏ + ÖDƏNİLİB sətirlərində görünür ✓
+                                         📌 Seçilməzsə → paylar SİLİNİR ✓ tarixçədə yer tutmur ✗
+                                         ============================================================ -->
+                                    <DataGridTemplateColumn Header="👥 BÖLGÜ" Width="Auto"
+                                                            HeaderStyle="{StaticResource ProfessionalHeaderCenter}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          ToolTip="☑ Tərəfdaş bölgüsü tətbiq olunur (qalıq təriəfdaşlar arasında yarı-yarıya ✓)&#x0a;☐ Bölgü YOX — tarixçədə görünmür ✓"
+                                                          Visibility="{Binding BolguSecileBilen, Converter={StaticResource BoolToVis}}"
+                                                          IsChecked="{Binding TerefdasBolguTetbiqOlunub, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
+                                                          Command="{Binding DataContext.CreditTransactions.ToggleGecikmeBolguCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                                          CommandParameter="{Binding}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <DataGridTextColumn Header="📝 TƏSVİR" Binding="{Binding Tesvir}" Width="Auto" MinWidth="60" ElementStyle="{StaticResource GridCellText}"/>
                                 </DataGrid.Columns>
                                 </DataGrid>
@@ -4851,13 +4877,24 @@
                                     <Button DockPanel.Dock="Right" Content="🧹 Təmizlə" Height="28" Padding="12,0"
                                             Margin="8,0,0,0" FontSize="11.5" Cursor="Hand"
                                             Background="#22303F" Foreground="#C7D4E2" BorderThickness="0"
-                                            ToolTip="Axtarışı təmizlə ✓"
-                                            Command="{Binding Kassa.MohletAxtarisiTemizleCommand}"/>
+                                            ToolTip="Axtarışı və ay filtrini təmizlə ✓"
+                                            Command="{Binding Kassa.MohletFiltrleriniSifirlaCommand}"/>
+
+                                    <!-- 🗓️ v6.2.88 — AY / TARİX FİLTRİ ✓✓✓ -->
+                                    <ComboBox DockPanel.Dock="Right" Width="130" Height="28" Margin="8,0,0,0"
+                                              FontSize="12" VerticalContentAlignment="Center"
+                                              Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
+                                              ItemsSource="{Binding Kassa.MohletAyFiltreleri}"
+                                              SelectedItem="{Binding Kassa.MohletAyFiltri}"
+                                              ToolTip="🗓️ AY seçin — yalnız həmin ayın möhlətləri göstərilir ✓&#x0a;«Hamısı» = bütün aylar ✓"/>
+
+                                    <TextBlock DockPanel.Dock="Right" Text="🗓️ AY:" FontSize="11" Foreground="#A9B8C8"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
 
                                     <TextBox Height="28" FontSize="12.5" VerticalContentAlignment="Center"
                                              Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
                                              Text="{Binding Kassa.MohletAxtaris, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Müqavilə № · müştəri · avtomobil · dövlət nömrəsi · məbləğ · tarix üzrə canlı axtarış ✓"/>
+                                             ToolTip="Müqavilə № · müştəri · avtomobil · dövlət nömrəsi · məbləğ · tarix üzrə canlı axtarış ✓&#x0a;⚠ HƏR İKİ cədvəli süzür (gözlənilən ✓ ödənilmiş ✓)"/>
                                 </DockPanel>
 
                                 <TextBlock FontSize="10.5" Foreground="#8798AD" Margin="26,6,0,0" TextWrapping="Wrap"
@@ -5269,6 +5306,25 @@
                                                Text="bu məbləğlər artıq kassaya DAXİL olub ✓"/>
                                     <TextBlock Text="✅ ÖDƏNİLMİŞ MÖHLƏTLƏR — pul gəldi" FontSize="13"
                                                FontWeight="Bold" Foreground="#41D39A"/>
+                                </DockPanel>
+
+                                <!-- ============================================================ -->
+                                <!-- 🔎🗓️ v6.2.88 — ÖDƏNİLMİŞ MÖHLƏTLƏR ÜÇÜN AXTARIŞ + AY ✓✓✓   -->
+                                <!-- ============================================================ -->
+                                <DockPanel Margin="0,10,0,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="🔎" FontSize="13" VerticalAlignment="Center" Margin="2,0,8,0"/>
+
+                                    <ComboBox DockPanel.Dock="Right" Width="130" Height="26" Margin="8,0,0,0"
+                                              FontSize="11.5" VerticalContentAlignment="Center"
+                                              Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
+                                              ItemsSource="{Binding Kassa.MohletAyFiltreleri}"
+                                              SelectedItem="{Binding Kassa.MohletAyFiltri}"
+                                              ToolTip="🗓️ Ay filtri — ödənilmə tarixinə görə ✓"/>
+
+                                    <TextBox Height="26" FontSize="12" VerticalContentAlignment="Center"
+                                             Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
+                                             Text="{Binding Kassa.MohletAxtaris, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Ödənilmiş möhlətlərdə axtarış ✓ — müqavilə № · müştəri · avtomobil · dövlət nömrəsi · məbləğ · tarix"/>
                                 </DockPanel>
 
                                 <DataGrid ItemsSource="{Binding Kassa.FilteredOdenilmisMohletler}"

@@ -1511,9 +1511,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Sum(t => t.Mebleg);
 
                 SelectedMayaOdenis = Math.Max(0m,
-                    c.Mebleg - c.IlkinOdenis + mohletCemi + xercCemiMaya);
-
-                _ = gecikmeCemi;   // ℹ️ yalnız məlumat üçün (maya-ya təsir ETMİR ✗)
+                    c.Mebleg - c.IlkinOdenis + mohletCemi + xercCemiMaya + gecikmeCemi);
 
                 // ════════════════════════════════════════════════════════════════
                 //  🆕 v6.2.51 — MAYA HİSSƏSİ (istifadəçi tələbi ✓✓✓)
@@ -1594,7 +1592,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisMohletMaya, 2);
                 }
 
-                // ⚡ v6.2.68 — ÖDƏNİLMİŞ XƏRCLƏR «MAYA ÖDƏNİLİB»-ə ✓✓✓
+                // ⚡ v6.2.88 — ÖDƏNİLMİŞ XƏRC və GECİKMƏ «MAYA ÖDƏNİLİB»-ə ✓✓✓
                 var odenilmisXercMaya = _creditTransactions
                     .Where(t => t.CreditId == c.Id && t.Nov == "Xərc" && t.Odenilib)
                     .Sum(t => t.Mebleg);
@@ -1602,6 +1600,25 @@ namespace EnterpriseAeroStudio.ViewModels
                 if (odenilmisXercMaya > 0m)
                 {
                     SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisXercMaya, 2);
+                }
+
+                // ⚠️ ★ v6.2.88 — GECİKMƏ CƏRİMƏSİ (ödənilib ✓) → «MAYA ÖDƏNİLİB» ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İSTİFADƏÇİ ŞİKAYƏTİ: «470 ₼ gecikmə yazdım, ÖDƏNİLDİ işarəsi
+                //    qoydum ✗ — «Ödənilib»-də görünür, AMMA «Maya ödənilib»-də
+                //    GÖRÜNMÜR ✗ — görünməlidir ✓»
+                //  ✅ İNDİ: ödənilmiş gecikmə maya tərəfinə də yazılır ✓
+                //     (ödənilmiş XƏRC ilə EYNİ qayda ✓✓✓)
+                //  📌 «Maya ödənişi (ödənilməli)» də gecikmə qədər artır ✓
+                //     (yuxarıda `SelectedMayaOdenis`-ə əlavə olunur ✓) →
+                //     «Maya qalıq» MƏNFİ ola bilməz ✗✓✓
+                var odenilmisGecikmeMaya = _creditTransactions
+                    .Where(t => t.CreditId == c.Id && t.Nov == "Gecikmə" && t.Odenilib)
+                    .Sum(t => t.Mebleg);
+
+                if (odenilmisGecikmeMaya > 0m)
+                {
+                    SelectedMayaOdenen = Math.Round(SelectedMayaOdenen + odenilmisGecikmeMaya, 2);
                 }
 
                 // ================================================================
@@ -2734,6 +2751,13 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 var umumi = HesablaOdenilmisKok(hedef, odenisler);
+
+                // ⚠️ v6.2.88 — ödənilmiş gecikmə də mayaya yazılır ✓ (kartla EYNİ ✓)
+                umumi = Math.Round(
+                    umumi + _creditTransactions
+                        .Where(t => t.CreditId == hedef.Id && t.Nov == "Gecikmə" && t.Odenilib)
+                        .Sum(t => t.Mebleg), 2);
+
                 var cedvel = ScheduleFaktikiMaya;
 
                 if (Math.Abs(umumi - cedvel) < 0.01m)
@@ -3099,6 +3123,24 @@ namespace EnterpriseAeroStudio.ViewModels
                 if (list is not null)
                 {
                     ApplyPaid(row, list);    // faktiki ödənişlərin cəmi və detalları
+                }
+
+                // ================================================================
+                //  ⚠️ ★ v6.2.88 — ÖDƏNİLMİŞ GECİKMƏ CƏRİMƏSİ → «MAYADAN ÖDƏNİLİB» ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi: «470 ₼ gecikmə — ödənilib işarəsi qoydum ✗
+                //    maya sütununda GÖRÜNMÜR ✗ — görünməlidir ✓»
+                //  📌 Qayda: ödənilmiş **XƏRC** ilə EYNİ ✓ (hər ikisi mayaya ✓)
+                //  ⚠ Mənfəət sətri DƏYİŞMİR ✗ — cərimə mayaya yazılır, mənfəətə yox ✓
+                //     (tərəfdaş bölgüsü rəqəmləri olduğu kimi qalır ✓✓✓)
+                // ================================================================
+                var odenilmisGecikme = gecikmeler is null
+                    ? 0m
+                    : gecikmeler.Where(g => g.Odenilib).Sum(g => g.Mebleg);
+
+                if (odenilmisGecikme > 0m)
+                {
+                    row.FaktikiMaya = Math.Round(row.FaktikiMaya + odenilmisGecikme, 2);
                 }
 
                 row.PropertyChanged += OnPaymentRowChanged;

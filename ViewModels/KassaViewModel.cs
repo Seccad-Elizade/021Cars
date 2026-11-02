@@ -251,6 +251,68 @@ namespace EnterpriseAeroStudio.ViewModels
 
         partial void OnMohletAxtarisChanged(string value) => MohletFiltriniTetbiqEt();
 
+        // ====================================================================
+        //  🗓️ v6.2.88 — MÖHLƏT AY / TARİX FİLTRİ ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Möhlət tabında AY · TARİX seçmək olsun ✓
+        //    və ödənilmiş möhlətlər üçün də search bar olsun ✓»
+        //
+        //  📌 Seçimlər məlumatdan AVTOMATİK yaranır ✓ («Hamısı» + hər ay ✓)
+        //  📌 Gözlənilən siyahı → <c>Tarix</c> · Ödənilmiş siyahı →
+        //     <c>OdenilmeTarixi</c> (yoxdursa <c>Tarix</c>) üzrə süzülür ✓
+        // ====================================================================
+        public System.Collections.ObjectModel.ObservableCollection<string> MohletAyFiltreleri { get; } =
+            new() { "Hamısı" };
+
+        [ObservableProperty] private string mohletAyFiltri = "Hamısı";
+
+        partial void OnMohletAyFiltriChanged(string value) => MohletFiltriniTetbiqEt();
+
+        /// <summary>🗓️ Ay filtri seçimlərini məlumatdan yeniləyir ✓ (seçim qorunur ✓)</summary>
+        private void MohletAylariniYenile()
+        {
+            try
+            {
+                var aylar = GozlenilenMohletler
+                    .Select(m => m.Tarix)
+                    .Concat(OdenilmisMohletler.Select(m => m.OdenilmeTarixi ?? m.Tarix))
+                    .OrderByDescending(d => d)
+                    .Select(d => d.ToString("MM.yyyy"))
+                    .Distinct()
+                    .ToList();
+
+                aylar.Insert(0, "Hamısı");
+
+                if (!aylar.SequenceEqual(MohletAyFiltreleri))
+                {
+                    MohletAyFiltreleri.Clear();
+
+                    foreach (var ay in aylar)
+                    {
+                        MohletAyFiltreleri.Add(ay);
+                    }
+                }
+
+                // 🛡️ Seçilmiş ay artıq məlumatda yoxdursa → «Hamısı» ✓
+                if (!MohletAyFiltreleri.Contains(MohletAyFiltri))
+                {
+                    MohletAyFiltri = "Hamısı";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Möhlət ay filtri yenilənə bilmədi ✗");
+            }
+        }
+
+        /// <summary>🧹 Möhlət filtrlərini (axtarış + ay) sıfırlayır ✓</summary>
+        [RelayCommand]
+        private void MohletFiltrleriniSifirla()
+        {
+            MohletAxtaris = string.Empty;
+            MohletAyFiltri = "Hamısı";
+        }
+
         /// <summary>🕓 Axtarışa uyğun GÖZLƏNİLƏN möhlətlər (cədvəl bunu göstərir ✓).</summary>
         public BulkObservableCollection<OdenisMohlet> FilteredGozlenilenMohletler { get; } = new();
 
@@ -282,22 +344,29 @@ namespace EnterpriseAeroStudio.ViewModels
         [RelayCommand]
         private void AxtarisiTemizle() => Axtaris = string.Empty;
 
-        /// <summary>🔎 Möhlət axtarışını tətbiq edir (canlı ✓).</summary>
+        /// <summary>🔎 Möhlət axtarışını tətbiq edir (canlı ✓) — AXTARIŞ + AY filtri ✓ (v6.2.88).</summary>
         private void MohletFiltriniTetbiqEt()
         {
             try
             {
                 var axtaris = (MohletAxtaris ?? string.Empty).Trim().ToLowerInvariant();
+                var ay = MohletAyFiltri ?? "Hamısı";
+
+                bool AyUygun(DateTime tarix) =>
+                    string.Equals(ay, "Hamısı", StringComparison.Ordinal) ||
+                    string.Equals(tarix.ToString("MM.yyyy"), ay, StringComparison.Ordinal);
 
                 FilteredGozlenilenMohletler.ReplaceAll(
-                    axtaris.Length == 0
-                        ? GozlenilenMohletler
-                        : GozlenilenMohletler.Where(m => MohletUygundur(m, axtaris)).ToList());
+                    GozlenilenMohletler
+                        .Where(m => AyUygun(m.Tarix))
+                        .Where(m => axtaris.Length == 0 || MohletUygundur(m, axtaris))
+                        .ToList());
 
                 FilteredOdenilmisMohletler.ReplaceAll(
-                    axtaris.Length == 0
-                        ? OdenilmisMohletler
-                        : OdenilmisMohletler.Where(m => MohletUygundur(m, axtaris)).ToList());
+                    OdenilmisMohletler
+                        .Where(m => AyUygun(m.OdenilmeTarixi ?? m.Tarix))
+                        .Where(m => axtaris.Length == 0 || MohletUygundur(m, axtaris))
+                        .ToList());
 
                 // 🛡️ Seçilmiş möhlət axtarışdan çıxdısa → seçim sıfırlanır ✓
                 if (SelectedGozlenilenMohlet is OdenisMohlet secili &&
@@ -1866,6 +1935,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 GozlenilenMohletler.ReplaceAll(gozlenilen);
 
                 OdenilmisMohletler.ReplaceAll(odenilmis);
+
+                // 🗓️ v6.2.88 — AY filtri seçimləri yenilənir ✓ (sonra filtr tətbiq olunur ✓)
+                MohletAylariniYenile();
 
                 // 🔎 v6.2.85 — axtarış filtri dərhal tətbiq olunur ✓ (canlı ✓)
                 MohletFiltriniTetbiqEt();

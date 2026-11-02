@@ -1465,7 +1465,17 @@ namespace EnterpriseAeroStudio.ViewModels
                 //     YARI-YARIYA bölünür ✓ (Asif & Musa ✓)
                 //  ☐ «ödənilməyib» → pul gəlməyib ✗ → bölgü SİLİNİR ✓ (yuxarıda ✓)
                 // ================================================================
+                // ================================================================
+                //  ⛔ v6.2.88 — GECİKMƏ BÖLGÜSÜ ARTIQ **AVTOMATİK DEYİL** ✗✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «tərəfdaş bölgüsü checkbox-u olsun —
+                //    SEÇMƏSƏK bölgü görünməsin ✗ (tarixçədə çox yer tutur ✗)»
+                //  ✅ İNDİ: bölgü YALNIZ «👥 BÖLGÜ» checkbox-u ilə tətbiq olunur ✓
+                //     (`ToggleGecikmeBolguCommand` ✓)
+                //  📌 Şərt aşağıda `TerefdasBolguTetbiqOlunub` ilə yoxlanılır ✓
+                // ================================================================
                 else if (transaction.Nov == "Gecikmə"
+                         && transaction.TerefdasBolguTetbiqOlunub
                          && transaction.TerefdasPaylari.Count == 0)
                 {
                     var qaliglar = Catalog.DefaultPartners
@@ -1521,6 +1531,105 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 _logger.LogError(ex, "Əməliyyat vəziyyəti yenilənə bilmədi.");
                 _dialogs.ShowError("Vəziyyət yadda saxlanıla bilmədi: " + ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+
+            ApplyTransactionFilter();
+            DataChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 👥 <b>v6.2.88 — GECİKMƏ ÜÇÜN «TƏRƏFDAŞ BÖLGÜSÜ» checkbox-u</b> ✓✓✓
+        /// <para>
+        /// ★ İstifadəçi tələbi: «Gecikmə ödənilib checkbox-unun YANINDA tərəfdaş
+        /// bölgüsü checkbox-u da olsun ✓ (Gəlirdəki kimi copy-paste ✓).
+        /// Seçməsək bölgü GÖRÜNMƏSİN ✗ — tarixçədə çox yer tutur ✗.»
+        /// </para>
+        /// <list type="bullet">
+        ///   <item>☑ → qalıq tərəfdaşlar arasında yarı-yarıya bölünür ✓ (baza = məbləğ ✓)</item>
+        ///   <item>☐ → paylar SİLİNİR ✓ və tarixçədə bölgü mətni görünmür ✗</item>
+        /// </list>
+        /// </summary>
+        [RelayCommand]
+        private async Task ToggleGecikmeBolguAsync(CreditTransaction? transaction)
+        {
+            if (transaction is null ||
+                !string.Equals(transaction.Nov, "Gecikmə", StringComparison.Ordinal) ||
+                !transaction.Odenilib)
+            {
+                return;   // 📌 yalnız GECİKMƏ və yalnız ÖDƏNİLİB olduqda ✓
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                if (transaction.TerefdasBolguTetbiqOlunub && transaction.TerefdasPaylari.Count > 0)
+                {
+                    // ============================================================
+                    //  ☐ BÖLGÜ LƏĞV EDİLDİ ✓ — paylar silinir, baza sıfırlanır ✓
+                    // ============================================================
+                    transaction.TerefdasBolguTetbiqOlunub = false;
+                    transaction.TerefdasPaylari = new List<PartnerShare>();
+                    transaction.BolguBazasi = null;
+
+                    _logger.LogInformation(
+                        "👥 Gecikmə bölgüsü LƏĞV EDİLDİ ✓ — {Mebleg:N2} ₼ (id {Id})",
+                        transaction.Mebleg, transaction.Id);
+                }
+                else
+                {
+                    // ============================================================
+                    //  ☑ BÖLGÜ TƏTBİQ EDİLDİ ✓ — Gəlir ilə EYNİ qayda ✓
+                    //   📌 Yalnız QALIQ payçıları (Asif · Musa) — faiz sahibləri YOX ✗
+                    //   📌 baza = məbləğ → maya payı 0 ✓ (cərimə mayadan çıxmır ✗)
+                    // ============================================================
+                    var qaliglar = Catalog.DefaultPartners
+                        .Where(p => p.QaligPayi)
+                        .ToList();
+
+                    var yeniPaylar = new List<PartnerShare>();
+
+                    if (qaliglar.Count > 0)
+                    {
+                        var pay = Math.Round(transaction.Mebleg / qaliglar.Count, 2);
+
+                        for (var i = 0; i < qaliglar.Count; i++)
+                        {
+                            yeniPaylar.Add(new PartnerShare
+                            {
+                                Terefdas = qaliglar[i].Ad,
+                                Faiz = 0m,
+                                QaligPayi = true,
+                                Aktiv = true,
+                                Mebleg = i == qaliglar.Count - 1
+                                    ? Math.Round(transaction.Mebleg - pay * i, 2)
+                                    : pay,
+                                Sira = i + 1
+                            });
+                        }
+                    }
+
+                    transaction.TerefdasBolguTetbiqOlunub = yeniPaylar.Count > 0;
+                    transaction.TerefdasPaylari = yeniPaylar;
+                    transaction.BolguBazasi = yeniPaylar.Count > 0
+                        ? Math.Round(transaction.Mebleg, 2)
+                        : null;
+
+                    _logger.LogInformation(
+                        "👥 Gecikmə bölgüsü TƏTBİQ EDİLDİ ✓ — {Mebleg:N2} ₼ → {Say} qalıq tərəfdaş",
+                        transaction.Mebleg, yeniPaylar.Count);
+                }
+
+                await _creditService.UpdateTransactionAsync(transaction);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gecikmə bölgüsü dəyişdirilə bilmədi.");
+                _dialogs.ShowError("Bölgü yadda saxlanıla bilmədi: " + ex.Message);
             }
             finally
             {
