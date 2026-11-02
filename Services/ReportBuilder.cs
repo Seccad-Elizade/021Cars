@@ -424,6 +424,115 @@ td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
                 sb.Append("<div class=\"empty\">Bu dövrdə gecikmə cəriməsi qeydə alınmayıb ✓</div>");
             }
 
+            // ================================================================
+            //  10 · 🏷️ MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ) ✓✓✓ — v6.2.90
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi: «PDF-lərdə yeni funksiyalar yoxdur ✗»
+            //  ✅ Hər kredit üzrə: KÖK · plan maya · faktiki maya · fərq ·
+            //     faktiki mənfəət ✓ (ekrandakı sütunlarla EYNİ ✓)
+            // ================================================================
+            sb.Append("<h2>10 · 🏷️ MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ)</h2>");
+
+            var mayaSetirleri = d.Credits
+                .Select(c => (Kredit: c, Maya: MayaAnalizi.Hesabla(c, d.Transactions)))
+                .OrderByDescending(x => x.Maya.FaktikiMaya)
+                .ToList();
+
+            var planMayaCemi = mayaSetirleri.Sum(x => x.Maya.PlanMaya);
+            var faktikiMayaCemi = mayaSetirleri.Sum(x => x.Maya.FaktikiMaya);
+            var menfeetCemi = mayaSetirleri.Sum(x => x.Maya.Menfeet);
+            var fergCemi = Math.Round(faktikiMayaCemi - planMayaCemi, 2);
+
+            sb.Append("<div class=\"row\"><div class=\"col\">");
+            Kv(sb, "🏷️ PLAN maya (cəmi)", Money(planMayaCemi));
+            Kv(sb, "✅ FAKTİKİ maya (cəmi)", $"<b class=\"pos\">{Money(faktikiMayaCemi)}</b>");
+            sb.Append("</div><div class=\"col\">");
+            Kv(sb, "📊 FƏRQ (faktiki − plan)",
+                $"<b class=\"{(fergCemi >= 0m ? "pos" : "neg")}\">{(fergCemi >= 0m ? "+" : "−")}{Money(Math.Abs(fergCemi))}</b>");
+            Kv(sb, "💵 FAKTİKİ mənfəət (bölünən)", Money(menfeetCemi));
+            sb.Append("</div></div>");
+
+            if (mayaSetirleri.Count > 0)
+            {
+                sb.Append("<table><thead><tr><th>Müqavilə</th><th>Müştəri</th>" +
+                          "<th class=\"num\">KÖK</th><th class=\"num\">PLAN maya</th>" +
+                          "<th class=\"num\">FAKTİKİ maya</th><th class=\"num\">FƏRQ</th>" +
+                          "<th class=\"num\">Mənfəət</th><th class=\"num\">Ödəniş</th></tr></thead><tbody>");
+
+                foreach (var (kredit, maya) in mayaSetirleri)
+                {
+                    var reng = Math.Abs(maya.Ferq) < 0.01m
+                        ? string.Empty
+                        : (maya.Ferq > 0m ? " class=\"pos\"" : " class=\"neg\"");
+
+                    sb.Append($"<tr><td>{Esc(kredit.MuqavileNomresi)}</td>" +
+                              $"<td>{Esc(kredit.Mustəri)}</td>" +
+                              $"<td class=\"num\">{Money(maya.Kok)}</td>" +
+                              $"<td class=\"num\">{Money(maya.PlanMaya)}</td>" +
+                              $"<td class=\"num\"><b>{Money(maya.FaktikiMaya)}</b></td>" +
+                              $"<td class=\"num\"{reng}><b>{maya.FerqMetni}</b></td>" +
+                              $"<td class=\"num\">{Money(maya.Menfeet)}</td>" +
+                              $"<td class=\"num\">{maya.OdenisSayi}</td></tr>");
+                }
+
+                sb.Append($"<tr><td colspan=\"2\"><b>CƏMİ</b></td>" +
+                          $"<td class=\"num\"><b>{Money(mayaSetirleri.Sum(x => x.Maya.Kok))}</b></td>" +
+                          $"<td class=\"num\"><b>{Money(planMayaCemi)}</b></td>" +
+                          $"<td class=\"num\"><b>{Money(faktikiMayaCemi)}</b></td>" +
+                          $"<td class=\"num\"><b>{(fergCemi >= 0m ? "+" : "−")}{Money(Math.Abs(fergCemi))}</b></td>" +
+                          $"<td class=\"num\"><b>{Money(menfeetCemi)}</b></td><td></td></tr>");
+
+                sb.Append("</tbody></table>");
+            }
+            else
+            {
+                sb.Append("<div class=\"empty\">Kredit yoxdur ✓</div>");
+            }
+
+            // ================================================================
+            //  11 · ⏳ MÖHLƏT (İLKİN ÖDƏNİŞƏ) ✓✓✓ — v6.2.90
+            // ================================================================
+            var mohletler = d.Credits
+                .SelectMany(c => c.IlkinMohletleri ?? new List<OdenisMohlet>())
+                .ToList();
+
+            sb.Append("<h2>11 · ⏳ MÖHLƏT (İLKİN ÖDƏNİŞƏ)</h2>");
+
+            if (mohletler.Count > 0)
+            {
+                var mohletCemi = mohletler.Sum(m => m.Mebleg);
+                var mohletOdenilmis = mohletler.Where(m => m.Odenilib).Sum(m => m.Mebleg);
+
+                sb.Append("<div class=\"row\"><div class=\"col\">");
+                Kv(sb, "⏳ Möhlət sayı", mohletler.Count.ToString());
+                Kv(sb, "💵 Cəmi", Money(mohletCemi));
+                sb.Append("</div><div class=\"col\">");
+                Kv(sb, "✅ Ödənilmiş", $"<b class=\"pos\">{Money(mohletOdenilmis)}</b>");
+                Kv(sb, "⏳ Gözlənilən",
+                    $"<b class=\"{(mohletCemi - mohletOdenilmis > 0m ? "neg" : "pos")}\">{Money(Math.Max(0m, mohletCemi - mohletOdenilmis))}</b>");
+                sb.Append("</div></div>");
+
+                sb.Append("<table><thead><tr><th>Söz verilən tarix</th><th>Müqavilə</th>" +
+                          "<th class=\"num\">Məbləğ</th><th>Vəziyyət</th><th>Qeyd</th></tr></thead><tbody>");
+
+                foreach (var m in mohletler.OrderBy(m => m.Tarix))
+                {
+                    var kredit = d.Credits.FirstOrDefault(c => c.Id == m.CreditId);
+
+                    sb.Append($"<tr><td>{Date(m.Tarix)}</td>" +
+                              $"<td>{Esc(kredit?.MuqavileNomresi ?? "—")}</td>" +
+                              $"<td class=\"num\">{Money(m.Mebleg)}</td>" +
+                              $"<td class=\"{(m.Odenilib ? "pos" : "neg")}\">{(m.Odenilib ? "✅ ÖDƏNİLDİ" : "⏳ GÖZLƏNİLİR")}</td>" +
+                              $"<td>{Esc(m.Qeyd)}</td></tr>");
+                }
+
+                sb.Append("</tbody></table>");
+            }
+            else
+            {
+                sb.Append("<div class=\"empty\">Möhlət qeydə alınmayıb ✓</div>");
+            }
+
             // ---------------- ALTLIQ ----------------
             sb.Append("<div class=\"foot\"><div>Avtomobil Parkı v6.0 — avtomatik hesabat</div>" +
                       $"<div>{Date(DateTime.Today)}</div></div>");
@@ -542,6 +651,52 @@ td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
             }
 
             Xett("CƏMİ", "", "", "", "", "", Num(d.Expenses.Sum(e => e.Mebleg)));
+
+            // ================================================================
+            //  7 · 🏷️ MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ) ✓✓✓ — v6.2.90
+            // ================================================================
+            Bos();
+            Xett("7. MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ)");
+            Xett("Müqavilə", "Müştəri", "KÖK", "PLAN maya", "FAKTİKİ maya", "FƏRQ", "Mənfəət", "Ödəniş");
+
+            foreach (var c in d.Credits.OrderBy(c => c.MuqavileNomresi))
+            {
+                var m = MayaAnalizi.Hesabla(c, d.Transactions);
+
+                Xett(c.MuqavileNomresi, c.Mustəri ?? "—", Num(m.Kok), Num(m.PlanMaya),
+                     Num(m.FaktikiMaya), Num(m.Ferq), Num(m.Menfeet), m.OdenisSayi.ToString());
+            }
+
+            Xett("CƏMİ", "",
+                 Num(d.Credits.Sum(c => MayaAnalizi.Hesabla(c, d.Transactions).Kok)),
+                 Num(d.Credits.Sum(c => MayaAnalizi.Hesabla(c, d.Transactions).PlanMaya)),
+                 Num(d.Credits.Sum(c => MayaAnalizi.Hesabla(c, d.Transactions).FaktikiMaya)),
+                 Num(d.Credits.Sum(c => MayaAnalizi.Hesabla(c, d.Transactions).Ferq)),
+                 Num(d.Credits.Sum(c => MayaAnalizi.Hesabla(c, d.Transactions).Menfeet)),
+                 "");
+
+            // ================================================================
+            //  8 · ⏳ MÖHLƏT (İLKİN ÖDƏNİŞƏ) ✓✓✓ — v6.2.90
+            // ================================================================
+            var csvMohletler = d.Credits
+                .SelectMany(c => c.IlkinMohletleri ?? new List<OdenisMohlet>())
+                .OrderBy(m => m.Tarix)
+                .ToList();
+
+            Bos();
+            Xett("8. MÖHLƏT (İLKİN ÖDƏNİŞƏ)");
+            Xett("Söz verilən tarix", "Müqavilə", "Məbləğ", "Ödənilib", "Qeyd");
+
+            foreach (var m in csvMohletler)
+            {
+                var kredit = d.Credits.FirstOrDefault(c => c.Id == m.CreditId);
+
+                Xett(Date(m.Tarix), kredit?.MuqavileNomresi ?? "—", Num(m.Mebleg),
+                     m.Odenilib ? "Bəli" : "Xeyr", m.Qeyd ?? "");
+            }
+
+            Xett("CƏMİ", "", Num(csvMohletler.Sum(m => m.Mebleg)),
+                 Num(csvMohletler.Where(m => m.Odenilib).Sum(m => m.Mebleg)), "");
 
             return sb.ToString();
         }

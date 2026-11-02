@@ -99,6 +99,17 @@ namespace EnterpriseAeroStudio.Services
             BlokAvtomobil(sb, car);
             BlokXercler(sb, car);
             BlokKredit(sb, credit);
+
+            // ================================================================
+            //  🏷️ v6.2.90 — YENİ FUNKSİYALAR PDF-Ə DAXİL EDİLDİ ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İstifadəçi: «PDF-lər köhnədir ✗ — yeni funksiyalar yoxdur ✗»
+            //  ① MAYA ANALİTİKASI — plan ↔ faktiki ↔ fərq ↔ mənfəət ✓
+            //  ② GECİKMƏ + MÖHLƏT xülasəsi ✓
+            // ================================================================
+            BlokMayaAnalizi(sb, credit, hereketler);
+            BlokGecikmeMohlet(sb, credit, hereketler);
+
             BlokQrafik(sb, credit, hereketler);      // 📅 ödəniş qrafiki ✓✓✓
             BlokHereketler(sb, hereketler);
             BlokPaylar(sb, paylar);
@@ -463,6 +474,119 @@ namespace EnterpriseAeroStudio.Services
 
             sb.Append($"<tr><td colspan=\"4\"><b>CƏMİ HƏRƏKƏT</b></td>" +
                       $"<td><b>{hereketler.Sum(t => t.Mebleg):N2} AZN</b></td></tr></table>");
+        }
+
+        /// <summary>
+        /// 🏷️ <b>v6.2.90 — MAYA ANALİTİKASI</b> ✓✓✓
+        /// <para>
+        /// Plan maya ↔ Faktiki maya ↔ Fərq ↔ Faktiki mənfəət ✓
+        /// (ekrandakı «MAYADAN ÖDƏNİLİB / MAYADA FƏRQ» sütunları ilə eyni ✓)
+        /// </para>
+        /// </summary>
+        private static void BlokMayaAnalizi(
+            StringBuilder sb,
+            Credit? credit,
+            IReadOnlyList<CreditTransaction> hereketler)
+        {
+            if (credit is null)
+            {
+                return;
+            }
+
+            var m = MayaAnalizi.Hesabla(credit, hereketler);
+
+            sb.Append("<h2>🏷️ MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ)</h2>");
+            sb.Append("<table><tr><th style=\"width:44%\">Göstərici</th><th>Dəyər</th></tr>");
+
+            S(sb, "KÖK (əsas borc)", $"{m.Kok:N2} AZN");
+            S(sb, "PLAN maya (ödənilməli)", $"{m.PlanMaya:N2} AZN");
+            S(sb, "FAKTİKİ maya (ödənilib)", $"{m.FaktikiMaya:N2} AZN");
+
+            var ferqClass = Math.Abs(m.Ferq) < 0.01m ? string.Empty : (m.Ferq > 0m ? " class=\"ok\"" : " class=\"bad\"");
+            sb.Append($"<tr><td>📊 FƏRQ (faktiki − plan)</td><td><b{ferqClass}>{m.FerqMetni}</b></td></tr>");
+
+            S(sb, "MAYA QALIĞI", $"{m.QaligKok:N2} AZN");
+            S(sb, "FAKTİKİ mənfəət (bölünən hissə)", $"{m.Menfeet:N2} AZN");
+            S(sb, "ÖDƏNİŞ sayı", m.OdenisSayi.ToString());
+
+            if (m.OdenilmisGecikme > 0m)
+            {
+                S(sb, "⚠️ Ödənilmiş gecikmə (mayaya daxil ✓)", $"{m.OdenilmisGecikme:N2} AZN");
+            }
+
+            S(sb, "KÖK-ün ödənilmə faizi", $"{m.Faiz * 100:0.0} %");
+
+            sb.Append("</table>");
+        }
+
+        /// <summary>
+        /// ⚠️ <b>v6.2.90 — GECİKMƏ və MÖHLƏT XÜLASƏSİ</b> ✓✓✓
+        /// </summary>
+        private static void BlokGecikmeMohlet(
+            StringBuilder sb,
+            Credit? credit,
+            IReadOnlyList<CreditTransaction> hereketler)
+        {
+            var gecikmeler = (hereketler ?? Array.Empty<CreditTransaction>())
+                .Where(t => string.Equals(t.Nov, "Gecikmə", StringComparison.Ordinal))
+                .ToList();
+
+            var mohletler = credit?.IlkinMohletleri?.ToList() ?? new List<OdenisMohlet>();
+
+            if (gecikmeler.Count == 0 && mohletler.Count == 0)
+            {
+                return;
+            }
+
+            sb.Append("<h2>⚠️ GECİKMƏ və ⏳ MÖHLƏT</h2>");
+
+            if (gecikmeler.Count > 0)
+            {
+                var cemi = gecikmeler.Sum(t => t.Mebleg);
+                var odenilmis = gecikmeler.Where(t => t.Odenilib).Sum(t => t.Mebleg);
+                var qaliq = Math.Max(0m, cemi - odenilmis);
+
+                sb.Append("<table><tr><th style=\"width:44%\">GECİKMƏ</th><th>Dəyər</th></tr>");
+                S(sb, "Qeyd sayı", gecikmeler.Count.ToString());
+                S(sb, "Cəmi cərimə", $"{cemi:N2} AZN");
+                S(sb, "Ödənilib ✓", $"{odenilmis:N2} AZN");
+                S(sb, qaliq > 0m ? "Qalıq ✗" : "Qalıq ✓", $"{qaliq:N2} AZN");
+                sb.Append("</table>");
+
+                sb.Append("<table><tr><th style=\"width:14%\">Tarix</th><th style=\"width:16%\">Məbləğ</th>" +
+                          "<th style=\"width:14%\">Ödənilib</th><th>Təsvir</th></tr>");
+
+                foreach (var g in gecikmeler.OrderBy(g => g.Tarix))
+                {
+                    sb.Append($"<tr><td>{g.Tarix:dd.MM.yyyy}</td><td><b>{g.Mebleg:N2} AZN</b></td>" +
+                              $"<td class=\"{(g.Odenilib ? "ok" : "warn")}\">{(g.Odenilib ? "Bəli ✓" : "Xeyr ✗")}</td>" +
+                              $"<td>{Enc(g.Tesvir)}</td></tr>");
+                }
+
+                sb.Append("</table>");
+            }
+
+            if (mohletler.Count > 0)
+            {
+                sb.Append("<table><tr><th style=\"width:44%\">MÖHLƏT (ilkin ödənişə)</th><th>Dəyər</th></tr>");
+                S(sb, "Möhlət sayı", mohletler.Count.ToString());
+                S(sb, "Cəmi", $"{mohletler.Sum(m => m.Mebleg):N2} AZN");
+                S(sb, "Ödənilib ✓", $"{mohletler.Where(m => m.Odenilib).Sum(m => m.Mebleg):N2} AZN");
+                S(sb, "Gözlənilən ✗", $"{mohletler.Where(m => !m.Odenilib).Sum(m => m.Mebleg):N2} AZN");
+                sb.Append("</table>");
+
+                sb.Append("<table><tr><th style=\"width:20%\">Söz verilən tarix</th><th style=\"width:18%\">Məbləğ</th>" +
+                          "<th style=\"width:16%\">Ödənilib</th><th>Qeyd</th></tr>");
+
+                foreach (var mh in mohletler.OrderBy(m => m.Tarix))
+                {
+                    sb.Append($"<tr><td>{mh.Tarix:dd.MM.yyyy}</td><td><b>{mh.Mebleg:N2} AZN</b></td>" +
+                              $"<td class=\"{(mh.Odenilib ? "ok" : "warn")}\">{(mh.Odenilib ? "Bəli ✓" : "Xeyr ✗")}</td>" +
+                              $"<td>{Enc(mh.Qeyd)}</td></tr>");
+                }
+
+                sb.Append("</table>");
+            }
         }
 
         /// <summary>👥 ⑤ TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ ✓</summary>

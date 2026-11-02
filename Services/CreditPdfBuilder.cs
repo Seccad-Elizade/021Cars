@@ -104,6 +104,30 @@ namespace EnterpriseAeroStudio.Services
             sb.Append(Card("BAŞLAMA TARİXİ", $"{credit.BaslamaTarixi:dd.MM.yyyy}"));
             sb.Append("</div>");
 
+            // ================================================================
+            //  🏷️ v6.2.90 — MAYA ANALİTİKASI (daxili hesabat ✓)
+            // ----------------------------------------------------------------
+            //  ★ «PDF-lərdə yeni funksiyalar yoxdur ✗» → plan ↔ faktiki ↔ fərq ✓
+            //  📌 Ekrandakı «MAYADAN ÖDƏNİLİB / MAYADA FƏRQ» ilə EYNİ rəqəmlər ✓
+            // ================================================================
+            if (!musteriRejimi && schedule.Count > 0)
+            {
+                var planMaya = schedule.Where(r => !r.XaricindeHedd).Sum(r => r.EsasBorclu);
+                var faktikiMaya = schedule.Sum(r => r.FaktikiMaya);
+                var fakMenfeet = schedule.Sum(r => r.FaktikiMenfeet);
+                var ferq = Math.Round(faktikiMaya - planMaya, 2);
+
+                sb.Append("<h2>🏷️ MAYA ANALİTİKASI (PLAN ↔ FAKTİKİ)</h2>");
+                sb.Append("<table><tr><th style=\"width:44%\">Göstərici</th><th>Dəyər</th></tr>");
+                sb.Append($"<tr><td>KÖK (əsas borc)</td><td><b>{credit.Kok:N2} AZN</b></td></tr>");
+                sb.Append($"<tr><td>PLAN maya (cədvəl üzrə)</td><td><b>{planMaya:N2} AZN</b></td></tr>");
+                sb.Append($"<tr><td>FAKTİKİ maya (ödənilib ✓)</td><td><b>{faktikiMaya:N2} AZN</b></td></tr>");
+                sb.Append($"<tr><td>📊 FƏRQ (faktiki − plan)</td><td><b>{(ferq >= 0m ? "+" : "−")}{Math.Abs(ferq):N2} AZN</b></td></tr>");
+                sb.Append($"<tr><td>MAYA QALIĞI</td><td><b>{Math.Max(0m, planMaya - faktikiMaya):N2} AZN</b></td></tr>");
+                sb.Append($"<tr><td>FAKTİKİ mənfəət (bölünən hissə)</td><td><b>{fakMenfeet:N2} AZN</b></td></tr>");
+                sb.Append("</table>");
+            }
+
             // ---------------- BARTER ----------------
             if (barterCemi > 0m && barterler.Count > 0)
             {
