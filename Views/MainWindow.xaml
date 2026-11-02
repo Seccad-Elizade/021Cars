@@ -2498,6 +2498,20 @@
                                     <TextBlock FontSize="10.5" Foreground="#8798AD" TextWrapping="Wrap"
                                                Text="ℹ️ «QALIQ BORC» sütunu həmin ödənişdən SONRA qalan borcu göstərir — ən aşağı sətirdə 0,00 ₼ = kredit bitib ✓   ·   «ÖDƏNİŞ SAYI» 1-dən çoxdursa, ay hissə-hissə ödənilib ✓   ·   Sütun başlıqlarının üzərinə siçanı gətirin → izah görünür ✓"/>
                                 </Border>
+
+                                <!-- ============================================================ -->
+                                <!-- 🏷️ v6.2.87 — MAYA SÜTUNLARININ İZAHI ✓✓✓                     -->
+                                <!-- ============================================================ -->
+                                <Border Background="#0E1723" CornerRadius="8" Padding="10,8" Margin="0,8,0,0"
+                                        BorderBrush="#2E4A66" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock FontSize="11" FontWeight="Bold" Foreground="#7EA8FF"
+                                                   Text="🏷️ MAYA (ƏSAS BORC) SÜTUNLARI — avtomatik hesablanır ✓"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock FontSize="10.5" Foreground="#A9B8C8" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                   Text="«🏷️ ƏSAS BORC (maya)» = PLAN — heç vaxt dəyişmir ✗  ·  «🏷️ MAYADAN ÖDƏNİLİB» = REAL ödənişin maya payı ✓  ·  «📊 MAYADA FƏRQ» = faktiki − plan ✓ (+ yaşıl = çox ödənilib ✓ · − qırmızı = az ödənilib ✗)   ·   Maya payı «Kreditlər → Maya ödənilib» göstəricisi ilə EYNİ düsturla hesablanır ✓ (iki yerdə fərqli rəqəm çıxmır ✗)"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -2674,6 +2688,35 @@
                                         <DataGridTextColumn Header="💵 FAİZ (mənfəət)" Binding="{Binding Faiz, Converter={StaticResource Currency}}" Width="Auto"
                                                             ToolTipService.ToolTip="Ödənişin FAİZƏ (mənfəətə) düşən hissəsi ✓ — tərəfdaşlar arasında bölünür"
                                                             ElementStyle="{StaticResource OutOfRangeCellText}"/>
+
+                                        <!-- ==================================================== -->
+                                        <!-- 🏷️ v6.2.87 — FAKTİKİ MAYA və AVTOMATİK FƏRQ ✓✓✓      -->
+                                        <!--  ★ «300 ₼ maya ödənilibsə → 300 ₼ yazılmalıdır» ✓     -->
+                                        <!--  Plan sütunu («ƏSAS BORC (maya)») dəyişmir ✗ ✓       -->
+                                        <!-- ==================================================== -->
+                                        <DataGridTemplateColumn Header="🏷️ MAYADAN ÖDƏNİLİB" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel VerticalAlignment="Center" ToolTip="{Binding MayaIzahi}">
+                                                        <TextBlock Text="{Binding FaktikiMaya, Converter={StaticResource Currency}}"
+                                                                   FontSize="11.5" FontWeight="SemiBold" Foreground="#7EA8FF"/>
+                                                        <TextBlock Text="{Binding FaktikiMenfeet, StringFormat=mənfəət {0:N2} ₼}"
+                                                                   FontSize="9" Foreground="#8FA3B8"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="📊 MAYADA FƏRQ" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding MayaFerqiMetni}"
+                                                               FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{Binding MayaFerqReng}"
+                                                               VerticalAlignment="Center"
+                                                               ToolTip="{Binding MayaIzahi}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridTextColumn Header="📉 QALIQ BORC" Binding="{Binding Qaliq, Converter={StaticResource Currency}}" Width="Auto"
                                                             ToolTipService.ToolTip="Bu ödənişdən SONRA qalan ümumi borc ✓"
                                                             ElementStyle="{StaticResource OutOfRangeCellText}"/>
@@ -2714,19 +2757,27 @@
                                 <!-- ============================================================ -->
                                 <Border Background="#0C131C" CornerRadius="9" Padding="12,8" Margin="6,8,6,0"
                                         BorderBrush="#2B3949" BorderThickness="1">
-                                    <DockPanel LastChildFill="False">
-                                        <TextBlock DockPanel.Dock="Left" Text="📊 CƏDVƏLİN YEKNUNU"
-                                                   FontSize="11" FontWeight="Bold" Foreground="#4EC3F5"
-                                                   VerticalAlignment="Center"/>
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="False">
+                                            <TextBlock DockPanel.Dock="Left" Text="📊 CƏDVƏLİN YEKNUNU"
+                                                       FontSize="11" FontWeight="Bold" Foreground="#4EC3F5"
+                                                       VerticalAlignment="Center"/>
 
-                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#A9B8C8"
-                                                   VerticalAlignment="Center" Margin="16,0,0,0"
-                                                   Text="{Binding Credits.ScheduleInfo}"/>
+                                            <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#A9B8C8"
+                                                       VerticalAlignment="Center" Margin="16,0,0,0"
+                                                       Text="{Binding Credits.ScheduleInfo}"/>
 
-                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#8798AD"
-                                                   VerticalAlignment="Center" Margin="16,0,0,0"
-                                                   Text="💡 Sətirləri yuxarıdan aşağı oxuyun — hər sətir bir aydır ✓"/>
-                                    </DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#8798AD"
+                                                       VerticalAlignment="Center" Margin="16,0,0,0"
+                                                       Text="💡 Sətirləri yuxarıdan aşağı oxuyun — hər sətir bir aydır ✓"/>
+                                        </DockPanel>
+
+                                        <!-- 🏷️ v6.2.87 — MAYA YEKUNU: plan · faktiki · fərq · mənfəət ✓✓✓ -->
+                                        <TextBlock Text="{Binding Credits.ScheduleMayaYekunu}"
+                                                   FontSize="11" FontWeight="SemiBold" Foreground="#7EA8FF"
+                                                   Margin="0,6,0,0" TextWrapping="Wrap"
+                                                   ToolTip="Plan maya = cədvəl üzrə ödənilməli əsas borc ✓&#x0a;Faktiki maya = REAL ödənişlərin maya (kök) payı ✓&#x0a;Fərq = faktiki − plan ✓ (avtomatik ✓)&#x0a;Faktiki mənfəət = ödənişlər − maya payı ✓ (tərəfdaşlar arasında bölünür)"/>
+                                    </StackPanel>
                                 </Border>
                             </DockPanel>
                         </Border>

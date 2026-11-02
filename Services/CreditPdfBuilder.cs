@@ -243,13 +243,24 @@ namespace EnterpriseAeroStudio.Services
             var sb = new StringBuilder();
             sb.Append($"<h2>TAM ÖDƏNİŞ CƏDVƏLİ — {cedvel.Count} sətir · {credit.MuddetAy} ay</h2>");
             sb.Append("<table class=\"sched\"><tr><th>№</th><th>PLAN TARİXİ</th><th>Ödəniş</th><th>Vəziyyət</th>" +
-                      "<th>Faktiki tarix</th><th>Əsas borc</th><th>Faiz</th><th>Qalıq</th><th>Gecikmə</th></tr>");
+                      "<th>Faktiki tarix</th><th>Əsas borc (plan)</th><th>Faiz</th>" +
+                      "<th>Mayadan ödənilib</th><th>Mayada fərq</th><th>Qalıq</th><th>Gecikmə</th></tr>");
 
             foreach (var row in cedvel)
             {
                 var veziyyet = row.Odenilib
                     ? "<span class=\"ok\">odenilib</span>"
                     : "<span class=\"bad\">odenilmeyib</span>";
+
+                // 🏷️ v6.2.87 — FAKTİKİ MAYA və FƏRQ ✓ (ekranla EYNİ rəqəmlər ✓)
+                var faktikiMaya = row.FaktikiMayaVar ? $"{row.FaktikiMaya:N2}" : "—";
+                var ferq = row.FaktikiMayaVar
+                    ? (Math.Abs(row.MayaFerqi) < 0.01m
+                        ? "plan üzrə"
+                        : (row.MayaFerqi > 0m
+                            ? $"+{row.MayaFerqi:N2} çox"
+                            : $"-{Math.Abs(row.MayaFerqi):N2} az"))
+                    : "—";
 
                 sb.Append("<tr>" +
                           $"<td>{Enc(row.NoText)}</td>" +
@@ -259,10 +270,23 @@ namespace EnterpriseAeroStudio.Services
                           $"<td>{Enc(row.OdenisTarixleri)}</td>" +
                           $"<td>{row.EsasBorclu:N2}</td>" +
                           $"<td>{row.Faiz:N2}</td>" +
+                          $"<td><b>{faktikiMaya}</b></td>" +
+                          $"<td>{Enc(ferq)}</td>" +
                           $"<td>{row.Qaliq:N2}</td>" +
                           $"<td>{Enc(row.GecikmeMetni)}</td>" +
                           "</tr>");
             }
+
+            // 📊 v6.2.87 — MAYA YEKUNU (plan · faktiki · fərq) ✓✓✓
+            var planMaya = cedvel.Where(r => !r.XaricindeHedd).Sum(r => r.EsasBorclu);
+            var faktiki = cedvel.Sum(r => r.FaktikiMaya);
+            var menfeet = cedvel.Sum(r => r.FaktikiMenfeet);
+
+            sb.Append($"<tr><td colspan=\"5\"><b>YEKUN — MAYA</b></td>" +
+                      $"<td><b>{planMaya:N2}</b></td><td></td>" +
+                      $"<td><b>{faktiki:N2}</b></td>" +
+                      $"<td><b>{(faktiki - planMaya >= 0m ? "+" : "-")}{Math.Abs(faktiki - planMaya):N2}</b></td>" +
+                      $"<td colspan=\"2\">mənfəət {menfeet:N2} AZN</td></tr>");
 
             sb.Append("</table>");
             return sb.ToString();

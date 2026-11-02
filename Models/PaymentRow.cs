@@ -96,6 +96,97 @@ namespace EnterpriseAeroStudio.Models
         public List<int> TransactionIds { get; set; } = new();
 
         // ====================================================================
+        //  🏷️ v6.2.87 — FAKTİKİ MAYA (ƏSAS BORC) və MƏNFƏƏT  ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İSTİFADƏÇİ TƏLƏBİ:
+        //    «Birinci ay mayadan 300 ₼ ödənilibsə — <b>300 ₼ ödənilib</b>
+        //     yazılmalıdır ✓ (plan rəqəmi yox ✗). Fərqlər AVTOMATİK
+        //     göstərilməlidir ✓, hər şey professional olmalıdır ✓.»
+        //
+        //  📌 Plan sütunu («ƏSAS BORC (maya)») DƏYİŞMİR ✗ — cədvəlin
+        //     planı həmişə eyni qalır ✓.
+        //  📌 Ayrıca sütunlar əlavə olunur:
+        //     ① «MAYADAN ÖDƏNİLİB» — faktiki ödənişin maya payı ✓
+        //     ② «MAYADA FƏRQ» — faktiki − plan ✓ (rəngli ✓)
+        //  🔢 Maya payı «Kreditlər → Ödənilmiş KÖK» ilə EYNİ düsturla
+        //     hesablanır ✓ (<c>Credit.OdenisKokPayi</c>) → cədvəlin
+        //     sətirlərinin cəmi HƏMİŞƏ ümumi göstəriciyə bərabərdir ✓✓✓
+        // ====================================================================
+
+        /// <summary>
+        /// 🏷️ Bu ay <b>faktiki ödənilmiş MAYA</b> (əsas borc) hissəsi (₼) ✓
+        /// <para>
+        /// Həmin ayın ödənişlərindən çıxılan KÖK paylarının cəmi ✓ —
+        /// <c>Credit.OdenisKokPayi</c> düsturu ilə ✓ (plandan artıq hissə
+        /// tamamilə mayaya gedir ✓).
+        /// </para>
+        /// </summary>
+        [ObservableProperty] private decimal faktikiMaya;
+
+        /// <summary>💵 Bu ay <b>faktiki mənfəət</b> (bölünəcək) hissəsi (₼) ✓ = Ödənilən − FaktikiMaya</summary>
+        [ObservableProperty] private decimal faktikiMenfeet;
+
+        /// <summary>Bu ay üçün faktiki ödəniş varmı? (varsa maya/fərq göstərilir ✓)</summary>
+        public bool FaktikiMayaVar => OdenilenMebleg > 0m;
+
+        /// <summary>
+        /// 📊 <b>MAYADA FƏRQ</b> = faktiki ödənilmiş maya − plan maya (₼) ✓
+        /// <para>➕ müsbət = plandan <b>çox</b> maya ödənilib ✓ (borc sürətlə azalır ✓)</para>
+        /// <para>➖ mənfi = plandan <b>az</b> maya ödənilib ✗ (borc daha yavaş azalır ✗)</para>
+        /// </summary>
+        public decimal MayaFerqi => FaktikiMayaVar
+            ? Math.Round(FaktikiMaya - EsasBorclu, 2)
+            : 0m;
+
+        /// <summary>Fərq mətni: «+50,00 ₼ çox» / «−30,00 ₼ az» / «plan üzrə» ✓</summary>
+        public string MayaFerqiMetni
+        {
+            get
+            {
+                if (!FaktikiMayaVar)
+                {
+                    return string.Empty;
+                }
+
+                if (Math.Abs(MayaFerqi) < 0.01m)
+                {
+                    return "plan üzrə ✓";
+                }
+
+                return MayaFerqi > 0m
+                    ? $"+{MayaFerqi:N2} ₼ çox"
+                    : $"−{Math.Abs(MayaFerqi):N2} ₼ az";
+            }
+        }
+
+        /// <summary>Fərq rəngi: çox = yaşıl ✓ · az = qırmızı ✗ · bərabər = boz ✓</summary>
+        public string MayaFerqReng
+        {
+            get
+            {
+                if (!FaktikiMayaVar)
+                {
+                    return "#7C8CA0";
+                }
+
+                if (Math.Abs(MayaFerqi) < 0.01m)
+                {
+                    return "#7C8CA0";
+                }
+
+                return MayaFerqi > 0m ? "#5ADF90" : "#FA8A9E";
+            }
+        }
+
+        /// <summary>🔍 Alət ipucu: plan maya · faktiki maya · fərq · mənfəət ✓</summary>
+        public string MayaIzahi =>
+            $"Plan maya      : {EsasBorclu:N2} ₼\n" +
+            $"Faktiki maya   : {FaktikiMaya:N2} ₼\n" +
+            $"Fərq           : {(MayaFerqi >= 0m ? "+" : "−")}{Math.Abs(MayaFerqi):N2} ₼\n" +
+            $"Faktiki mənfəət: {FaktikiMenfeet:N2} ₼\n" +
+            $"Ödənilən       : {OdenilenMebleg:N2} ₼";
+
+        // ====================================================================
         //  TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ  (ay üzrə)
         // --------------------------------------------------------------------
         //  Həmin ayın «Kredit əlavə gəlir» qeydlərində kimə nə qədər pay
@@ -243,6 +334,18 @@ namespace EnterpriseAeroStudio.Models
 
         partial void OnOdenilenMeblegChanged(decimal value) => RaiseStatus();
 
+        /// <summary>Faktiki maya dəyişdikdə fərq/rəng/izah da yenilənir ✓ (v6.2.87)</summary>
+        partial void OnFaktikiMayaChanged(decimal value)
+        {
+            OnPropertyChanged(nameof(MayaFerqi));
+            OnPropertyChanged(nameof(MayaFerqiMetni));
+            OnPropertyChanged(nameof(MayaFerqReng));
+            OnPropertyChanged(nameof(MayaIzahi));
+        }
+
+        /// <summary>Faktiki mənfəət dəyişdikdə izah yenilənir ✓ (v6.2.87)</summary>
+        partial void OnFaktikiMenfeetChanged(decimal value) => OnPropertyChanged(nameof(MayaIzahi));
+
         partial void OnOdenilmeTarixiChanged(DateTime? value) => RaiseStatus();
 
         // ====================================================================
@@ -301,6 +404,13 @@ namespace EnterpriseAeroStudio.Models
             OnPropertyChanged(nameof(TarixFergli));
             OnPropertyChanged(nameof(TarixFerqMetni));
             OnPropertyChanged(nameof(TarixFerqReng));
+
+            // 🏷️ v6.2.87 — faktiki maya / fərq göstəriciləri ✓
+            OnPropertyChanged(nameof(FaktikiMayaVar));
+            OnPropertyChanged(nameof(MayaFerqi));
+            OnPropertyChanged(nameof(MayaFerqiMetni));
+            OnPropertyChanged(nameof(MayaFerqReng));
+            OnPropertyChanged(nameof(MayaIzahi));
         }
     }
 }

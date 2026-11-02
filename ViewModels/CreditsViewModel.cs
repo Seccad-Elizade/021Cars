@@ -49,6 +49,54 @@ namespace EnterpriseAeroStudio.ViewModels
         /// </summary>
         private int _sonTransferKreditId;
         private bool _suppressPaymentEvents;
+
+        /// <summary>
+        /// 🧮 v6.2.87 — ödəniş Id-si → onun <b>maya (kök) payı</b> ✓.
+        /// <para>
+        /// <see cref="BuildScheduleCore"/>-da bir dəfə hesablanır ✓ və
+        /// <see cref="ApplyPaid(PaymentRow, List{CreditTransaction}, Dictionary{int, decimal}?)"/>
+        /// tərəfindən oxunur ✓ → hər ayın «mayadan ödənilib» rəqəmi dəqiqdir ✓✓✓
+        /// </para>
+        /// </summary>
+        private Dictionary<int, decimal> _mayaPaylari = new();
+
+        /// <summary>📊 v6.2.87 — cədvəlin PLAN mayası (bütün aylar) ✓</summary>
+        public decimal SchedulePlanMaya => Math.Round(
+            Schedule.Where(r => !r.XaricindeHedd).Sum(r => r.EsasBorclu), 2);
+
+        /// <summary>🏷️ 📊 v6.2.87 — cədvəlin FAKTİKİ mayası (bütün aylar) ✓</summary>
+        public decimal ScheduleFaktikiMaya => Math.Round(Schedule.Sum(r => r.FaktikiMaya), 2);
+
+        /// <summary>💵 📊 v6.2.87 — cədvəlin FAKTİKİ mənfəəti (bütün aylar) ✓</summary>
+        public decimal ScheduleFaktikiMenfeet => Math.Round(Schedule.Sum(r => r.FaktikiMenfeet), 2);
+
+        /// <summary>📊 v6.2.87 — plan maya ilə faktiki maya arasındakı fərq ✓ (+ çox / − az)</summary>
+        public decimal ScheduleMayaFerqi => Math.Round(ScheduleFaktikiMaya - SchedulePlanMaya, 2);
+
+        /// <summary>
+        /// 📊 <b>CƏDVƏLİN MAYA YEKNUNU</b> ✓✓✓ (v6.2.87)
+        /// <example>
+        /// <c>🏷️ Maya: plan 17 014,00 ₼ · faktiki 3 300,00 ₼ · fərq +100,00 ₼ · mənfəət 2 500,00 ₼</c>
+        /// </example>
+        /// </summary>
+        public string ScheduleMayaYekunu
+        {
+            get
+            {
+                if (Schedule.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                var ferq = ScheduleMayaFerqi >= 0m
+                    ? $"+{ScheduleMayaFerqi:N2} ₼ çox"
+                    : $"−{Math.Abs(ScheduleMayaFerqi):N2} ₼ az";
+
+                return $"🏷️ Maya: plan {SchedulePlanMaya:N2} ₼  ·  " +
+                       $"faktiki {ScheduleFaktikiMaya:N2} ₼  ·  fərq {ferq}  ·  " +
+                       $"faktiki mənfəət {ScheduleFaktikiMenfeet:N2} ₼";
+            }
+        }
         private decimal _lastAutoMebleg;
 
         /// <summary>
@@ -401,6 +449,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 TransferYenile(value);        // 📤 TRANSFER paneli + «Transfer olunan» ✓
                 IlkinMohletYukle(value);      // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT paneli ✓✓✓
                 OnPropertyChanged(nameof(ScheduleInfo));
+
+                // 📊 v6.2.87 — cədvəlin MAYA yekunları ✓ (plan · faktiki · fərq · mənfəət)
+                ScheduleYekunlariniBildir();
             }
             catch (Exception ex)
             {
@@ -1244,6 +1295,19 @@ namespace EnterpriseAeroStudio.ViewModels
             {
                 _applyingScheduleFilter = false;
             }
+        }
+
+        /// <summary>
+        /// 📊 v6.2.87 — cədvəlin maya yekunlarını UI-a bildirir ✓
+        /// (plan maya · faktiki maya · fərq · faktiki mənfəət ✓)
+        /// </summary>
+        private void ScheduleYekunlariniBildir()
+        {
+            OnPropertyChanged(nameof(SchedulePlanMaya));
+            OnPropertyChanged(nameof(ScheduleFaktikiMaya));
+            OnPropertyChanged(nameof(ScheduleFaktikiMenfeet));
+            OnPropertyChanged(nameof(ScheduleMayaFerqi));
+            OnPropertyChanged(nameof(ScheduleMayaYekunu));
         }
 
         /// <summary>Ödəniş qrafikinin başlığında göstərilən xülasə.</summary>
@@ -2633,6 +2697,58 @@ namespace EnterpriseAeroStudio.ViewModels
             //        → SON AY = 1 284,00 + 100,00 = 1 384,00 ₼ ✓✓✓
             // ================================================================
             GecikmeSonAyaElave(credit);
+
+            // 📊 v6.2.87 — cədvəl yenidən quruldu → maya yekunları da yenilənir ✓
+            ScheduleYekunlariniBildir();
+
+            // 🩺 v6.2.87 — ÖZ-ÖZÜNÜ YOXLAMA: cədvəlin maya cəmi = ödənilmiş KÖK ✓
+            MayaCeminiYoxla(credit);
+        }
+
+        /// <summary>
+        /// 🩺 <b>MAYA CƏMİNİN YOXLANMASI</b> ✓✓✓ (v6.2.87)
+        /// <para>
+        /// Cədvəldəki bütün sətirlərin <b>faktiki mayası</b> cəmlənir ✓ və
+        /// «Kreditlər → Maya ödənilib» göstəricisi ilə müqayisə olunur ✓.
+        /// Fərq varsa → loqa <b>XƏBƏRDARLIQ</b> yazılır ✓ (səssiz səhv qalmır ✗)
+        /// </para>
+        /// </summary>
+        private void MayaCeminiYoxla(Credit? credit)
+        {
+            var hedef = credit ?? SelectedCredit;
+
+            if (hedef is null || Schedule.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                var odenisler = _creditTransactions
+                    .Where(t => t.CreditId == hedef.Id && t.Nov == "Gəlir")
+                    .ToList();
+
+                if (odenisler.Count == 0)
+                {
+                    return;
+                }
+
+                var umumi = HesablaOdenilmisKok(hedef, odenisler);
+                var cedvel = ScheduleFaktikiMaya;
+
+                if (Math.Abs(umumi - cedvel) < 0.01m)
+                {
+                    return;
+                }
+
+                _logger.LogWarning(
+                    "🏷️ MAYA CƏMİ UYĞUNSUZLUĞU ✗: cədvəl {Cedvel:N2} ₼ ≠ ödənilmiş kök {Umumi:N2} ₼ (fərq {Fark:N2} ₼)",
+                    cedvel, umumi, cedvel - umumi);
+            }
+            catch
+            {
+                // 🛡️ yoxlama özü proqramı dayandırmır ✓
+            }
         }
 
         /// <summary>
@@ -2746,6 +2862,11 @@ namespace EnterpriseAeroStudio.ViewModels
                 ? Sinirla(credit.Kreditlesdirilen * credit.FaizDerecesi / 100m / credit.MuddetAy)
                 : 0m;
             var payments = CollectPayments(credit);
+
+            // 🏷️ v6.2.87 — HƏR ÖDƏNİŞİN MAYA (KÖK) PAYI ✓✓✓
+            //  «Kreditlər → Maya ödənilib» ilə EYNİ düstur ✓ → iki yerdə
+            //  fərqli rəqəm çıxmır ✗, cədvəlin cəmi həmişə ümumiyə bərabərdir ✓
+            _mayaPaylari = MayaPaylariniHesabla(credit, payments);
 
             // ================================================================
             //  🤝 BARTER — NİSYƏ OLUNAN QİYMƏTDƏN ÇIXILIR ✓✓✓
@@ -2938,12 +3059,29 @@ namespace EnterpriseAeroStudio.ViewModels
                     balance = 0m;
                 }
 
+                // ================================================================
+                //  🏷️ v6.2.87 — PLAN MAYA **DƏYİŞMİR** ✗✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «maya dəyişilib» ✗ — çünki az ödəniş
+                //    olanda sütunda PLAN yerinə FAKTİKİ (azaldılmış) rəqəm
+                //    göstərilirdi ✗✓✓
+                //  ✅ İNDİ: plan maya = <c>planned − faiz</c> ✓ (həmişə eyni ✓)
+                //     Faktiki maya isə AYRICA sütunda ✓ («MAYADAN ÖDƏNİLİB»)
+                //     və fərq avtomatik ✓ («MAYADA FƏRQ»)
+                //     ⚠ Balans yenə də FAKTİKİ <c>principal</c> ilə azalır ✓
+                // ================================================================
+                var planMaya = Math.Round(planned - interest, 2);
+                if (planMaya < 0m)
+                {
+                    planMaya = 0m;
+                }
+
                 var row = new PaymentRow
                 {
                     No = i,
                     Tarix = planTarix,
                         Odenis = planned,          // planlaşdırılan məbləğ (yaşıl/qırmızı müqayisəsi üçün)
-                    EsasBorclu = principal,
+                    EsasBorclu = planMaya,      // ✅ PLAN maya — ödənişdən asılı DEYİL ✗✓✓
                     Faiz = interest,
                     // Artıq ödəniş artıq ödənilib → real borc daha azdır.
                     Qaliq = Math.Max(0m, Math.Round(balance - artiqToplam, 2)),
@@ -4484,6 +4622,26 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>Sətrə faktiki ödənişlərin CƏMİNİ, sayını və detallarını yazır.</summary>
         private void ApplyPaid(PaymentRow row, List<CreditTransaction> payments)
         {
+            ApplyPaid(row, payments, _mayaPaylari);
+        }
+
+        /// <summary>
+        /// 🏷️ <b>FAKTİKİ MAYA / MƏNFƏƏT</b> ✓✓✓ (v6.2.87)
+        /// <para>
+        /// Hər ödənişin <b>maya (kök) payı</b> <see cref="Credit.OdenisKokPayi"/>
+        /// ilə hesablanır ✓ — yəni «Kreditlər → Maya ödənilib» göstəricisi ilə
+        /// <b>EYNİ düstur</b> ✓✓✓ → cədvəlin sətirlərinin cəmi həmişə ümumi
+        /// göstəriciyə bərabərdir ✓ (iki yerdə fərqli rəqəm çıxmır ✗)
+        /// </para>
+        /// </summary>
+        /// <param name="row">Qrafik sətri ✓</param>
+        /// <param name="payments">Bu aya aid ödənişlər ✓</param>
+        /// <param name="mayaPaylari">Ödəniş Id-si → maya payı ✓</param>
+        private void ApplyPaid(
+            PaymentRow row,
+            List<CreditTransaction> payments,
+            Dictionary<int, decimal>? mayaPaylari)
+        {
             var ordered = payments.OrderBy(t => t.Tarix).ThenBy(t => t.Id).ToList();
 
             _suppressPaymentEvents = true;
@@ -4496,7 +4654,51 @@ namespace EnterpriseAeroStudio.ViewModels
             row.OdenisDetali = string.Join(
                 Environment.NewLine,
                 ordered.Select(t => $"{t.Tarix:dd.MM.yyyy} — {t.Mebleg:N2} AZN"));
+
+            // 🏷️ FAKTİKİ MAYA (əsas borc) və MƏNFƏƏT hissəsi ✓✓✓
+            if (mayaPaylari is not null)
+            {
+                var maya = Math.Round(
+                    ordered.Sum(t => mayaPaylari.TryGetValue(t.Id, out var pay) ? pay : 0m), 2);
+
+                row.FaktikiMaya = maya;
+                row.FaktikiMenfeet = Math.Round(Math.Max(0m, row.OdenilenMebleg - maya), 2);
+            }
+
             _suppressPaymentEvents = false;
+        }
+
+        /// <summary>
+        /// 🧮 <b>HƏR ÖDƏNİŞİN MAYA (KÖK) PAYI</b> ✓✓✓ (v6.2.87)
+        /// <para>
+        /// Bütün ödənişlər <b>TARİX SIRASI</b> ilə götürülür ✓ və hər birinin
+        /// maya payı <see cref="Credit.OdenisKokPayi"/> ilə hesablanır ✓
+        /// (təkrar ödənilmiş kök nəzərə alınır ✓ → kök tam ödənilibsə,
+        /// sonrakı ödənişlərin HAMISI mənfəətdir ✓✓✓)
+        /// </para>
+        /// <para>
+        /// ⚠ Nəticə: <c>Σ (bütün ayların faktiki mayası) = Ödənilmiş KÖK</c> ✓
+        /// </para>
+        /// </summary>
+        private static Dictionary<int, decimal> MayaPaylariniHesabla(
+            Credit credit,
+            Dictionary<int, List<CreditTransaction>> payments)
+        {
+            var netice = new Dictionary<int, decimal>();
+            var odenilmisKok = 0m;
+
+            foreach (var t in payments
+                         .SelectMany(p => p.Value)
+                         .OrderBy(t => t.Tarix)
+                         .ThenBy(t => t.Id))
+            {
+                var pay = credit.OdenisKokPayi(t.Mebleg, odenilmisKok);
+
+                odenilmisKok = Math.Round(odenilmisKok + pay, 2);
+                netice[t.Id] = pay;
+            }
+
+            return netice;
         }
 
         /// <summary>
