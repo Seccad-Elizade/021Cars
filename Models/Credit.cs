@@ -257,20 +257,31 @@ namespace EnterpriseAeroStudio.Models
                 return 0m;
             }
 
+            // ============================================================
+            //  ⚖️ v6.2.91 — MAYA PAYI = **AYLIQ KÖK** ✓✓✓
+            // ------------------------------------------------------------
+            //  ★ İstifadəçi: «Excel sənədimdə hər ay MAYA (kök) = 335,00 ₼ ✓
+            //    amma proqramda 334,64 ₼ yazır ✗ — yanlışdır ✗»
+            //  📌 SƏBƏB ✗: köhnə düstur NİSBƏTLƏ hesablayırdı
+            //     (ödəniş × KÖK ÷ kreditin qiyməti) ✗ → yuvarlaqlaşma fərqi ✗
+            //  ✅ İNDİ: <c>AylıqKok = KÖK ÷ müddət</c> ✓ (17 014 ÷ 12 = 1 417,83 ✓)
+            //     • qismən ödənişdə → mütənasib ✓ (yarım ödəniş = yarım kök ✓)
+            //     • plandan ARTIQ hissə → TAMAMİLƏ mayaya ✓ (əvvəlki qayda ✓)
+            // ============================================================
             var plan = PlanAylıqOdenis(ehtiyat: odenis);
+            var aylıqKok = AylıqKok;
 
-            // 🔢 Plan hissəsinin kök payı (qalan borcla MƏHDUD ✓)
-            var planKök = KokPayi(Math.Min(odenis, plan), odenilmisKok);
+            var nisbet = plan > 0m ? Math.Min(odenis, plan) / plan : 1m;
 
-            // 💰 Plandan ARTIQ hissə — TAMAMİLƏ kökə (mayaya) ✓✓✓
-            var artıq = Math.Max(0m, odenis - plan);
+            var planMaya = Math.Round(aylıqKok * nisbet, 2);
+            var artiq = Math.Max(0m, odenis - plan);
 
-            var cəm = Math.Round(planKök + artıq, 2);
+            var cem = Math.Round(planMaya + artiq, 2);
 
             // Qalan əsas borcdan ARTQ kök yazıla bilməz ✗
             var qalan = Math.Max(0m, Kreditlesdirilen - Math.Max(0m, odenilmisKok));
 
-            return Math.Min(cəm, Math.Round(qalan, 2));
+            return Math.Min(cem, Math.Round(qalan, 2));
         }
 
         /// <summary>

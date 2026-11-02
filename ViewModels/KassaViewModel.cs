@@ -1994,16 +1994,18 @@ namespace EnterpriseAeroStudio.ViewModels
                     .ToList();
 
                 // ================================================================
-                //  📅 v6.2.51 — ÖDƏNİLMİŞ MÖHLƏTLƏR **DÖVR ÜZRƏ** ✓✓✓
-                //  ★ İstifadəçi tələbi: «hansı ayı seçsək O AYIN ödənilmiş
-                //    möhlətləri görünməlidir» ✓
-                //  → yalnız seçilmiş dövrün ödəniş tarixi olanlar ✓
+                //  📅 v6.2.91 — ÖDƏNİLMİŞ MÖHLƏTLƏR: **DÖVR MƏHDUDİYYƏTİ SİLİNDİ** ✓✓✓
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «möhlət GERİ AL yoxdur ✗ — proqrama
+                //    yeni girəndə olur, sonra İTİR ✗»
+                //  📌 SƏBƏB ✓: siyahı yalnız cari dövrün (from..to) ödənişlərini
+                //     göstərirdi ✗ → dövrdən kənar ödənişlər GÖRÜNMÜRDÜ ✗ →
+                //     «↩ GERİ AL» düyməsi (yalnız bu cədvəldədir ✗) YOX OLURDU ✗✓✓
+                //  ✅ İNDİ: BÜTÜN ödənilmiş möhlətlər göstərilir ✓ (son 300 ✓)
+                //     · AY filtri (🗓️) istənilən vaxt daralda bilər ✓
                 // ================================================================
                 var odenilmis = butunMohletler
-                    .Where(m => m.Odenilib
-                                && m.OdenilmeTarixi.HasValue
-                                && m.OdenilmeTarixi.Value >= from.Date
-                                && m.OdenilmeTarixi.Value <= to.Date)
+                    .Where(m => m.Odenilib && m.OdenilmeTarixi.HasValue)
                     .OrderByDescending(m => m.OdenilmeTarixi ?? m.Tarix)
                     .Take(300)
                     .ToList();
