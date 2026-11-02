@@ -49,3 +49,7 @@ secrets.json
 *.tmp
 *.zip
 021Cars_GSAP_*.html
+
+# WPF müvəqqəti build faylları (v6.2.83)
+*_wpftmp.csproj
+
