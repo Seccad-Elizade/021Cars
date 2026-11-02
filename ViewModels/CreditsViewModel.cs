@@ -1528,8 +1528,24 @@ namespace EnterpriseAeroStudio.ViewModels
                 {
                     if (t.CreditId != c.Id) continue;
                     if (t.Nov != "Gəlir") continue;
-                    if (!t.TerefdasBolguTetbiqOlunub) continue;
-                    if (t.BolguBazasi is null) continue;
+
+                    // ============================================================
+                    //  ⚖️ v6.2.91 — TƏRƏFDAŞ BÖLGÜSÜ İŞLƏDİLMİRSE → TAM MƏBLƏĞ MAYA ✓✓✓
+                    // ------------------------------------------------------------
+                    //  ★ İstifadəçi: «bölgü yoxdursa — tam və ya qismən olması
+                    //    fərq etmir ✗ — məbləğ nə qədər yazılıbsa HAMISI mayaya ✓»
+                    // ============================================================
+                    if (!t.TerefdasBolguTetbiqOlunub)
+                    {
+                        mayaHissesi += Math.Max(0m, t.Mebleg);
+                        continue;
+                    }
+
+                    if (t.BolguBazasi is null)
+                    {
+                        mayaHissesi += Math.Max(0m, t.Mebleg);   // 🛡️ baza yoxdursa → tam maya ✓
+                        continue;
+                    }
 
                     mayaHissesi += Math.Max(0m, t.Mebleg - t.BolguBazasi.Value);
                 }
@@ -1583,7 +1599,8 @@ namespace EnterpriseAeroStudio.ViewModels
                     {
                         odenilmisMohletMaya += mohletMayaXeritesi.TryGetValue(m.Id, out var mayaPayi)
                             ? mayaPayi
-                            : Math.Round(c.OdenisKokPayi(m.Mebleg), 2);
+                            // ⚖️ v6.2.91 — bölgü qeydi yoxdursa → TAM MƏBLƏĞ mayaya ✓
+                            : Math.Round(m.Mebleg, 2);
                     }
                 }
 
@@ -1691,7 +1708,13 @@ namespace EnterpriseAeroStudio.ViewModels
 
             foreach (var t in payments.OrderBy(t => t.Tarix).ThenBy(t => t.Id))
             {
-                cem += credit.OdenisKokPayi(t.Mebleg, cem);
+                // ⚖️ v6.2.91 — TƏRƏFDAŞ BÖLGÜSÜ YOXDURSA → TAM MƏBLƏĞ KÖKƏ ✓✓✓
+                //  (istifadəçi: «bölgü yoxdursa hamısı mayaya getməlidir ✓»)
+                cem += t.TerefdasBolguTetbiqOlunub
+                    ? credit.OdenisKokPayi(t.Mebleg, cem)
+                    : t.Mebleg;
+
+                cem = Math.Round(cem, 2);
             }
 
             return Math.Round(cem, 2);
@@ -4734,6 +4757,16 @@ namespace EnterpriseAeroStudio.ViewModels
                          .OrderBy(t => t.Tarix)
                          .ThenBy(t => t.Id))
             {
+                // ============================================================
+                //  ⚖️ v6.2.91 — bölgü işlədilmirsə → TAM məbləğ mayaya ✓✓✓
+                // ============================================================
+                if (!t.TerefdasBolguTetbiqOlunub)
+                {
+                    netice[t.Id] = Math.Round(t.Mebleg, 2);
+                    odenilmisKok = Math.Round(odenilmisKok + t.Mebleg, 2);
+                    continue;
+                }
+
                 var pay = credit.OdenisKokPayi(t.Mebleg, odenilmisKok);
 
                 odenilmisKok = Math.Round(odenilmisKok + pay, 2);

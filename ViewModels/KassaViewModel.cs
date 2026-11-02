@@ -847,12 +847,26 @@ namespace EnterpriseAeroStudio.ViewModels
                 return 0m;
             }
 
+            // ================================================================
+            //  ⚖️ v6.2.91 — BÖLGÜ SÖNDÜRÜLÜBSƏ **TAM MƏBLƏĞ MAYAYA** ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ İSTİFADƏÇİ TƏLƏBİ: «tərəfdaş bölgüsü / manual bölgü
+            //    işlədilmirsə — tam ödəniş və ya qismən olması fərq etmir ✗ —
+            //    MƏBLƏĞ NƏ QƏDƏR YAZILIBSA **HAMISI MAYAYA** getməlidir ✓»
+            //  📌 Bölgü AÇIQDIRSA → əvvəlki qayda ✓ (kök payı mayaya ✓,
+            //     qalan hissə tərəfdaşlar arasında bölünən mənfəət ✓)
+            // ================================================================
+            if (!MohletBolguTetbiq)
+            {
+                return Math.Round(mebleg, 2);
+            }
+
             // ── 💳 KREDİTƏ BAĞLI MÖHLƏT ────────────────────────────────
             if (mohlet.CreditId is int creditId)
             {
                 var kredit = _kreditKeshi.FirstOrDefault(k => k.Id == creditId);
 
-                return kredit is null ? 0m : Math.Round(kredit.OdenisKokPayi(mebleg), 2);
+                return kredit is null ? Math.Round(mebleg, 2) : Math.Round(kredit.OdenisKokPayi(mebleg), 2);
             }
 
             // ── 🧾 NİSYƏ SATIŞA BAĞLI MÖHLƏT ──────────────────────────
@@ -862,7 +876,7 @@ namespace EnterpriseAeroStudio.ViewModels
 
                 if (satis is null || satis.SatisQiymeti <= 0m)
                 {
-                    return 0m;
+                    return Math.Round(mebleg, 2);   // ⚖️ məlumat yoxdursa → tam mayaya ✓
                 }
 
                 var nisbet = Math.Clamp(mebleg / satis.SatisQiymeti, 0m, 1m);
@@ -870,7 +884,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 return Math.Round(satis.MayaDeyeri * nisbet, 2);
             }
 
-            return 0m;
+            return Math.Round(mebleg, 2);   // ⚖️ mənbə tapılmadı → tam mayaya ✓
         }
 
         /// <summary>Bütün ödəniş göstəricilərini UI-a bildirir ✓.</summary>
@@ -1263,6 +1277,12 @@ namespace EnterpriseAeroStudio.ViewModels
         partial void OnMohletBolguTetbiqChanged(bool value)
         {
             OnPropertyChanged(nameof(MohletBolguVeziyyet));
+
+            // ⚖️ v6.2.91 — MAYA dərhal yenidən hesablanır ✓✓✓
+            //  • bölgü AÇIQ  → maya = kök payı ✓ (qalan mənfəət bölünür ✓)
+            //  • bölgü SÖNDÜ → maya = TAM MƏBLƏĞ ✓ (hamısı mayaya ✓)
+            MohletMayaPayi = MohletKokPayiHesabla(MohletOdenisMebleg);
+            MohletBolguMaya = MohletMayaPayi;
 
             if (value)
             {

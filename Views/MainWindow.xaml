@@ -5177,7 +5177,8 @@
                                                              FontWeight="SemiBold" Foreground="#7EA8FF"
                                                              VerticalContentAlignment="Center" HorizontalContentAlignment="Right"
                                                              Text="{Binding Kassa.MohletBolguMaya, UpdateSourceTrigger=PropertyChanged}"
-                                                             ToolTip="MAYA (₼) — möhlət məbləğindən çıxılır ✓&#x0a;Xeyir = Möhlət məbləği − Maya ✓"/>
+                                                             IsReadOnly="{Binding Kassa.MohletBolguTetbiq, Converter={StaticResource InverseBool}}"
+                                                             ToolTip="MAYA (₼) — bölgü SÖNDÜRÜLÜBSƏ avtomatik TAM MƏBLƏĞ olur ✓ (əl ilə yazılmır ✗)&#x0a;Bölgü AÇIQDIRSA əl ilə dəyişmək olar ✓ (Xeyir = Möhlət məbləği − Maya ✓)"/>
                                                 </Grid>
 
                                                 <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"

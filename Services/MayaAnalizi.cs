@@ -60,6 +60,13 @@ namespace EnterpriseAeroStudio.Services
 
             foreach (var t in gelirler)
             {
+                // ⚖️ v6.2.91 — bölgü işlədilmirsə → TAM məbləğ mayaya ✓✓✓
+                if (!t.TerefdasBolguTetbiqOlunub)
+                {
+                    odenilmisKok = Math.Round(odenilmisKok + t.Mebleg, 2);
+                    continue;
+                }
+
                 var pay = credit.OdenisKokPayi(t.Mebleg, odenilmisKok);
 
                 odenilmisKok = Math.Round(odenilmisKok + pay, 2);
