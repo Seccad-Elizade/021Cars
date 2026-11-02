@@ -4,6 +4,19 @@ using System.Text.Json;
 
 namespace EnterpriseAeroStudio.Services
 {
+    /// <summary>🧾 Arxiv qeydinin JSON-dan çıxarılmış metadatası ✓</summary>
+    public sealed class ArxivMetadata
+    {
+        public string Nov { get; init; } = string.Empty;
+        public string Tip { get; init; } = string.Empty;
+        public string Basliq { get; init; } = string.Empty;
+        public decimal Mebleg { get; init; }
+        public DateTime Tarix { get; init; } = DateTime.Now;
+        public string Xulase { get; init; } = string.Empty;
+        public IReadOnlyList<(string Cedvel, long Id)> Idler { get; init; } =
+            Array.Empty<(string, long)>();
+    }
+
     /// <summary>
     /// 🗄️ <b>ARXİV — JSON emalı</b> ✓✓✓ (v6.2.86)
     /// <para>Snapshot JSON-undan başlıq/məbləğ və <b>silinmiş ID-lər</b> çıxarılır ✓</para>
@@ -18,12 +31,23 @@ namespace EnterpriseAeroStudio.Services
         /// </summary>
         public static void JsonYaz(string ad, string json)
         {
+            var m = MetadatalariCixar(json);
+
+            Yaz(ad, m.Tarix, m.Nov, m.Tip, m.Basliq, m.Mebleg, json, m.Xulase, m.Idler);
+        }
+
+        /// <summary>
+        /// 🧾 <b>METADATANI ÇIXARIR</b> ✓✓✓ — bir dəfə parse ✓ (köçürmədə də istifadə olunur ✓)
+        /// </summary>
+        public static ArxivMetadata MetadatalariCixar(string json)
+        {
             var nov = Silinme;
             var tip = string.Empty;
             var basliq = string.Empty;
             var mebleg = 0m;
             var tarix = DateTime.Now;
             var xulase = string.Empty;
+            List<(string Cedvel, long Id)> idler = new();
 
             try
             {
@@ -58,13 +82,23 @@ namespace EnterpriseAeroStudio.Services
                 }
 
                 xulase = Ozet(kok);
+                idler = SilinenIdlerCixar(kok, nov);
             }
             catch
             {
                 // 🛡️ JSON xarab olsa — boş metadata ilə yenə yazılır ✓
             }
 
-            Yaz(ad, tarix, nov, tip, basliq, mebleg, json, xulase, SilinenIdleriCixar(json));
+            return new ArxivMetadata
+            {
+                Nov = nov,
+                Tip = tip,
+                Basliq = basliq,
+                Mebleg = mebleg,
+                Tarix = tarix,
+                Xulase = xulase,
+                Idler = idler
+            };
         }
 
         /// <summary>🧮 «1 avtomobil · 3 xərc» kimi qısa tərkib mətni ✓</summary>
@@ -119,6 +153,37 @@ namespace EnterpriseAeroStudio.Services
                     return netice;      // ✏️ «Dəyişiklik» → silinmiş ID YOX ✗
                 }
 
+                if (kok.TryGetProperty("Car", out var car))
+                {
+                    IdElave(netice, "Avtomobiller", car);
+                }
+
+                Liste(kok, "Expenses", "Xercler", netice);
+                Liste(kok, "Sales", "Satislar", netice);
+                Liste(kok, "Credits", "Kreditler", netice);
+                Liste(kok, "Transactions", "KreditEmeliyyatlari", netice);
+                Liste(kok, "Attachments", "Senedler", netice);
+            }
+            catch
+            {
+                // 🛡️
+            }
+
+            return netice;
+        }
+
+        /// <summary>🧾 Silinmiş ID-lər — artıq parse edilmiş elementdən ✓ (köçürmədə sürətli ✓)</summary>
+        private static List<(string Cedvel, long Id)> SilinenIdlerCixar(JsonElement kok, string nov)
+        {
+            var netice = new List<(string, long)>();
+
+            if (!string.Equals(nov, Silinme, StringComparison.Ordinal))
+            {
+                return netice;      // ✏️ «Dəyişiklik» → silinmiş ID YOX ✗
+            }
+
+            try
+            {
                 if (kok.TryGetProperty("Car", out var car))
                 {
                     IdElave(netice, "Avtomobiller", car);

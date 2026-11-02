@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -69,7 +69,7 @@ namespace EnterpriseAeroStudio.Services
                 using var p = c.CreateCommand();
 
                 // ⚡ WAL → arxa fondakı köçürmə ilə UI oxuması toqquşmur ✓
-                p.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;";
+                p.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;";
                 p.ExecuteNonQuery();
             }
             catch
