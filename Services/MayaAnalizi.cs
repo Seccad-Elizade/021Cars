@@ -67,7 +67,7 @@ namespace EnterpriseAeroStudio.Services
                     continue;
                 }
 
-                var pay = credit.OdenisKokPayi(t.Mebleg, odenilmisKok);
+                var pay = credit.OdenisMayaPayi(t, odenilmisKok);
 
                 odenilmisKok = Math.Round(odenilmisKok + pay, 2);
                 menfeet += Math.Round(Math.Max(0m, t.Mebleg - pay), 2);

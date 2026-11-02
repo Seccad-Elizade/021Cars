@@ -209,6 +209,33 @@ namespace EnterpriseAeroStudio.Models
         }
 
         /// <summary>
+        /// 🏷️ <b>ÖDƏNİŞİN MAYA PAYI — TARİXÇƏ İLƏ UYĞUN</b> ✓✓✓ (v6.2.91)
+        /// <list type="bullet">
+        ///   <item><b>Aya bağlı ödəniş</b> (taksit) → <c>AylıqKok</c> ✓
+        ///         (735 → 335 ✓ · 740 → 340 ✓ · 750 → 350 ✓ — istifadəçinin Excel-i ✓)</item>
+        ///   <item><b>Aya bağlı OLMAYAN ödəniş</b> (əlavə/erkən ödəniş ✗) →
+        ///         <b>TAM MƏBLƏĞ mayaya</b> ✓ (4 000 → 4 000 ✓, mənfəət 0 ✓)</item>
+        /// </list>
+        /// </summary>
+        public decimal OdenisMayaPayi(CreditTransaction t, decimal odenilmisKok)
+        {
+            if (t is null || t.Mebleg <= 0m)
+            {
+                return 0m;
+            }
+
+            // ⚖️ Aya bağlanmayan ödəniş = əlavə ödəniş → tam mayaya ✓
+            if (t.InstallmentNo is null)
+            {
+                var qalanTam = Math.Max(0m, Kreditlesdirilen - Math.Max(0m, odenilmisKok));
+
+                return Math.Min(Math.Round(t.Mebleg, 2), Math.Round(qalanTam == 0m ? t.Mebleg : qalanTam, 2));
+            }
+
+            return OdenisKokPayi(t.Mebleg, odenilmisKok);
+        }
+
+        /// <summary>
         /// 🔢 <b>NƏZƏRDƏ TUTULAN (PLAN) AYLIQ ÖDƏNİŞ</b> ✓✓✓ (v6.2.24)
         /// <para>
         /// <see cref="AylıqOdenis"/> varsa o ✓ · yoxsa <c>KreditQiymeti ÷ Müddət</c> ✓
@@ -301,8 +328,28 @@ namespace EnterpriseAeroStudio.Models
                 return 0m;
             }
 
-            var kök = OdenisKokPayi(odenis, odenilmisKok);
-            var baza = Math.Round(odenis - kök, 2);
+            var kok = OdenisKokPayi(odenis, odenilmisKok);
+            var baza = Math.Round(odenis - kok, 2);
+
+            return baza > 0m ? baza : 0m;
+        }
+
+        /// <summary>
+        /// 💰 <b>BÖLGÜ BAZASI — TARİXÇƏ İLƏ</b> ✓✓✓ (v6.2.91)
+        /// <para>
+        /// Aya bağlı olmayan (əlavə) ödənişlərdə maya = tam məbləğ ✓ →
+        /// baza <b>0</b> ✓ (mənfəət bölünmür ✗ — istifadəçinin Excel-i ✓)
+        /// </para>
+        /// </summary>
+        public decimal OdenisMenfeetBazasi(CreditTransaction t, decimal odenilmisKok)
+        {
+            if (t is null || t.Mebleg <= 0m)
+            {
+                return 0m;
+            }
+
+            var maya = OdenisMayaPayi(t, odenilmisKok);
+            var baza = Math.Round(t.Mebleg - maya, 2);
 
             return baza > 0m ? baza : 0m;
         }

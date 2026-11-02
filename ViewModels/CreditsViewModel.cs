@@ -1711,7 +1711,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 // ⚖️ v6.2.91 — TƏRƏFDAŞ BÖLGÜSÜ YOXDURSA → TAM MƏBLƏĞ KÖKƏ ✓✓✓
                 //  (istifadəçi: «bölgü yoxdursa hamısı mayaya getməlidir ✓»)
                 cem += t.TerefdasBolguTetbiqOlunub
-                    ? credit.OdenisKokPayi(t.Mebleg, cem)
+                    ? credit.OdenisMayaPayi(t, cem)
                     : t.Mebleg;
 
                 cem = Math.Round(cem, 2);
@@ -4767,7 +4767,7 @@ namespace EnterpriseAeroStudio.ViewModels
                     continue;
                 }
 
-                var pay = credit.OdenisKokPayi(t.Mebleg, odenilmisKok);
+                var pay = credit.OdenisMayaPayi(t, odenilmisKok);
 
                 odenilmisKok = Math.Round(odenilmisKok + pay, 2);
                 netice[t.Id] = pay;
