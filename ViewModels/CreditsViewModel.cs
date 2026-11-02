@@ -1748,7 +1748,9 @@ namespace EnterpriseAeroStudio.ViewModels
             }
             else
             {
-                var payments = CollectPayments(SelectedCredit).Values.SelectMany(v => v).ToList();
+                // ✅ null-luq xəbərdarlığının qarşısı ✓ (SelectedCredit bu budaqda mütləq var ✓)
+                var kredit = SelectedCredit!;
+                var payments = CollectPayments(kredit).Values.SelectMany(v => v).ToList();
                 // ================================================================
                 //  🔒 v6.2.60 — ÖDƏNİLMİŞ İLKİN MÖHLƏTLƏR «ÖDƏNİLİB»-ə DAXİL ✓✓✓
                 //  ⚠ ƏVVƏL: yalnız «Gəlir» əməliyyatları sayılırdı ✗ →
@@ -1778,9 +1780,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 //      əsas borcla MƏHDUDLAŞDIRILIR ✓ → borc bitəndən sonra
                 //      ödənişin HAMISI mənfəət sayılır ✓✓✓)
                 // ================================================================
-                SelectedOdenilmisKok = HesablaOdenilmisKok(SelectedCredit, payments);
-                SelectedKok = SelectedCredit.Kok;
-                SelectedAylıqKok = SelectedCredit.AylıqKok;
+                SelectedOdenilmisKok = HesablaOdenilmisKok(kredit, payments);
+                SelectedKok = kredit.Kok;
+                SelectedAylıqKok = kredit.AylıqKok;
                 SelectedQaliqKok = Math.Max(0m, SelectedKok - SelectedOdenilmisKok);
                 SelectedKokFaizi = SelectedKok <= 0m
                     ? 0d

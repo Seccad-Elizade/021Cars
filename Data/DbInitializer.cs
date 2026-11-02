@@ -49,6 +49,18 @@ namespace EnterpriseAeroStudio.Data
             await SeedPartnersAsync(cancellationToken);
 
             // ================================================================
+            //  ⚡ v6.2.86 — İNDEKSLƏR ✓✓✓ (★ «MƏLUMAT ÇOXALDIQCA DONUR» ★)
+            // ----------------------------------------------------------------
+            //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «əməliyyatlar coxaldigca donur» ✗
+            //  📌 SƏBƏB ✓: `CarId`, `CreditId`, `Tarix`, `RefId` sütunlarında
+            //     HEÇ BİR indeks yox idi ✗ → hər siyahı/qalıq hesabı BÜTÜN
+            //     cədvəli skan edirdi ✗ → qeyd sayı artdıqca vaxt XƏTTİ artır ✗✓✓
+            //  ✅ İNDİ: indekslər bir dəfə qurulur ✓ (idempotent ✓,
+            //     məlumata TOXUNMUR ✗) → sorğular saniyələr əvəzinə millisaniyə ✓✓✓
+            // ================================================================
+            await IndeksleriQurAsync(cancellationToken);
+
+            // ================================================================
             //  ⚡ v6.2.80 — AĞIR BAXIM İŞLƏRİ AÇILIŞDAN ÇIXARILDI ✓✓✓
             // ----------------------------------------------------------------
             //  ⚠ ƏVVƏL bu üç ağır əməliyyat BURADA, pəncərə görünməzdən
@@ -70,6 +82,83 @@ namespace EnterpriseAeroStudio.Data
             LogPartnerMathSelfCheck();
             LogCreditMathSelfCheck();
             _logger.LogInformation("Verilənlər bazası uğurla hazırlandı.");
+        }
+
+        /// <summary>
+        /// ⚡ <b>BAZA İNDEKSLƏRİ</b> ✓✓✓ (v6.2.86)
+        /// <para>
+        /// ⚠ İstifadəçi şikayəti: «əməliyyatlar çoxaldıqca proqram donur» ✗
+        /// </para>
+        /// <para>
+        /// 📌 Səbəb: filtr/siyahı sorğuları (<c>CarId</c>, <c>CreditId</c>,
+        /// <c>Tarix</c>, <c>RefId</c>) indekssiz idi ✗ → hər sorğu bütün
+        /// cədvəli skan edirdi ✗✓✓
+        /// </para>
+        /// <para>
+        /// 🛡️ <c>CREATE INDEX IF NOT EXISTS</c> → idempotent ✓, məlumat itkisi YOX ✗,
+        /// hər indeks öz <c>try/catch</c>-indədir ✓ (sütun yoxdursa keçilir ✓)
+        /// </para>
+        /// </summary>
+        private async Task IndeksleriQurAsync(CancellationToken cancellationToken)
+        {
+            var indekslər = new (string Ad, string Sql)[]
+            {
+                // 🚗 Avtomobillər — status üzrə filtr (arxivləşdirilmiş / satılmış ✓)
+                ("ix_cars_status", "CREATE INDEX IF NOT EXISTS ix_cars_status ON Cars(Status);"),
+                ("ix_cars_sira", "CREATE INDEX IF NOT EXISTS ix_cars_sira ON Cars(SiraNomresi);"),
+
+                // 💸 Xərclər — maşın və tarix üzrə (ƏN ÇOX istifadə olunan ✓)
+                ("ix_expenses_car", "CREATE INDEX IF NOT EXISTS ix_expenses_car ON Expenses(CarId);"),
+                ("ix_expenses_tarix", "CREATE INDEX IF NOT EXISTS ix_expenses_tarix ON Expenses(Tarix);"),
+
+                // 🤝 Satışlar
+                ("ix_sales_car", "CREATE INDEX IF NOT EXISTS ix_sales_car ON Sales(CarId);"),
+                ("ix_sales_tarix", "CREATE INDEX IF NOT EXISTS ix_sales_tarix ON Sales(Tarix);"),
+
+                // 💳 Kreditlər
+                ("ix_credits_car", "CREATE INDEX IF NOT EXISTS ix_credits_car ON Credits(CarId);"),
+                ("ix_credits_tarix", "CREATE INDEX IF NOT EXISTS ix_credits_tarix ON Credits(Tarix);"),
+                ("ix_credits_status", "CREATE INDEX IF NOT EXISTS ix_credits_status ON Credits(Status);"),
+
+                // 🔁 Kredit əməliyyatları — kredit üzrə (ödəniş tarixçəsi ✓)
+                ("ix_ct_credit", "CREATE INDEX IF NOT EXISTS ix_ct_credit ON CreditTransactions(CreditId);"),
+                ("ix_ct_tarix", "CREATE INDEX IF NOT EXISTS ix_ct_tarix ON CreditTransactions(Tarix);"),
+
+                // ⏳ Möhlətlər — kredit / satış üzrə
+                ("ix_mohlet_credit", "CREATE INDEX IF NOT EXISTS ix_mohlet_credit ON OdenisMohletler(CreditId);"),
+                ("ix_mohlet_sale", "CREATE INDEX IF NOT EXISTS ix_mohlet_sale ON OdenisMohletler(SaleId);"),
+
+                // 📎 Sənədlər — sahib (RefType + RefId ✓)
+                ("ix_att_ref", "CREATE INDEX IF NOT EXISTS ix_att_ref ON Attachments(RefType, RefId);"),
+
+                // 💰 Kassa hərəkətləri — tarix üzrə (jurnal ✓)
+                ("ix_kassa_tarix", "CREATE INDEX IF NOT EXISTS ix_kassa_tarix ON KassaHereketleri(Tarix);"),
+
+                // 👥 Tərəfdaşlar
+                ("ix_pp_tarix", "CREATE INDEX IF NOT EXISTS ix_pp_tarix ON PartnerPayments(Tarix);"),
+                ("ix_ps_sale", "CREATE INDEX IF NOT EXISTS ix_ps_sale ON PartnerShares(SaleId);"),
+                ("ix_ps_credit", "CREATE INDEX IF NOT EXISTS ix_ps_credit ON PartnerShares(CreditId);"),
+            };
+
+            var qurulan = 0;
+
+            foreach (var (ad, sql) in indekslər)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    await _context.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+                    qurulan++;
+                }
+                catch (Exception ex)
+                {
+                    // 🛡️ sütun/cədvəl yoxdursa — keçilir ✓ (proqram dayanmır ✗)
+                    _logger.LogDebug(ex, "İndeks qurula bilmədi: {Ad}", ad);
+                }
+            }
+
+            _logger.LogInformation("⚡ {Count} baza indeksi hazırdır ✓ (sürətli sorğular ✓).", qurulan);
         }
 
         /// <summary>

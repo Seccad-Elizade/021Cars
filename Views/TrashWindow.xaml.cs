@@ -47,7 +47,7 @@ namespace EnterpriseAeroStudio.Views
 
                 SubText.Text = Entries.Count == 0
                     ? "Silinmiş və ya dəyişdirilmiş qeyd yoxdur."
-                    : $"{Entries.Count} qeyd (ən yenisi əvvəldə)  ·  Qovluq: {_trash.Folder}";
+                    : $"{Entries.Count} qeyd (ən yenisi əvvəldə)  ·  Arxiv: {EnterpriseAeroStudio.Services.TrashArxiv.Fayl}";
 
                 var hasAny = Entries.Count > 0;
                 RestoreButton.IsEnabled = hasAny;

@@ -92,7 +92,11 @@ namespace EnterpriseAeroStudio.Models
                 if (Mohletler.Count > 0) parts.Add($"{Mohletler.Count} möhlət");
                 if (Attachments.Count > 0) parts.Add($"{Attachments.Count} sənəd");
 
-                return parts.Count == 0 ? "—" : string.Join(" · ", parts);
+                // ✅ Arxivdən (Arxiv.db) oxunanda alt qeydlər yüklənmir ✗ →
+            //    tərkib mətni `Note`-dan götürülür ✓ (v6.2.86)
+            return parts.Count == 0
+                ? (string.IsNullOrWhiteSpace(Note) ? "—" : Note)
+                : string.Join(" · ", parts);
             }
         }
     }

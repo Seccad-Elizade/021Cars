@@ -356,15 +356,12 @@ namespace EnterpriseAeroStudio.Services
             SiraNomresi = car.SiraNomresi
         };
 
-        /// <summary>Surəti diskə JSON kimi yazır və geri qaytarır.</summary>
+        /// <summary>Surəti <b>arxivə</b> (tək <c>Arxiv.db</c> faylına) yazır və geri qaytarır ✓</summary>
         private async Task<TrashSnapshot?> WriteAsync(TrashSnapshot snapshot, CancellationToken cancellationToken)
         {
             try
             {
-                Directory.CreateDirectory(Folder);
-
                 var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid():N}"[..31] + ".json";
-                var path = Path.Combine(Folder, fileName);
 
                 // Sənəd faylları da surətə köçürülür ki, bərpada yerində olsun.
                 await CopyMediaAsync(snapshot, fileName, cancellationToken);
@@ -372,10 +369,12 @@ namespace EnterpriseAeroStudio.Services
                 snapshot.FileName = fileName;
 
                 var json = JsonSerializer.Serialize(snapshot, JsonOptions);
-                await File.WriteAllTextAsync(path, json, cancellationToken);
+
+                // ✅ TƏK FAYL (NewData\Arxiv.db) ✓ — 110 000 ayrı fayl YOX ✗✓✓
+                TrashArxiv.JsonYaz(fileName, json);
 
                 _logger.LogInformation(
-                    "SİLİNMƏ SURƏTİ saxlanıldı: {Kind} «{Title}» → {File}",
+                    "SİLİNMƏ SURƏTİ arxivə yazıldı (Arxiv.db): {Kind} «{Title}» → {File}",
                     snapshot.Kind, snapshot.Title, fileName);
 
                 return snapshot;
@@ -431,35 +430,33 @@ namespace EnterpriseAeroStudio.Services
         // ------------------------------------------------------------ OXUMA ---
 
         /// <inheritdoc />
-        public async Task<IReadOnlyList<TrashSnapshot>> GetEntriesAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<TrashSnapshot>> GetEntriesAsync(CancellationToken cancellationToken = default)
         {
             var result = new List<TrashSnapshot>();
 
-            if (!Directory.Exists(Folder))
+            // ✅ ARXİVDƏN oxunur ✓ (tək Arxiv.db) — 110 000 fayl IO YOX ✗✓✓
+            try
             {
-                return result;
-            }
-
-            foreach (var file in Directory.GetFiles(Folder, "*.json"))
-            {
-                try
+                foreach (var qeyd in TrashArxiv.Oxu(500))
                 {
-                    var json = await File.ReadAllTextAsync(file, cancellationToken);
-                    var snapshot = JsonSerializer.Deserialize<TrashSnapshot>(json, JsonOptions);
-
-                    if (snapshot is not null)
+                    result.Add(new TrashSnapshot
                     {
-                        snapshot.FileName = Path.GetFileName(file);
-                        result.Add(snapshot);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Silinmə surəti oxuna bilmədi: {File}", file);
+                        FileName = qeyd.Ad,
+                        DeletedAt = qeyd.Tarix,
+                        Kind = qeyd.Tip,
+                        Title = qeyd.Basliq,
+                        Amount = qeyd.Mebleg,
+                        Action = qeyd.Nov,
+                        Note = qeyd.Xulase
+                    });
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Arxiv oxuna bilmədi (Arxiv.db).");
+            }
 
-            return result.OrderByDescending(s => s.DeletedAt).ToList();
+            return Task.FromResult<IReadOnlyList<TrashSnapshot>>(result);
         }
 
         // ----------------------------------------------------------- BƏRPA ---
@@ -476,16 +473,31 @@ namespace EnterpriseAeroStudio.Services
         /// <inheritdoc />
         public async Task<TrashSnapshot?> RestoreAsync(string fileName, CancellationToken cancellationToken = default)
         {
-            var path = Path.Combine(Folder, fileName);
-            if (!File.Exists(path))
-            {
-                return null;
-            }
-
             TrashSnapshot? snapshot;
             try
             {
-                var json = await File.ReadAllTextAsync(path, cancellationToken);
+                // ✅ Əvvəl ARXİV (Arxiv.db) ✓ — köçürülməmiş köhnə fayl varsa → fayldan ✓
+                var json = TrashArxiv.JsonAl(fileName);
+
+                if (json is null)
+                {
+                    var path = Path.Combine(Folder, fileName);
+                    var kohne = Path.Combine(Folder, "_kohne", fileName);
+
+                    if (File.Exists(path))
+                    {
+                        json = await File.ReadAllTextAsync(path, cancellationToken);
+                    }
+                    else if (File.Exists(kohne))
+                    {
+                        json = await File.ReadAllTextAsync(kohne, cancellationToken);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+
                 snapshot = JsonSerializer.Deserialize<TrashSnapshot>(json, JsonOptions);
             }
             catch (Exception ex)
@@ -502,7 +514,7 @@ namespace EnterpriseAeroStudio.Services
             // Əvvəlcə: DƏYİŞİKLİK surətidirsə mövcud qeyd ƏVVƏLKİ vəziyyətinə qaytarılır.
             if (snapshot.IsEdit)
             {
-                return await RevertEditAsync(snapshot, path, cancellationToken);
+                return await RevertEditAsync(snapshot, Path.Combine(Folder, fileName), cancellationToken);
             }
 
             // Mövcud avtomobillər — Id xəritəsi və sıra nömrəsi yoxlaması üçün.
@@ -662,8 +674,21 @@ namespace EnterpriseAeroStudio.Services
             // ---- 6) Sənəd / media faylları ----
             await RestoreMediaAsync(snapshot, fileName, carIdMap, cancellationToken);
 
-            // Surət artıq lazım deyil.
-            DeleteFile(path);
+            // Surət artıq lazım deyil → ARXİVDƏN silinir ✓ (v6.2.86)
+            TrashArxiv.Sil(fileName);
+
+            try
+            {
+                var kohne = Path.Combine(Folder, "_kohne", fileName);
+                if (File.Exists(kohne))
+                {
+                    DeleteFile(kohne);
+                }
+            }
+            catch
+            {
+                // 🛡️
+            }
 
             _logger.LogWarning(
                 "SİLİNMİŞ QEYD GERİ QAYTARILDI: {Kind} «{Title}» ({Summary})",
@@ -897,13 +922,27 @@ namespace EnterpriseAeroStudio.Services
         {
             await Task.CompletedTask;
 
+            var silindi = TrashArxiv.Sil(fileName);
+
+            // Köhnə (fayl) qeydlər də varsa silinir ✓
             var path = Path.Combine(Folder, fileName);
-            if (!File.Exists(path))
+            if (File.Exists(path))
+            {
+                DeleteFile(path);
+                silindi = true;
+            }
+
+            var kohne = Path.Combine(Folder, "_kohne", fileName);
+            if (File.Exists(kohne))
+            {
+                DeleteFile(kohne);
+                silindi = true;
+            }
+
+            if (!silindi)
             {
                 return false;
             }
-
-            DeleteFile(path);
 
             // Media surətini də silirik.
             try
@@ -926,21 +965,10 @@ namespace EnterpriseAeroStudio.Services
         /// <inheritdoc />
         public async Task<int> CleanupAsync(int keep = 200, CancellationToken cancellationToken = default)
         {
-            var entries = await GetEntriesAsync(cancellationToken);
+            await Task.CompletedTask;
 
-            if (entries.Count <= keep)
-            {
-                return 0;
-            }
-
-            var removed = 0;
-            foreach (var entry in entries.Skip(keep))
-            {
-                if (await DeletePermanentlyAsync(entry.FileName, cancellationToken))
-                {
-                    removed++;
-                }
-            }
+            // ✅ SQL ilə təmizləmə ✓ — 110 000 fayl gəzintisi YOX ✗✓✓
+            var removed = TrashArxiv.Temizle(keep);
 
             if (removed > 0)
             {

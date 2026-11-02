@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Windows;
@@ -179,15 +180,30 @@ namespace EnterpriseAeroStudio
             // ================================================================
             if (!TekNusxeTut())
             {
-                MessageBox.Show(
-                    "021Cars artıq açıqdır ✓\n\n" +
-                    "İkinci nüsxə AÇILMIR ✗ — çünki iki nüsxə birlikdə işləsə\n" +
-                    "fləşkart yedəyi toqquşur və proqram donur ✗✓✓",
-                    "021Cars — artıq işləyir",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                // ================================================================
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ (v6.2.86) ✗✓✓
+                // ----------------------------------------------------------------
+                //  «Proqram birinci açılanda heç açılmır ✗ — Task Manager-dən
+                //   End Task edib yenidən girirəm, sonra açılır ✗»
+                //
+                //  📌 SƏBƏB ✓: köhnə (donmuş) nüsxə `TekNusxe` kilidini tutur ✗
+                //     → mesaj qutusu isə DİGƏR pəncərələrin ARXASINDA qalırdı ✗
+                //     → istifadəçi ekranda HEÇ NƏ görmürdü ✗✓✓
+                //
+                //  ✅ İNDİ: mesaj HƏMİŞƏ ÖNDƏ (topmost ✓) + bir düymə ilə
+                //     köhnə nüsxə BAĞLANIR ✓ → proqram dərhal açılır ✓✓✓
+                // ================================================================
+                if (!KohneNusxeniBagla())
+                {
+                    Shutdown();
+                    return;
+                }
 
-                Shutdown();
-                return;
+                if (!TekNusxeTut())
+                {
+                    Shutdown();
+                    return;
+                }
             }
 
             ConfigureCulture();
@@ -290,8 +306,45 @@ namespace EnterpriseAeroStudio
                 // ================================================================
                 InitializeDatabase();
 
-                // 🔢 ② Sıra nömrələri (yerli ✓) — yalnız «0» olanlara nömrə verilir ✓
-                SiraNomreleriDuzelt();
+                // 🔢 ② Sıra nömrələri (yerli ✓) — ARXA FONDA ✓✓✓ (v6.2.86)
+                // ----------------------------------------------------------------
+                //  ⚠ ƏVVƏL burada, UI axınında, `GetAwaiter().GetResult()` ilə
+                //    BLOKLAYICI çağırılırdı ✗ → pəncərə görünməzdən əvvəl donma ✗✓✓
+                //  ✅ İndi yalnız arxa fonda (aşağıda ④) ✓ — açılış ANİ olur ✓
+                // ================================================================
+
+                // ================================================================
+                //  🗄️ ②b KÖHNƏ ZİBİL FAYLLARI → TƏK ARXİV FAYLI ✓✓✓ (v6.2.86)
+                // ----------------------------------------------------------------
+                //  ⚠ İSTİFADƏÇİ ŞİKAYƏTİ: «Trash qovluğunda 110 000 fayl var —
+                //    proqram hər dəfə bunları bir-bir oxuyur və DONUR ✗»
+                //  ✅ Köçürmə HİSSƏ-HİSSƏ gedir ✓ (bu açılışda ≤ 15 san ✓,
+                //    qalanı arxa fonda davam edir ✓) → proqram DONMUR ✗✓✓
+                //  🛡️ Orijinal fayllar SİLİNMİR ✗ — `Trash\_kohne`-yə yığılır ✓
+                //  📂 Yeni yaddaş: `NewData\Arxiv.db` (TƏK fayl ✓)
+                // ================================================================
+                try
+                {
+                    TrashArxiv.Temel();
+
+                    // ⏱️ Qısa büdcə (4 san ✓) — açılış SÜRƏTLİ qalsın ✓✓✓
+                    var kocurulen = TrashArxiv.KohneFayllariKocur(budgetMs: 4000);
+
+                    if (kocurulen > 0)
+                    {
+                        AppLogger.Melumat($"🗄️ Zibil arxivə köçürüldü: {kocurulen} fayl ✓ (NewData\\Arxiv.db)");
+                    }
+
+                    // ⏳ Qalan fayllar arxa fonda köçürülür ✓ (UI donmur ✗)
+                    if (TrashArxiv.KohneFaylVar())
+                    {
+                        _ = Task.Run(() => TrashArxiv.KohneFayllariKocur(budgetMs: 120000));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Melumat("🗄️ Arxiv köçürmə alınmadı ✓ — " + ex.Message);
+                }
 
                 // ================================================================
                 //  📥 ③ USB-DƏN BƏRPA / BİRLƏŞDİRMƏ ✓✓✓
@@ -302,6 +355,8 @@ namespace EnterpriseAeroStudio
                 // ================================================================
                 try
                 {
+                    var usbSaat = System.Diagnostics.Stopwatch.StartNew();
+
                     // 🔑 Qeydiyyatsız DATA USB-ni AVTOMATİK TANIT ✓✓✓
                     var tanıma = EnterpriseAeroStudio.Services.DataUsbService.UsbAvtomatikTanit();
                     AppLogger.Melumat("🔑 USB: " + tanıma);
@@ -309,6 +364,9 @@ namespace EnterpriseAeroStudio
                     // 💾 BƏRPA ✓ / 🔀 BİRLƏŞDİRMƏ ✓
                     var bərpa = EnterpriseAeroStudio.Services.DataUsbService.UsbDenBerpaEt();
                     AppLogger.Melumat("💾 USB bərpa: " + bərpa);
+
+                    // ⏱️ Açılışın nə qədər çəkdiyi həmişə loqa düşür ✓ (diaqnostika ✓)
+                    AppLogger.Melumat($"⏱️ USB addımı: {usbSaat.ElapsedMilliseconds} ms");
                 }
                 catch (Exception ex)
                 {
@@ -515,7 +573,8 @@ namespace EnterpriseAeroStudio
                 //    ÖZÜ yaradır ✓✓✓ (admin lazım DEYİL ✗ — istifadəçinin öz
                 //    masaüstünə yazır ✓)
                 // ================================================================
-                MasaustuQisayoluYoxla();
+                // ✅ v6.2.86 — ARXA FONDA ✓ (shell/COM əməliyyatı UI-nı tutmasın ✗)
+                _ = Task.Run(MasaustuQisayoluYoxla);
 
                 // ================================================================
                 //  🔎 FON REJİMİNDƏ: KÖHNƏ XƏRC QEYDLƏRİNİN AXTARIŞ MƏTNİ ✓✓✓
@@ -778,6 +837,144 @@ namespace EnterpriseAeroStudio
 
             return services.BuildServiceProvider();
         }
+
+        /// <summary>
+        /// 🧟 <b>KÖHNƏ (DONMUŞ) NÜSXƏNİ BAĞLAYIR</b> ✓✓✓ (v6.2.86)
+        /// <para>
+        /// ⚠ İstifadəçi şikayəti: «Proqram açılmır ✗ — Task Manager-dən End Task
+        /// edib yenidən girirəm, sonra açılır ✗»
+        /// </para>
+        /// <para>
+        /// 📌 Köhnə nüsxə kilidi tutur ✗, mesaj qutusu isə ARXADA qalırdı ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ İndi: ① köhnə pəncərə ÖNƏ gətirilir ✓ ② mesaj HƏMİŞƏ ÜSTDƏ ✓
+        /// ③ «Bəli» → köhnə nüsxə səliqə ilə (sonra zərurət olsa zorla) bağlanır ✓
+        /// </para>
+        /// </summary>
+        /// <returns><c>true</c> → davam et ✓ / <c>false</c> → bağlan ✗</returns>
+        private static bool KohneNusxeniBagla()
+        {
+            var prosesler = KohneProsesler();
+
+            if (prosesler.Count == 0)
+            {
+                // 🛡️ Proses yoxdur, amma kilit tutulub ✗ → davam edirik ✓
+                return true;
+            }
+
+            // ① Köhnə pəncərəni önə gətir ✓ (istifadəçi görsün ✓)
+            foreach (var p in prosesler)
+            {
+                try
+                {
+                    if (p.MainWindowHandle != IntPtr.Zero)
+                    {
+                        SetForegroundWindow(p.MainWindowHandle);
+                    }
+                }
+                catch
+                {
+                    // 🛡️
+                }
+            }
+
+            // ② Mesaj — HƏMİŞƏ ÜSTDƏ ✓ (ServiceNotification = topmost ✓)
+            var cavab = MessageBox.Show(
+                "021Cars artıq açıqdır ✓\n\n" +
+                "⚠ Köhnə nüsxə cavab vermirsə (donubsa) — «Bəli» basın:\n" +
+                "     köhnə nüsxə BAĞLANACAQ və proqram davam edəcək ✓✓✓\n\n" +
+                "«Xeyr» → bu pəncərə bağlanır ✗",
+                "021Cars — köhnə nüsxə açıqdır",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question,
+                MessageBoxResult.No,
+                MessageBoxOptions.ServiceNotification);
+
+            if (cavab != MessageBoxResult.Yes)
+            {
+                return false;
+            }
+
+            // ③ Əvvəl səliqə ilə bağla ✓ (3 san gözlə ✓), alınmasa zorla ✗
+            foreach (var p in prosesler)
+            {
+                try
+                {
+                    p.CloseMainWindow();
+                }
+                catch
+                {
+                    // 🛡️
+                }
+            }
+
+            var son = DateTime.UtcNow.AddSeconds(3);
+            while (DateTime.UtcNow < son)
+            {
+                if (prosesler.All(p => p.HasExited))
+                {
+                    return true;
+                }
+
+                Thread.Sleep(100);
+            }
+
+            foreach (var p in prosesler)
+            {
+                try
+                {
+                    if (!p.HasExited)
+                    {
+                        p.Kill(entireProcessTree: true);
+                        p.WaitForExit(3000);
+                    }
+                }
+                catch
+                {
+                    // 🛡️
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>🧟 Eyni proqramın digər işləyən nüsxələri ✓</summary>
+        private static System.Collections.Generic.List<Process> KohneProsesler()
+        {
+            var netice = new System.Collections.Generic.List<Process>();
+
+            try
+            {
+                var mənim = Environment.ProcessId;
+
+                foreach (var p in Process.GetProcessesByName("EnterpriseAeroStudio"))
+                {
+                    try
+                    {
+                        if (p.Id != mənim)
+                        {
+                            netice.Add(p);
+                        }
+                    }
+                    catch
+                    {
+                        // 🛡️
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️
+            }
+
+            return netice;
+        }
+
+        /// <summary>🖼️ Pəncərəni önə gətirir ✓ (Win32 ✓)</summary>
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
 
         /// <summary>
         /// 🚫 <b>İkinci nüsxənin açılmasının qarşısını alır</b> ✓✓✓

@@ -709,8 +709,37 @@ namespace EnterpriseAeroStudio.Services
                 if (File.Exists(Cas0201.Kok.KohneBazaYolu)) return Cas0201.Kok.KohneBazaYolu;
 
                 // ③ son çarə: exe qovluğunda ən böyük .db ✓
-                return Directory
-                    .GetFiles(AppContext.BaseDirectory, "*.db", SearchOption.AllDirectories)
+                // ⚠ v6.2.86 — ƏVVƏL `SearchOption.AllDirectories` ilə BÜTÜN qovluq
+                //    gəzilirdi ✗ → `Trash`-də 110 000 fayl ✗ → açılış dəqiqələrlə
+                //    DONURDU ✗✓✓ → İNDİ yalnız MƏLUM YERLƏR yoxlanılır ✓ (sürətli ✓)
+                var namizədlər = new List<string>();
+
+                void Yoxla(string? qovluq)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(qovluq) && Directory.Exists(qovluq))
+                        {
+                            namizədlər.AddRange(Directory.GetFiles(qovluq, "*.db"));
+                        }
+                    }
+                    catch
+                    {
+                        // 🛡️
+                    }
+                }
+
+                var kök = AppContext.BaseDirectory;
+
+                Yoxla(kök);
+                Yoxla(Path.Combine(kök, "NewData"));
+                Yoxla(Path.Combine(kök, "Data"));
+                Yoxla(Path.Combine(kök, "data"));
+                Yoxla(Cas0201.Kok.DataQovlugu);
+                Yoxla(Cas0201.Kok.Qovluq);
+
+                return namizədlər
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderByDescending(f =>
                     {
                         try
@@ -1442,35 +1471,73 @@ namespace EnterpriseAeroStudio.Services
                 ["Senedler"] = new HashSet<long>(),
             };
 
-            try
+            // ✅ ARXİVDƏN (NewData\Arxiv.db) — sürətli SQL oxunuşu ✓✓✓
+            // ⚠️ v6.2.86: ƏVVƏL 110 000 Trash\*.json faylı bir-bir parse olunurdu ✗ → DONMA ✗✓✓
+            foreach (var cüt in TrashArxiv.SilinenIdler())
             {
-                var qovluq = Path.Combine(Cas0201.Kok.DataQovlugu, "Trash");
-
-                if (!Directory.Exists(qovluq)) return nəticə;
-
-                foreach (var fayl in Directory.GetFiles(qovluq, "*.json"))
+                if (nəticə.TryGetValue(cüt.Key, out var set))
                 {
-                    try
-                    {
-                        using var sənəd = JsonDocument.Parse(File.ReadAllText(fayl));
-                        var kök = sənəd.RootElement;
-
-                        if (!kök.TryGetProperty("Action", out var aksiya)) continue;
-                        if (!string.Equals(aksiya.GetString(), "Silinmə", StringComparison.Ordinal)) continue;
-
-                        IdYaz(nəticə, "Avtomobiller", kök, "Car");
-                        IdYazList(nəticə, "Xercler", kök, "Expenses");
-                        IdYazList(nəticə, "Satislar", kök, "Sales");
-                        IdYazList(nəticə, "Kreditler", kök, "Credits");
-                        IdYazList(nəticə, "KreditEmeliyyatlari", kök, "Transactions");
-                        IdYazList(nəticə, "Senedler", kök, "Attachments");
-                    }
-                    catch { }
+                    set.UnionWith(cüt.Value);
+                }
+                else
+                {
+                    nəticə[cüt.Key] = new HashSet<long>(cüt.Value);
                 }
             }
-            catch { }
+
+            // 🛡️ Köçürmə hələ bitməyibsə — köhnə fayllardan da oxunur ✓ (MƏHDUD: 3 000 fayl ✓)
+            if (TrashArxiv.KohneFaylVar())
+            {
+                KohneFayllardanZibil(nəticə, limit: 3000);
+            }
 
             return nəticə;
+        }
+
+        /// <summary>
+        /// 🛡️ Köçürmə bitməmiş <b>MƏHDUD</b> sayda köhnə fayldan silinmiş ID-ləri oxuyur ✓
+        /// <para>⚠️ Donmanın qarşısı ✗✓✓ — ən çox 3 000 fayl ✓ (qalanı artıq arxivdədir ✓)</para>
+        /// </summary>
+        private static void KohneFayllardanZibil(Dictionary<string, HashSet<long>> nəticə, int limit)
+        {
+            try
+            {
+                var qovluq = TrashArxiv.KohneQovluq;
+
+                if (!Directory.Exists(qovluq))
+                {
+                    return;
+                }
+
+                var say = 0;
+
+                foreach (var fayl in Directory.EnumerateFiles(qovluq, "*.json"))
+                {
+                    if (say++ >= limit)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        foreach (var (cedvel, id) in TrashArxiv.SilinenIdleriCixar(File.ReadAllText(fayl)))
+                        {
+                            if (nəticə.TryGetValue(cedvel, out var set))
+                            {
+                                set.Add(id);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 🛡️ bir fayl xarab olsa — davam ✓
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️
+            }
         }
 
 #if WINDOWS
