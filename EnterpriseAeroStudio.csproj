@@ -68,15 +68,35 @@
 
   <!--
     ============================================================================
-    VEB LAYİHƏSİ İLƏ ƏLAQƏ  —  TƏK BUILD
+    VEB LAYİHƏSİ İLƏ ƏLAQƏ  —  ⛔ v6.2.86: AYRILDI ✓✓✓
     ============================================================================
-    Masaüstü tətbiq build edildikdə veb layihə də AVTOMATİK build olunur.
-    Beləliklə bir build → hər iki tətbiq hazır olur.
+    ⚠ ƏVVƏL: `<ProjectReference Include="Web\Autocode.Web.csproj">` var idi ✗ →
+      masaüstü tətbiqi build olunanda VEB layihəsi də build olunurdu ✗ →
+      **veb server işləyərkən** (`EnterpriseAeroStudio.Web.exe` prosesi açıq ✓)
+      onun .exe faylı KİLİDLƏNİRDİ ✗ →
+      `dotnet run` / `dotnet build` belə XƏTA verirdi:
+        «MSB3027: Could not copy … EnterpriseAeroStudio.Web.exe …
+         The file is locked by: EnterpriseAeroStudio.Web (33132)» ✗✓✓
 
-    ReferenceOutputAssembly=false — veb DLL-i masaüstü tətbiqə
-    referans kimi qoşulmur (ayrı proses kimi işləyir).
+    ✅ İNDİ: MASAÜSTÜ LAYİHƏSİ VEB LAYİHƏSİNƏ **HEÇ BİR ASILI DEYİL** ✗✓✓
+      • `dotnet run`      → YALNIZ masaüstü tətbiqini build edir ✓ (kilid problemi YOX ✗)
+      • Veb tətbiq AYRICA build/publish olunur ✓:
+            dotnet build  Web\Autocode.Web.csproj
+            (və ya quraşdırıcı: Docs\Qurasdirma\Installer\Yig-Installer.ps1 ✓
+             — o, veb layihəsini ÖZÜ ayrıca publish edir ✓)
+
+    ℹ️ Veb server prosesi masaüstü tətbiq tərəfindən avtomatik işə salınır ✓
+       (`WebServerService` → `Web\bin\...\EnterpriseAeroStudio.Web.exe`) —
+       bu əlaqə RUNTIME-dadır ✓, build asılılığı DEYİL ✓
+
+    🔧 LAZIM OLARSA veb layihəni DƏ BİR BUILD-DƏ yığmaq üçün (könüllü ✓):
+          dotnet build -p:BuildWebApp=true
+       (yalnız o halda aşağıdaki ProjectReference işə düşür ✓ —
+        veb server BAĞLI deyilsə işləyir ✓, bağlıdırsa əvvəlcə proqramı bağlayın ✗)
+    ============================================================================
   -->
-  <ItemGroup>
+
+  <ItemGroup Condition="'$(BuildWebApp)' == 'true'">
     <ProjectReference Include="Web\Autocode.Web.csproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
