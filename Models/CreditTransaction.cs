@@ -134,10 +134,10 @@ namespace EnterpriseAeroStudio.Models
         /// bölgüsü checkbox-u da olsun ✓ — Gəlirdəki kimi (copy-paste ✓).
         /// Seçməsək bölgü GÖRÜNMƏMƏLİDİR ✗ (tarixçədə çox yer tutur ✗).»
         /// </para>
-        /// <para>📌 Yalnız <b>Gecikmə</b> sətirlərində və yalnız <b>ödənilib</b> olduqda ✓</para>
+        /// <para>📌 Yalnız <b>Gecikmə</b> sətirlərində görünür ✓ — «ödənilib» işarəsindən ASILI DEYİL ✗✓✓</para>
         /// </summary>
         [NotMapped]
-        public bool BolguSecileBilen => IsGecikme && Odenilib;
+        public bool BolguSecileBilen => IsGecikme;
 
         /// <summary>Cədvəldə göstərilən kredit məlumatı: müqavilə | müştəri | avtomobil.</summary>
         [NotMapped]

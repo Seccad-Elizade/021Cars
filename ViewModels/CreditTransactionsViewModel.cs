@@ -1522,6 +1522,19 @@ namespace EnterpriseAeroStudio.ViewModels
                     }
                 }
 
+                // ================================================================
+                //  ✅ v6.2.90 — «ÖDƏNİLİB» ☑ EDİLDİKDƏ: checkbox ilə seçilmiş
+                //  BÖLGÜ dərhal QÜVVƏYƏ MİNİR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi: «ödənilib basandan sonra tərəfdaş bölgüsü gəlmir ✗»
+                //  ✅ İndi paylar HAZIRDIR ✓ → yalnız aktivləşir ✓ (ödənilib ☑ → hesaba düşür ✓)
+                // ================================================================
+                if (transaction.Nov == "Gecikmə")
+                {
+                    transaction.TerefdasBolguTetbiqOlunub =
+                        transaction.Odenilib && transaction.TerefdasPaylari.Count > 0;
+                }
+
                 await _creditService.UpdateTransactionAsync(transaction);
                 _logger.LogInformation(
                     "Əməliyyat vəziyyəti dəyişdirildi: {Id} → {State}",
@@ -1557,10 +1570,9 @@ namespace EnterpriseAeroStudio.ViewModels
         private async Task ToggleGecikmeBolguAsync(CreditTransaction? transaction)
         {
             if (transaction is null ||
-                !string.Equals(transaction.Nov, "Gecikmə", StringComparison.Ordinal) ||
-                !transaction.Odenilib)
+                !string.Equals(transaction.Nov, "Gecikmə", StringComparison.Ordinal))
             {
-                return;   // 📌 yalnız GECİKMƏ və yalnız ÖDƏNİLİB olduqda ✓
+                return;   // 📌 yalnız GECİKMƏ sətirlərində ✓ («ödənilib» şərti YOX ✗✓)
             }
 
             try
@@ -1613,7 +1625,7 @@ namespace EnterpriseAeroStudio.ViewModels
                         }
                     }
 
-                    transaction.TerefdasBolguTetbiqOlunub = yeniPaylar.Count > 0;
+                    transaction.TerefdasBolguTetbiqOlunub = yeniPaylar.Count > 0 && transaction.Odenilib;
                     transaction.TerefdasPaylari = yeniPaylar;
                     transaction.BolguBazasi = yeniPaylar.Count > 0
                         ? Math.Round(transaction.Mebleg, 2)

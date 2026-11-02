@@ -655,6 +655,18 @@
         <!-- ================================================================ -->
         <Setter Property="CanUserResizeColumns" Value="True"/>
         <Setter Property="CanUserResizeRows" Value="True"/>
+
+        <!-- ================================================================ -->
+        <!--  🛡️ v6.2.90 — CRASH QORUMASI ✓✓✓ (★ KRİTİK ★)                     -->
+        <!--  ⚠ CRASH ✗: «DataGridCellsPanel.ArrangeOverride →                 -->
+        <!--     ArgumentOutOfRangeException» ✗ — sətir virtualizasiyası +      -->
+        <!--     Auto enli sütunlar + sürüşdürmə birlikdə WPF xətası verir ✗   -->
+        <!--  ✅ HƏLL: virtualizasiya SÖNDÜRÜLDÜ ✓ (500–2 500 sətir üçün        -->
+        <!--     performans kifayətdir ✓, çökmə isə TAMAM aradan qalxır ✓✓✓)    -->
+        <!-- ================================================================ -->
+        <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="False"/>
+        <Setter Property="EnableColumnVirtualization" Value="False"/>
         <!-- ✅ v6.2.52 — Sütun eni AVTOMATİK: başlıq + ən uzun məzmuna görə ✓✓✓
              ⚠ Ulduzlu (Width="*") sütunlar NƏ avtomatik uyğunlaşır ✗,
              NƏ də siçanla ölçüsü dəyişir ✗ → hamısı Auto edildi ✓ -->

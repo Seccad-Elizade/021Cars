@@ -35,6 +35,19 @@ namespace EnterpriseAeroStudio.ViewModels
         private List<Sale> _sales = new();
         private List<ExpenseItem> _expenses = new();
         private List<CreditTransaction> _transactions = new();
+
+        /// <summary>
+        /// ⚡ v6.2.90 — <b>BÜTÜN DÖVR ÜZRƏ TƏRƏFDAŞ JURNALI (keş)</b> ✓✓✓
+        /// <para>
+        /// ⚠ ƏVVƏL hər dövr dəyişikliyində `BuildLedgerAsync` yenidən çağırılırdı ✗
+        /// → 33–48 saniyə donma ✗ + cədvəllər boş görünürdü ✗✓✓
+        /// </para>
+        /// <para>
+        /// ✅ İNDİ bir dəfə oxunur ✓ → dövr seçimi yerli filtrdir ✓ (dərhal ✓)
+        /// </para>
+        /// <para>🔄 Məlumat yeniləndikdə <c>null</c> edilir ✓ (yenidən oxunur ✓)</para>
+        /// </summary>
+        private List<Models.PartnerLedgerRow>? _butunJurnal;
         private List<Credit> _credits = new();
 
         /// <summary>
@@ -668,19 +681,26 @@ namespace EnterpriseAeroStudio.ViewModels
                     (from, to) = (to, from);
                 }
 
-                var jurnal = await xidmet.BuildLedgerAsync(from, to);
-
                 // ================================================================
-                //  ✅ EHTİYAT: dövr dar olduğu üçün boş qalıbsa → GENİŞ dövrlə
-                //     yenidən oxunur ✓✓✓ (PDF HEÇ VAXT boş qalmaz ✗)
+                //  ⚡ v6.2.90 — TƏK DƏFƏ hesablanır və KEŞDƏ saxlanılır ✓✓✓
                 // ----------------------------------------------------------------
-                //  ⚠ «Bütün vaxt» seçildikdə belə dövr sərhədləri bəzən
-                //    bölgüləri əhatə etmir ✗ → siyahı boş qalır ✗✓✓
+                //  ⚠ PROBLEM ✗: hər dövr dəyişikliyində `BuildLedgerAsync` iki dəfə
+                //    çağırılırdı ✗ (dar dövr ✗ + «2000–2100» ehtiyat ✗) →
+                //    böyük bazada **33–48 saniyə DONMA** ✗✓✓
+                //    və bu müddətdə cədvəllər BOŞ görünürdü ✗ («funksiyalar yoxa çıxdı» ✗)
+                //  ✅ İNDİ: BÜTÜN dövr üzrə jurnal BİR DƏFƏ oxunur ✓ →
+                //     dövr seçimi YALNIZ YERLİ filtrdir ✓ (millisaniyə ✓)
                 // ================================================================
+                _butunJurnal ??= (await xidmet.BuildLedgerAsync(
+                    new DateTime(2000, 1, 1), new DateTime(2100, 1, 1))).ToList();
+
+                var jurnal = _butunJurnal
+                    .Where(r => r.Tarix.Date >= from.Date && r.Tarix.Date <= to.Date)
+                    .ToList();
+
                 if (jurnal.Count == 0)
                 {
-                    jurnal = await xidmet.BuildLedgerAsync(
-                        new DateTime(2000, 1, 1), new DateTime(2100, 1, 1));
+                    jurnal = _butunJurnal;   // 🛡️ ehtiyat: boş qalmasın ✓
                 }
 
                 PartnerTotals.Clear();
@@ -846,6 +866,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 _sales = satışlar.ToList();
                 _partnerShares = paylar.ToList();
                 _manualHereketler = elIle.ToList();
+
+                // ⚡ v6.2.90 — məlumat dəyişdi → tərəfdaş jurnalı keşi SIFIRLANIR ✓
+                _butunJurnal = null;
                 _terefdasOdenisler = odenisler.ToList();
 
                 // Kreditlə satılan maşınların maya dəyəri üçün bütün maşınlar.
