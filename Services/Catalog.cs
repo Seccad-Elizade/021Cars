@@ -250,6 +250,44 @@ namespace EnterpriseAeroStudio.Services
             BizBaglamaCarStatus
         };
 
+        /// <summary>
+        /// 🔗 <b>«möhlət #123» markerindən möhlətin Id-sini oxuyur</b> ✓✓✓ (v6.2.83)
+        /// <para>
+        /// Kassa paneli möhlət ödənişi yazanda təsvirə bu markeri əlavə edir ✓ →
+        /// kredit məlumatında «maya ödənilib» DƏQİQ hesablanır ✓ və
+        /// geri alım/silmə zamanı sətir TAPILIR ✓
+        /// </para>
+        /// </summary>
+        public static int? MohletIdFromTesvir(string? tesvir)
+        {
+            try
+            {
+                var mətn = tesvir ?? string.Empty;
+                var baş = mətn.IndexOf("möhlət #", StringComparison.OrdinalIgnoreCase);
+
+                if (baş < 0)
+                {
+                    return null;
+                }
+
+                baş += "möhlət #".Length;
+
+                var rəqəm = new System.Text.StringBuilder();
+
+                while (baş < mətn.Length && char.IsDigit(mətn[baş]))
+                {
+                    rəqəm.Append(mətn[baş]);
+                    baş++;
+                }
+
+                return rəqəm.Length > 0 && int.TryParse(rəqəm.ToString(), out var id) ? id : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         // ====================================================================
         //  TƏRƏFDAŞ MƏNFƏƏT BÖLGÜSÜ  (kredit əlavə gəlir/xərc)
         // --------------------------------------------------------------------

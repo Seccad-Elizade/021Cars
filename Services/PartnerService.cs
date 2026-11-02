@@ -353,17 +353,15 @@ namespace EnterpriseAeroStudio.Services
                 .Where(s => s.SaleId is not null || s.CreditId is not null || s.CreditTransactionId is not null)
                 .Select(s => (Share: s, Info: InfoFor(s)))
                 // ================================================================
-                //  ⚠️ GECİKMƏ CƏRİMƏSİ TƏRƏFDAŞ JURNALINA HEÇ VAXT DAXİL EDİLMİR ✗✓✓
-                // ----------------------------------------------------------------  (v6.2.28)
-                //  Cərimə pulu YALNIZ «💵 Kassa»ya (gəlirə) yazılır ✓✓✓
-                //  (bax: <see cref="KassaHesabi"/> — «Gecikmə + Ödənilib» ✓)
-                //
-                //  • Tərəfdaşlara BÖLÜNMÜR ✗ → kartlarda, bölgü jurnalında,
-                //    «Qazanılmış» hesabında GÖRÜNMÜR ✗
-                //  • Köhnə versiyalarda yazılmış 50/50 paylar bazada qalmış olsa da
-                //    bu filtr onları DƏRHAL sıradan çıxarır ✓ → self-healing ✓✓✓
+                //  ✅ v6.2.83 — «GECİKMƏ» İSTİSNASI SİLİNDİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «gecikməyə də tərəfdaş bölgüsü əlavə et ✓»
+                //  ⚠ ƏVVƏL (v6.2.28): cərimə payları jurnaldan SÜZÜLÜRDÜ ✗ →
+                //     ödənilmiş cərimə (məs. 470 ₼ → Asif 235 · Musa 235)
+                //     «👥 Tərəfdaşlar» tabında HEÇ GÖRÜNMÜRDÜ ✗✓✓
+                //  ✅ İNDİ: paylar yazıldığı kimi jurnalda/kartlarda/dövriyyədə
+                //     görünür ✓ (mənbə: «Gecikmə» ✓)
                 // ================================================================
-                .Where(x => !string.Equals(x.Info.Menbe, "Gecikmə", StringComparison.Ordinal))
                 .Where(x => x.Info.Tarix.Date >= from.Date && x.Info.Tarix.Date <= to.Date)
                 .ToList();
 

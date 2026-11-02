@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -853,7 +853,63 @@ namespace EnterpriseAeroStudio.ViewModels
                 }
 
                 // ================================================================
-                //  ✅ v6.2.54 — SÜZGƏC DƏRHAL YENİDƏN İŞLƏYİR ✓✓✓
+                //  🩹 v6.2.83 — «Möhlət ödənişi» TƏSVİRİNDƏKİ MAYA SƏHVİ ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: panelə «maya 308 ₼» yazdı ✗ amma
+                //    tarixçədə «maya 437,50 ₼ · mənfəət 392,00 ₼» görünürdü ✗
+                //  🐞 SƏBƏB: təsvir köhnə AVTOMATİK mayanı yazırdı ✗
+                //  ✅ İNDİ: bölgü bazası əsasında YENİDƏN yazılır ✓
+                //     (maya = Mebleg − Baza ✓) · BİR DƏFƏLİK ✓ · xəta udulur ✓
+                // ================================================================
+                try
+                {
+                    var bayraqQovluq = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "021Cars", "flags");
+
+                    System.IO.Directory.CreateDirectory(bayraqQovluq);
+
+                    var bayraq = System.IO.Path.Combine(bayraqQovluq, "mohlet_tesvir_6_2_83.flag");
+
+                    if (!System.IO.File.Exists(bayraq))
+                    {
+                        var düzəldilən = 0;
+
+                        foreach (var t in sətirlər.Where(x =>
+                                     x.Nov == Catalog.MohletOdenisNovu
+                                     && x.BolguBazasi.HasValue
+                                     && Catalog.MohletIdFromTesvir(x.Tesvir) is int))
+                        {
+                            var düzgünMaya = Math.Max(0m, Math.Round(t.Mebleg - t.BolguBazasi!.Value, 2));
+                            var yeniTəsvir =
+                                $"⏳ Möhlət ödənişi · möhlət #{Catalog.MohletIdFromTesvir(t.Tesvir)} · " +
+                                $"maya {düzgünMaya:N2} ₼ · mənfəət {t.BolguBazasi!.Value:N2} ₼";
+
+                            if (string.Equals(yeniTəsvir, t.Tesvir, StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
+
+                            t.Tesvir = yeniTəsvir;
+                            await _creditService.UpdateTransactionAsync(t);
+                            düzəldilən++;
+                        }
+
+                        System.IO.File.WriteAllText(bayraq, DateTime.Now.ToString("s"));
+
+                        if (düzəldilən > 0)
+                        {
+                            _logger.LogInformation(
+                                "🩹 {Say} «Möhlət ödənişi» təsviri düzəldildi ✓ (maya = məbləğ − baza)", düzəldilən);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Möhlət təsviri düzəlişi alınmadı ✓");
+                }
+
+
                 //  ⚠ ƏVVƏL: sətirlər yüklənirdi ✓ amma `FilteredTransactions`
                 //     BOŞ qalırdı ✗ → «kredit tarixçəsi görünmür» ✗✓✓
                 //  ✅ İNDİ: yükləmədən sonra dərhal süzülür ✓ →
@@ -1394,6 +1450,12 @@ namespace EnterpriseAeroStudio.ViewModels
                 {
                     transaction.TerefdasBolguTetbiqOlunub = false;
                     transaction.TerefdasPaylari = new List<PartnerShare>();
+
+                    // ⚠ v6.2.83 — baza da SIFIRLANIR ✓ (əks halda köhnə baza qalırdı ✗)
+                    if (transaction.Nov == "Gecikmə")
+                    {
+                        transaction.BolguBazasi = null;
+                    }
                 }
 
                 // ================================================================
@@ -1432,6 +1494,17 @@ namespace EnterpriseAeroStudio.ViewModels
 
                         transaction.TerefdasBolguTetbiqOlunub = true;
                         transaction.TerefdasPaylari = yeniPaylar;
+
+                        // ============================================================
+                        //  ✅ v6.2.83 — CƏRİMƏNİN MAYASI = 0 ✓✓✓
+                        // ------------------------------------------------------------
+                        //  ★ İstifadəçi tələbi: «gecikmə ödənəndə maşının
+                        //    mayasından çıxılmalıdır» → cərimə maya/əsas borcdan
+                        //    ÇIXMIR ✗ · TAM cərimə MƏNFƏƏT kimi bölünür ✓
+                        //  ✅ baza = məbləğ → maya payı = 0 ✓
+                        //     (əvvəl baza boş qalırdı ✗ → «maya ödənilib» yanlış ✗)
+                        // ============================================================
+                        transaction.BolguBazasi = Math.Round(transaction.Mebleg, 2);
 
                         _logger.LogInformation(
                             "⏱ Gecikmə ödənildi ✓ → paylar BÖLÜNDÜ: {Mebleg:N2} ₼ → {Pay:N2} ₼ × {Say} qalıq tərəfdaş",

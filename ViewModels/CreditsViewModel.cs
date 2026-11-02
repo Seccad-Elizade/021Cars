@@ -1429,12 +1429,17 @@ namespace EnterpriseAeroStudio.ViewModels
                     }
                 }
 
-                // ⚠ GECİKMƏ cərimələri — maya ödənişinin ÜSTÜNƏ gəlir ✓
+                // ⚠ GECİKMƏ cərimələri — MAYA ÖDƏNİŞİNƏ DAXİL EDİLMİR ✓✓✓ (v6.2.83)
+                //  ★ İstifadəçi tələbi: «gecikmə ödənəndə maşının mayasından
+                //    ÇIXILMALIDIR» → cərimə əsas borcun/mayanın bir hissəsi DEYİL ✗
+                //  ✅ Cərimə yalnız MƏNFƏƏT sayılır ✓ (Kassa gəliri ✓ +
+                //     tərəfdaş bölgüsü ✓) — «Maya ödənişi»/«Maya qalığı» DƏYİŞMİR ✗
                 var gecikmeCemi = _creditTransactions
                     .Where(t => t.CreditId == c.Id && t.Nov == "Gecikmə")
                     .Sum(t => t.Mebleg);
 
-                // 💵 MAYA ÖDƏNİŞ (ödənilməli) = Satış − İlkin + Möhlət + Gecikmə ✓
+                // 💵 MAYA ÖDƏNİŞ (ödənilməli) = Satış − İlkin + Möhlət ✓
+                //    (Gecikmə ✗ · Xərclər → v6.2.68 ilə əlavə olunur ✓)
                 // ⚡ v6.2.68 — XƏRCLƏR «MAYA ÖDƏNİŞİ»-nə də ƏLAVƏ OLUNUR ✓✓✓
                 //  (məs. 50 ₼ polis xərci → Maya ödənişi 50 ₼ artır ✓)
                 var xercCemiMaya = _creditTransactions
@@ -1442,7 +1447,9 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Sum(t => t.Mebleg);
 
                 SelectedMayaOdenis = Math.Max(0m,
-                    c.Mebleg - c.IlkinOdenis + mohletCemi + gecikmeCemi + xercCemiMaya);
+                    c.Mebleg - c.IlkinOdenis + mohletCemi + xercCemiMaya);
+
+                _ = gecikmeCemi;   // ℹ️ yalnız məlumat üçün (maya-ya təsir ETMİR ✗)
 
                 // ════════════════════════════════════════════════════════════════
                 //  🆕 v6.2.51 — MAYA HİSSƏSİ (istifadəçi tələbi ✓✓✓)
@@ -1468,12 +1475,55 @@ namespace EnterpriseAeroStudio.ViewModels
                 SelectedMayaOdenen = Math.Round(mayaHissesi, 2);
 
                 // ================================================================
-                //  🔒 v6.2.60 — ÖDƏNİLMİŞ İLKİN MÖHLƏTLƏR «MAYA ÖDƏNİLİB»-ə ✓✓✓
-                //  «İlkin ödənişə möhlət ödənildikdə maşının MAYASINDAN çıxır» ✓
+                //  🆕 v6.2.83 — «İLKİN ÖDƏNİŞƏ MÖHLƏT»: «MAYA ÖDƏNİLİB»-ə
+                //  YALNIZ **MAYA HİSSƏSİ** yazılır ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi şikayəti: 700 ₼ möhlət (maya 308 · Asif 196 ·
+                //    Musa 196) ödənildi ✗ AMMA kredit məlumatında «Maya ödənilib»
+                //    ŞİŞİRDİLMİŞ görünürdü ✗ («ödənilmiş falan yanlış»)
+                //  🐞 SƏBƏB: burada möhlətin **TAM məbləği** (700 ₼) əlavə
+                //     olunurdu ✗ → maya 308 yerinə 700 sayılırdı ✗✓✓
+                //  ✅ İNDİ: Kassa panelinin yazdığı «möhlət #Id» qeydindən
+                //     maya payı götürülür ✓ (Mebleg − Bölgü bazası = 308 ✓)
+                //     Bölgü yoxdursa → avtomatik KÖK payı ✓ (ehtiyat ✓)
                 // ================================================================
-                var odenilmisMohletMaya = c.IlkinMohletleri?
-                    .Where(m => m.Odenilib)
-                    .Sum(m => m.Mebleg) ?? 0m;
+                var mohletMayaXeritesi = new Dictionary<int, decimal>();
+
+                foreach (var t in _creditTransactions)
+                {
+                    if (t.CreditId != c.Id)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(t.Nov, Catalog.MohletOdenisNovu, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (Catalog.MohletIdFromTesvir(t.Tesvir) is not int mohletId)
+                    {
+                        continue;
+                    }
+
+                    var mayaPayi = t.BolguBazasi is decimal bazaT
+                        ? Math.Max(0m, Math.Round(t.Mebleg - bazaT, 2))
+                        : Math.Round(c.OdenisKokPayi(t.Mebleg), 2);
+
+                    mohletMayaXeritesi[mohletId] = mayaPayi;
+                }
+
+                var odenilmisMohletMaya = 0m;
+
+                if (c.IlkinMohletleri is not null)
+                {
+                    foreach (var m in c.IlkinMohletleri.Where(m => m.Odenilib))
+                    {
+                        odenilmisMohletMaya += mohletMayaXeritesi.TryGetValue(m.Id, out var mayaPayi)
+                            ? mayaPayi
+                            : Math.Round(c.OdenisKokPayi(m.Mebleg), 2);
+                    }
+                }
 
                 if (odenilmisMohletMaya > 0m)
                 {

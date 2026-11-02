@@ -306,19 +306,19 @@ namespace EnterpriseAeroStudio.Services
                 .ToList();
 
             // ================================================================
-            //  ⚠️ GECİKMƏ CƏRİMƏSİ TƏRƏFDAŞLARA BÖLÜNMÜR ✗✓✓  (v6.2.28)
+            //  ✅ v6.2.83 — GECİKMƏ CƏRİMƏSİ DƏ TƏRƏFDAŞLARA BÖLÜNÜR ✓✓✓
             // ----------------------------------------------------------------
-            //  Cərimə pulu YALNIZ «💵 Kassa»ya (GƏLİRƏ) yazılır ✓✓✓
-            //  (bax: <see cref="KassaHesabi"/> — «Gecikmə + Ödənilib» ✓ gəlir sayılır ✓)
-            //
-            //  • Tərəfdaş PAYI YARADILMIR ✗
-            //  • Əvvəl (köhnə versiyalarda) yazılmış 50/50 paylar isə yuxarıda
-            //    BİRBAŞA BAZADAN SİLİNİR ✓ → self-healing ✓✓✓
+            //  ★ İstifadəçi tələbi: «gecikmə ödənəndə maşının mayasından
+            //    çıxılmalıdır ✗ AMMA gecikməyə də tərəfdaş bölgüsü əlavə et ✓»
+            //  🐞 ƏVVƏL (v6.2.28): burada «Gecikmə» üçün `return` var idi ✗ →
+            //     VM-in hazırladığı 50/50 paylar BAZAYA YAZILMIRDI ✗ →
+            //     «👥 Tərəfdaşlar» jurnalında heç görünmürdü ✗✓✓
+            //  ✅ İNDİ: paylar verilibsə YAZILIR ✓
+            //     • MAYA payı = 0 ✓ (cərimə maya/əsas borcdan ÇIXILMIR ✗)
+            //     • tam cərimə MƏNFƏƏT kimi bölünür ✓ (baza = məbləğ ✓)
             // ================================================================
-            if (string.Equals(transaction.Nov, "Gecikmə", StringComparison.Ordinal))
-            {
-                return;
-            }
+
+            if (!transaction.TerefdasBolguTetbiqOlunub || paylar.Count == 0)
 
             // ================================================================
             //  🩺 SELF-HEALING ✓✓✓ — «bölgü TƏTBİQ OLUNUB ✓ amma məbləğlər 0» ✗

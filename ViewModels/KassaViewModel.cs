@@ -924,7 +924,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 Mebleg = odenis,
                 Tarix = tarix,
                 Odenilib = true,
-                Tesvir = $"⏳ Möhlət ödənişi · möhlət #{mohletId} · maya {MohletMayaPayi:N2} ₼ · mənfəət {baza:N2} ₼",
+                Tesvir = $"⏳ Möhlət ödənişi · möhlət #{mohletId} · maya {MohletBolguMaya:N2} ₼ · mənfəət {baza:N2} ₼",
                 TerefdasBolguTetbiqOlunub = true,
                 BolguBazasi = baza,
                 TerefdasPaylari = paylar
@@ -1008,6 +1008,14 @@ namespace EnterpriseAeroStudio.ViewModels
         /// <summary>🏷️ MAYA dəyişdi → baza yenidən hesablanır ✓.</summary>
         partial void OnMohletBolguMayaChanged(decimal value)
         {
+            // ⚠ v6.2.83 — MAYA əl ilə dəyişdikdə «MAYA (kök) payı» da sinxron olunur ✓
+            //  (əvvəl `MohletMayaPayi` köhnə avtomatik dəyərdə qalırdı ✗ →
+            //   tarixçəyə «maya 437,50» yazılırdı, bölgü isə 308 ₼ ilə aparılırdı ✗✓✓)
+            if (Math.Abs(MohletMayaPayi - value) > 0.004m)
+            {
+                MohletMayaPayi = value;
+            }
+
             MohletBolguBazasiniYenile();
 
             if (!MohletBolguManual)
