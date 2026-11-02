@@ -854,9 +854,19 @@ namespace EnterpriseAeroStudio.Services
                     // ✓ ölçü oxunmadı ✓
                 }
 
+                // ================================================================
+                //  🧳 v6.2.89 — AYARLAR DA USB-YƏ KÖÇÜRÜLÜR ✓✓✓
+                // ----------------------------------------------------------------
+                //  ★ İstifadəçi tələbi: «USB-yə köçürəndə Tənzimləmələrdəki
+                //    istifadəçilər · tab icazələri · bütün ayarlar da köçürülsün ✓»
+                //  📦 `{USB}\021Cars\021Cars_Ayarlar\` qovluğuna yazılır ✓
+                // ================================================================
+                var ayarNeticesi = AyarlarKocurmeServisi.UsbYeKocur();
+
                 return $"✅ Baza USB-yə kopyalandı ✓ ({olcuKb:N0} KB)\n" +
                        $"   • 021cars_data.db (görünən ✓)\n" +
-                       $"   • data\\backup.db ✓";
+                       $"   • data\\backup.db ✓\n" +
+                       $"   • {ayarNeticesi}";
             }
             catch (Exception ex)
             {

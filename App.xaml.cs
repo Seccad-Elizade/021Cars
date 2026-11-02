@@ -365,6 +365,21 @@ namespace EnterpriseAeroStudio
                     var bərpa = EnterpriseAeroStudio.Services.DataUsbService.UsbDenBerpaEt();
                     AppLogger.Melumat("💾 USB bərpa: " + bərpa);
 
+                    // ============================================================
+                    //  🧳 v6.2.89 — USB-DƏKİ AYARLAR (İSTİFADƏÇİLƏR · TAB İCAZƏLƏRİ ·
+                    //  BÜTÜN AYARLAR) AVTOMATİK TƏTBİQ OLUNUR ✓✓✓
+                    // ------------------------------------------------------------
+                    //  ★ «Başqa kompüterə taxanda hər şey gəlsin» ✓
+                    //  📌 Eyni paket iki dəfə tətbiq olunmur ✗ (acar yadda saxlanılır ✓)
+                    //  🛡️ Köhnə fayllar `%LOCALAPPDATA%\021Cars\yedek_*`-yə surət olunur ✓
+                    // ============================================================
+                    var ayarlar = EnterpriseAeroStudio.Services.AyarlarKocurmeServisi.UsbDenIntegrasiyaEt();
+
+                    if (!string.IsNullOrWhiteSpace(ayarlar))
+                    {
+                        AppLogger.Melumat(ayarlar);
+                    }
+
                     // ⏱️ Açılışın nə qədər çəkdiyi həmişə loqa düşür ✓ (diaqnostika ✓)
                     AppLogger.Melumat($"⏱️ USB addımı: {usbSaat.ElapsedMilliseconds} ms");
                 }
