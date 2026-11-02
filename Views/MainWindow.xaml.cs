@@ -69,6 +69,100 @@ namespace EnterpriseAeroStudio.Views
             }
         }
 
+        /// <summary>
+        /// 📑 <b>TAB İCAZƏLƏRİNİ TƏTBİQ EDİR</b> ✓✓✓ (v6.2.86)
+        /// <list type="bullet">
+        ///   <item>① Gizli (Collapsed) tablar — heç vaxt göstərilmir ✗</item>
+        ///   <item>② ROL qaydaları: «🌐 Veb Sayt» yalnız Admin ✓ ·
+        ///         «⚙️ Tənzimləmələr» Sahil üçün ✗</item>
+        ///   <item>③ FƏRDİ icazə (checkbox-lar) ✓</item>
+        ///   <item>④ Seçilmiş tab gizləndisə → ilk GÖRÜNƏN taba keçilir ✓</item>
+        /// </list>
+        /// </summary>
+        private void TablariIcazeyeGoreTetbiqEt()
+        {
+            try
+            {
+                var cari = EnterpriseAeroStudio.Services.AuthService.Cari;
+
+                if (cari is null)
+                {
+                    return;
+                }
+
+                System.Windows.Controls.TabItem? ilkGorunen = null;
+
+                foreach (var element in MainTabs.Items)
+                {
+                    if (element is not System.Windows.Controls.TabItem tab)
+                    {
+                        continue;
+                    }
+
+                    var ad = (tab.Header?.ToString() ?? string.Empty).Trim();
+
+                    if (ad.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    // ① GİZLİ tablar (tarixi: «📤 Transfer (gizli)» · «🤝 Barter Keçmişi»)
+                    var gizli = ad.Contains("gizli", StringComparison.OrdinalIgnoreCase)
+                                || ad.Contains("Barter Keçmişi", StringComparison.OrdinalIgnoreCase);
+
+                    // ② ROL qaydaları
+                    var rolIle = true;
+
+                    if (ad.Contains("Veb Sayt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        rolIle = cari.VebSaytGoruner;
+                    }
+                    else if (ad.Contains("Tənzimləmələr", StringComparison.OrdinalIgnoreCase))
+                    {
+                        rolIle = cari.TenzimlemelerGoruner;
+                    }
+
+                    // ③ FƏRDİ icazə (admin işarələri ✓)
+                    var icazeIle = EnterpriseAeroStudio.Services.TabIcazeService
+                        .Gorunur(cari.IstifadeciAdi, ad);
+
+                    var gorunur = !gizli && rolIle && icazeIle;
+
+                    // ⚠ XAML-də Visibility BINDING varsa — əvvəlcə silinir ✓
+                    //   (əks halda binding koddaki dəyəri üzərinə yazır ✗✓✓)
+                    try
+                    {
+                        System.Windows.Data.BindingOperations.ClearBinding(
+                            tab, System.Windows.UIElement.VisibilityProperty);
+                    }
+                    catch { }
+
+                    tab.Visibility = gorunur
+                        ? System.Windows.Visibility.Visible
+                        : System.Windows.Visibility.Collapsed;
+
+                    if (gorunur && ilkGorunen is null)
+                    {
+                        ilkGorunen = tab;
+                    }
+                }
+
+                // ④ Seçilmiş tab gizləndisə → ilk görünən taba keç ✓
+                if (MainTabs.SelectedItem is System.Windows.Controls.TabItem secili &&
+                    secili.Visibility != System.Windows.Visibility.Visible)
+                {
+                    if (ilkGorunen is not null)
+                    {
+                        MainTabs.SelectedItem = ilkGorunen;
+                    }
+                }
+            }
+            catch
+            {
+                // 🛡️ icazə tətbiqi proqramı çökdürmür ✗
+            }
+        }
+
         public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();
@@ -112,6 +206,19 @@ namespace EnterpriseAeroStudio.Views
             }
             _viewModel = viewModel;
             DataContext = viewModel;
+
+            // ================================================================
+            //  📑 v6.2.86 — TAB İCAZƏLƏRİ TƏTBİQ OLUNUR ✓✓✓
+            // ----------------------------------------------------------------
+            //  ★ Admin «⚙️ Tənzimləmələr»-də hər istifadəçi üçün tabları
+            //    işarələyir ✓ → giriş edən istifadəçi YALNIZ icazəli tabları görür ✓
+            // ================================================================
+            try
+            {
+                viewModel.TabIcazeleriDeyisdi += TablariIcazeyeGoreTetbiqEt;
+                TablariIcazeyeGoreTetbiqEt();
+            }
+            catch { }
 
             // ================================================================
             //  🏷️ PƏNCƏRƏ BAŞLIĞI — cari versiya ASSEMBLY-dən oxunur ✓✓✓

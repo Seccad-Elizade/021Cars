@@ -342,7 +342,151 @@ namespace EnterpriseAeroStudio.ViewModels
         private Services.IstifadeciRolu? _orijinalRol;
 
         partial void OnSecilmisIstifadeciChanged(Services.Istifadeci? value)
-            => _orijinalRol = value?.Rol;
+        {
+            _orijinalRol = value?.Rol;
+
+            // 📑 v6.2.86 — seçilmiş istifadəçinin TAB İCAZƏLƏRİ yüklənir ✓
+            TabIcazeleriniYukle();
+        }
+
+        // ====================================================================
+        //  📑 v6.2.86 — TAB İCAZƏLƏRİ (hansı istifadəçi hansı tabı görür) ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Admin üçün tənzimləmələr bölməsinə əlavə et —
+        //    hansı tabları hansı istifadəçilər görsün / görməsin (checkbox)» ✓
+        // ====================================================================
+
+        /// <summary>📑 Seçilmiş istifadəçi üçün tab siyahısı (checkbox-lar ✓)</summary>
+        public System.Collections.ObjectModel.ObservableCollection<Services.TabIcazeSatiri> TabIcazeSatirlari { get; } = new();
+
+        /// <summary>📨 Tab icazələri üzrə qısa mesaj ✓</summary>
+        [ObservableProperty] private string tabIcazeMesaji = string.Empty;
+
+        /// <summary>📢 Tab icazələri saxlanıldı → cari istifadəçinin tabları yenidən tətbiq olunur ✓</summary>
+        public event System.Action? TabIcazeleriDeyisdi;
+
+        /// <summary>📑 Seçilmiş istifadəçinin tab icazələrini yükləyir ✓</summary>
+        public void TabIcazeleriniYukle()
+        {
+            try
+            {
+                TabIcazeSatirlari.Clear();
+
+                var istifadeci = SecilmisIstifadeci;
+
+                if (istifadeci is null)
+                {
+                    TabIcazeMesaji = "ℹ️ Tab icazələrini düzəltmək üçün yuxarıdaki cədvəldən İSTİFADƏÇİ seçin ✓";
+                    return;
+                }
+
+                var icaze = Services.TabIcazeService.Gorunenler(istifadeci.IstifadeciAdi);
+
+                foreach (var tab in Services.TabIcazeService.ButunTablar)
+                {
+                    var gorunur = icaze is null || icaze.Contains(tab, StringComparer.Ordinal);
+
+                    TabIcazeSatirlari.Add(new Services.TabIcazeSatiri(tab, tab, gorunur));
+                }
+
+                TabIcazeMesaji =
+                    $"👤 {istifadeci.Ad} ({istifadeci.IstifadeciAdi}) — " +
+                    (icaze is null
+                        ? "fərdi məhdudiyyət YOXDUR ✓ (bütün tablar görünür)"
+                        : $"{icaze.Count} tab icazəlidir ✓");
+            }
+            catch (Exception ex)
+            {
+                TabIcazeMesaji = "⚠️ Tab icazələri yüklənmədi: " + ex.Message;
+            }
+        }
+
+        /// <summary>💾 Tab icazələrini yadda saxlayır ✓</summary>
+        [RelayCommand]
+        private void TabIcazeleriniYaddaSaxla()
+        {
+            try
+            {
+                var istifadeci = SecilmisIstifadeci;
+
+                if (istifadeci is null)
+                {
+                    TabIcazeMesaji = "⚠️ Əvvəlcə istifadəçi seçin ✓";
+                    return;
+                }
+
+                var secilmis = TabIcazeSatirlari
+                    .Where(s => s.Gorunur)
+                    .Select(s => s.Key)
+                    .ToList();
+
+                if (secilmis.Count == 0)
+                {
+                    TabIcazeMesaji = "⚠️ Ən azı BİR tab seçilməlidir ✓ (hamısını söndürmək olmaz ✗)";
+                    return;
+                }
+
+                Services.TabIcazeService.Saxla(istifadeci.IstifadeciAdi, secilmis);
+
+                TabIcazeMesaji =
+                    $"✅ «{istifadeci.Ad}» üçün {secilmis.Count} tab icazəsi saxlanıldı ✓ " +
+                    "(növbəti girişdə qüvvədə olacaq ✓)";
+
+                TabIcazeleriDeyisdi?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                TabIcazeMesaji = "⚠️ Yadda saxlanmadı: " + ex.Message;
+            }
+        }
+
+        /// <summary>☑ Hamısını seç ✓</summary>
+        [RelayCommand]
+        private void TabHamisiniSec()
+        {
+            foreach (var sətir in TabIcazeSatirlari)
+            {
+                sətir.Gorunur = true;
+            }
+        }
+
+        /// <summary>☐ Hamısını söndür ✓</summary>
+        [RelayCommand]
+        private void TabHamisiniSecme()
+        {
+            foreach (var sətir in TabIcazeSatirlari)
+            {
+                sətir.Gorunur = false;
+            }
+        }
+
+        /// <summary>♻️ İstifadəçinin fərdi icazələrini sıfırlayır (hamısı görünür ✓)</summary>
+        [RelayCommand]
+        private void TabIcazeleriniSifirla()
+        {
+            try
+            {
+                var istifadeci = SecilmisIstifadeci;
+
+                if (istifadeci is null)
+                {
+                    TabIcazeMesaji = "⚠️ Əvvəlcə istifadəçi seçin ✓";
+                    return;
+                }
+
+                Services.TabIcazeService.Sifirla(istifadeci.IstifadeciAdi);
+
+                TabIcazeleriniYukle();
+
+                TabIcazeMesaji = $"♻️ «{istifadeci.Ad}» üçün məhdudiyyət SİLİNDİ ✓ — bütün tablar görünür ✓";
+
+                TabIcazeleriDeyisdi?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                TabIcazeMesaji = "⚠️ Sıfırlanmadı: " + ex.Message;
+            }
+        }
 
         [ObservableProperty] private string yeniAd = string.Empty;
         [ObservableProperty] private string yeniIstifadeciAdi = string.Empty;

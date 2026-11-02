@@ -351,9 +351,25 @@ namespace EnterpriseAeroStudio.ViewModels
                     .Append(satis.Car?.QeydiyyatNisani).Append(' ');
             }
 
-            return mətn.ToString().ToLowerInvariant().Contains(axtaris, StringComparison.Ordinal);
-        }
+            var mətnKicik = mətn.ToString().ToLowerInvariant();
 
+            if (mətnKicik.Contains(axtaris, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            // 🔢 v6.2.86 — rəqəm axtarışı: «1500» = «1 500,00» ✓ (məbləğ üzrə ✓)
+            var sorguRəqəm = new string(axtaris.Where(char.IsDigit).ToArray());
+
+            if (sorguRəqəm.Length < 2 ||
+                sorguRəqəm.Length != axtaris.Count(char.IsDigit))
+            {
+                return false;   // sorğuda hərf var → rəqəm rejimi tətbiq olunmur ✓
+            }
+
+            return new string(mətnKicik.Where(char.IsDigit).ToArray())
+                .Contains(sorguRəqəm, StringComparison.Ordinal);
+        }
         /// <summary>🏷️ Bölmələr üzrə cəm (hər qrup üçün ayrı Kart ✓✓✓).</summary>
         public ObservableCollection<KassaQrupCem> QrupCemleri { get; } = new();
 
@@ -1940,13 +1956,28 @@ namespace EnterpriseAeroStudio.ViewModels
                     setirler = setirler.Where(s => s.Qrup == QrupFiltri);
                 }
 
-                // 🔎 Axtarış («rebbil» · «M-0007» · «Malibu» ✓)
+                // 🔎 Axtarış («rebbil» · «M-0007» · «Malibu» · 💰 «1500» ✓)
                 var axtaris = (Axtaris ?? string.Empty).Trim();
 
                 if (axtaris.Length > 0)
                 {
                     var axtarisKicik = axtaris.ToLowerInvariant();
-                    setirler = setirler.Where(s => s.AxtarisMetni.Contains(axtarisKicik));
+
+                    // 🔢 v6.2.86 — RƏQƏM axtarışı: «1500» = «1 500,00» = «1.500,00» ✓
+                    var rəqəmlər = new string(axtaris.Where(char.IsDigit).ToArray());
+
+                    setirler = setirler.Where(s =>
+                    {
+                        if (s.AxtarisMetni.Contains(axtarisKicik))
+                        {
+                            return true;
+                        }
+
+                        // yalnız rəqəmlərdən ibarət sorğu (məbləğ ✓)
+                        return rəqəmlər.Length >= 2
+                               && rəqəmlər.Length == axtarisKicik.Length - axtarisKicik.Count(c => !char.IsDigit(c))
+                               && new string(s.AxtarisMetni.Where(char.IsDigit).ToArray()).Contains(rəqəmlər);
+                    });
                 }
 
                 var siyahi = setirler.ToList();

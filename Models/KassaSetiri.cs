@@ -68,10 +68,22 @@ namespace EnterpriseAeroStudio.Models
         [NotMapped]
         public string AyMetni => PartnerMonthlyRow.AyAdi(Tarix);
 
-        /// <summary>Filtr/axtarış üçün birləşmiş mətn ✓.</summary>
+        /// <summary>
+        /// 🔎 <b>Filtr / axtarış üçün birləşmiş mətn</b> ✓✓✓ (v6.2.86)
+        /// <para>
+        /// ★ İstifadəçi tələbi: «Kassa jurnalındaki axtarış MƏBLƏĞİ DƏ tapsın»
+        /// </para>
+        /// <para>
+        /// ✅ Məbləğ 3 formatda axtarılır ✓:
+        /// <c>1500</c> · <c>1 500</c> · <c>1.500,00</c> · <c>1500,00</c> ·
+        /// <c>+1500</c> / <c>-1500</c> (işarə ilə ✓)
+        /// </para>
+        /// </summary>
         [NotMapped]
         public string AxtarisMetni =>
-            $"{TarixMetni} {NovMetni} {Qrup} {Kateqoriya} {Aciqlama} {OdenisUsulu}".ToLowerInvariant();
+            ($"{TarixMetni} {NovMetni} {Qrup} {Kateqoriya} {Aciqlama} {OdenisUsulu} "
+             + $"{Mebleg:0.##} {Mebleg:N2} {Mebleg:N0} {MeblegMetni} {Mebleg.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}")
+            .ToLowerInvariant();
 
         public override string ToString() =>
             $"{TarixMetni} · {Kateqoriya} · {(IsDaxilolma ? "+" : "−")}{Mebleg:N2} ₼";
