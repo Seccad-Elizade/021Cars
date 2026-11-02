@@ -34,6 +34,41 @@ namespace EnterpriseAeroStudio.Views
         private DispatcherTimer? _xercDahaCoxTaymeri;
         private bool _xercScrollBagli;
 
+        /// <summary>
+        /// 🔍 v6.2.85 — <b>Ctrl + siçan təkəri = EKRAN MIQYASI</b> ✓✓✓
+        /// <para>
+        /// Ctrl basılı saxlanılarkən təkər yuxarı → böyüdür ✓, aşağı → kiçildir ✓
+        /// (60% … 130% ✓). Ctrl yoxdursa — adi sürüşmə işləyir ✓.
+        /// </para>
+        /// </summary>
+        private void Pencere_PreviewMouseWheel(
+            object sender,
+            System.Windows.Input.MouseWheelEventArgs e)
+        {
+            try
+            {
+                if (!System.Windows.Input.Keyboard.Modifiers.HasFlag(
+                        System.Windows.Input.ModifierKeys.Control))
+                {
+                    return;
+                }
+
+                if (DataContext is not MainViewModel vm)
+                {
+                    return;
+                }
+
+                vm.ZoomYuzdesi = System.Math.Clamp(
+                    vm.ZoomYuzdesi + (e.Delta > 0 ? 5d : -5d), 60d, 130d);
+
+                e.Handled = true;
+            }
+            catch
+            {
+                // 🛡️ səssizcə keçir ✓
+            }
+        }
+
         public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();

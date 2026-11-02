@@ -9,7 +9,8 @@
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Foreground="#F3F7FB"
         FontFamily="Segoe UI Variable Text, Segoe UI"
-        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+        PreviewMouseWheel="Pencere_PreviewMouseWheel">
     <!-- 🎨 ZƏRİF FON — düz rəng yerinə yumşaq qradiyent ✓ (dərinlik ✓ · göz yormur ✓) -->
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -43,6 +44,16 @@
                 </LinearGradientBrush>
             </Border.Background>
             <TabControl x:Name="MainTabs" Background="Transparent" BorderThickness="0">
+
+                <!-- ============================================================ -->
+                <!-- 🔍 v6.2.85 — EKRAN MIQYASI (zoom) ✓✓✓                        -->
+                <!--   Alt paneldəki sürüşdürücü ilə idarə olunur (60% … 130%) ✓  -->
+                <!--   `LayoutTransform` → hər şey YENİDƏN ÖLÇÜLƏNİR ✓            -->
+                <!--   (kiçik ekranlarda daha çox məlumat görünür ✓)              -->
+                <!-- ============================================================ -->
+                <TabControl.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}"/>
+                </TabControl.LayoutTransform>
 
                     <!-- ============================================================
                          ⚠ MÜHÜM: XARİCİ ScrollViewer SİLİNDİ ✓✓✓  (PERFORMANS)
@@ -333,6 +344,29 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="🟡 Möhlət" Binding="{Binding MohletMetni}" Width="Auto" ElementStyle="{StaticResource MohletCellText}"/>
+                                        <DataGridTextColumn Header="⚠️ Gecikmə" Binding="{Binding GecikmeMetni}" Width="Auto" ElementStyle="{StaticResource GecikmeCellText}"/>
+                                        <!-- 🆕 AZ / ARTIQ ÖDƏNİŞ + SON AYLARDAN ÇIXILAN (rəngli) -->
+                                        <DataGridTextColumn Header="🔴 Az ödəniş" Binding="{Binding AzOdenisMetni}" Width="Auto"
+                                                            ToolTipService.ToolTip="Plan məbləğindən az ödənilib — çatışmayan məbləğ"
+                                                            ElementStyle="{StaticResource AzOdenisCellText}"/>
+                                        <DataGridTextColumn Header="🟢 Artıq ödəniş" Binding="{Binding ArtiqOdenisMetni}" Width="Auto"
+                                                            ToolTipService.ToolTip="Plan məbləğindən çox ödənilib"
+                                                            ElementStyle="{StaticResource ArtiqOdenisCellText}"/>
+                                        <DataGridTextColumn Header="🔵 Son aylardan" Binding="{Binding ArtiqKecenMetni}" Width="Auto"
+                                                            ToolTipService.ToolTip="Artıq ödənişin SONUNCU aylardan çıxılan hissəsi"
+                                                            ElementStyle="{StaticResource ArtiqKecenCellText}"/>
+                                    <DataGridTextColumn Header="👥 Tərəfdaş bölgüsü" Binding="{Binding TerefdasMetni}" Width="Auto"
+                                                        Visibility="{Binding DataContext.Credits.AnyBolgu, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Converter={StaticResource BoolToVis}}">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                <Setter Property="FontSize" Value="10.5"/>
+                                                <Setter Property="Foreground" Value="#41D39A"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -2609,8 +2643,9 @@
                         </StackPanel>
                         <Border Grid.Row="3" Background="#141D28" CornerRadius="12" BorderBrush="#202D3C" BorderThickness="1" Padding="6" Effect="{StaticResource GlassShadow}">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Top" Text="📅 Ödəniş Qrafiki — hər ayı işarələyin; hissə-hissə ödənişlər avtomatik cəmlənir.  🔴 qırmızı = az ödəniş / aktiv gecikmə,  🟢 yaşıl = artıq ödəniş,  🔵 mavi = artıq ödənişin son aylardan çıxılan hissəsi,  🟠 narıncı = müddətdən kənar,  🟡 sarı = möhlət (rəsmi gecikdirmə),  ⚠️ çəhrayı = gecikmə (cərimə ilə).  Sətir fonu da vəziyyətə uyğun rənglənir." FontSize="13" FontWeight="Bold" Margin="6,4,6,2" TextWrapping="Wrap"/>
-                                <TextBlock DockPanel.Dock="Top" Text="{Binding Credits.ScheduleInfo}" FontSize="11" Foreground="#4EC3F5" Margin="6,0,6,8"/>
+                                <TextBlock DockPanel.Dock="Top" Text="📅 ÖDƏNİŞ CƏDVƏLİ — hər sətir bir aydır (soldan sağa: plan → fakt → izah)" FontSize="12.5" FontWeight="Bold" Margin="6,4,6,2" TextWrapping="Wrap"/>
+                                <TextBlock DockPanel.Dock="Top" FontSize="10" Foreground="#8798AD" Margin="6,0,6,8" TextWrapping="Wrap"
+                                           Text="🟢 ödənilib  ·  🔴 az ödəniş / gecikmə  ·  🟡 möhlət  ·  🔵 son aylardan çıxılan  ·  🟠 müddətdən kənar  ·  «✅ ÖDƏNİLDİ?» sütunu ilə ödənişi qeyd edin ✓"/>
                                 <DataGrid ItemsSource="{Binding Credits.Schedule}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                           FrozenColumnCount="2"
                                           RowHeight="30"
@@ -2627,29 +2662,6 @@
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="№" Binding="{Binding NoText}" SortMemberPath="No" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
                                         <DataGridTextColumn Header="Vəziyyət" Binding="{Binding Novu}" Width="Auto" ElementStyle="{StaticResource OutOfRangeCellText}"/>
-                                        <DataGridTextColumn Header="🟡 Möhlət" Binding="{Binding MohletMetni}" Width="Auto" ElementStyle="{StaticResource MohletCellText}"/>
-                                        <DataGridTextColumn Header="⚠️ Gecikmə" Binding="{Binding GecikmeMetni}" Width="Auto" ElementStyle="{StaticResource GecikmeCellText}"/>
-                                        <!-- 🆕 AZ / ARTIQ ÖDƏNİŞ + SON AYLARDAN ÇIXILAN (rəngli) -->
-                                        <DataGridTextColumn Header="🔴 Az ödəniş" Binding="{Binding AzOdenisMetni}" Width="Auto"
-                                                            ToolTipService.ToolTip="Plan məbləğindən az ödənilib — çatışmayan məbləğ"
-                                                            ElementStyle="{StaticResource AzOdenisCellText}"/>
-                                        <DataGridTextColumn Header="🟢 Artıq ödəniş" Binding="{Binding ArtiqOdenisMetni}" Width="Auto"
-                                                            ToolTipService.ToolTip="Plan məbləğindən çox ödənilib"
-                                                            ElementStyle="{StaticResource ArtiqOdenisCellText}"/>
-                                        <DataGridTextColumn Header="🔵 Son aylardan" Binding="{Binding ArtiqKecenMetni}" Width="Auto"
-                                                            ToolTipService.ToolTip="Artıq ödənişin SONUNCU aylardan çıxılan hissəsi"
-                                                            ElementStyle="{StaticResource ArtiqKecenCellText}"/>
-                                    <DataGridTextColumn Header="👥 Tərəfdaş bölgüsü" Binding="{Binding TerefdasMetni}" Width="Auto"
-                                                        Visibility="{Binding DataContext.Credits.AnyBolgu, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Converter={StaticResource BoolToVis}}">
-                                        <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="TextWrapping" Value="Wrap"/>
-                                                <Setter Property="FontSize" Value="10.5"/>
-                                                <Setter Property="Foreground" Value="#41D39A"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
-                                        </DataGridTextColumn.ElementStyle>
-                                    </DataGridTextColumn>
                                         <DataGridTextColumn Header="📅 PLAN TARİXİ" Binding="{Binding Tarix, StringFormat=dd.MM.yyyy}" Width="Auto"
                                                             ToolTipService.ToolTip="Kredit qrafikinə görə ödənişin EDİLMƏLİ OLDUĞU tarix (başlama tarixi + taksit ayı)"
                                                             ElementStyle="{StaticResource OutOfRangeDateText}"/>
@@ -2696,6 +2708,26 @@
                                         </DataGridTemplateColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
+
+                                <!-- ============================================================ -->
+                                <!-- 📊 v6.2.85 — CƏDVƏLİN YEKUNU (professional ✓)               -->
+                                <!-- ============================================================ -->
+                                <Border Background="#0C131C" CornerRadius="9" Padding="12,8" Margin="6,8,6,0"
+                                        BorderBrush="#2B3949" BorderThickness="1">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="📊 CƏDVƏLİN YEKNUNU"
+                                                   FontSize="11" FontWeight="Bold" Foreground="#4EC3F5"
+                                                   VerticalAlignment="Center"/>
+
+                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#A9B8C8"
+                                                   VerticalAlignment="Center" Margin="16,0,0,0"
+                                                   Text="{Binding Credits.ScheduleInfo}"/>
+
+                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#8798AD"
+                                                   VerticalAlignment="Center" Margin="16,0,0,0"
+                                                   Text="💡 Sətirləri yuxarıdan aşağı oxuyun — hər sətir bir aydır ✓"/>
+                                    </DockPanel>
+                                </Border>
                             </DockPanel>
                         </Border>
                     </Grid>
@@ -4440,6 +4472,31 @@
                                 <TextBlock FontSize="10" Foreground="#8798AD" TextWrapping="Wrap" Margin="0,6,0,0"
                                            Text="BÜTÜN sətirlər AVTOMATİK yaranır ✓ (satışlar ✓ ilkin ödənişlər ✓ kredit ödənişləri ✓ ödənilmiş möhlətlər ✓ bütün xərclər ✓ tərəfdaşa FAKTİKİ verilən pul ✓) — əl ilə yazılanlar isə aşağıdaki bölmədədir ✓. ⚠ Hesablanmış tərəfdaş payı kassadan DƏRHAL çıxmır ✗ — «pul ver» edilənə qədər kassada qalır ✓. ⚠ Cədvəldə filtr tətbiq etmək yuxarıdaki CƏMLƏRİ dəyişmir ✗ (onlar həmişə dövr üzrədir ✓✓✓)"/>
 
+                                <!-- ============================================================ -->
+                                <!-- 🔎 v6.2.85 — JURNAL AXTARIŞI (cədvəlin ÜSTÜNDƏ ✓)           -->
+                                <!-- ============================================================ -->
+                                <Border Background="#0C131C" CornerRadius="9" Padding="10,7" Margin="0,11,0,0"
+                                        BorderBrush="#2B3949" BorderThickness="1">
+                                    <DockPanel LastChildFill="True">
+                                        <TextBlock DockPanel.Dock="Left" Text="🔎" FontSize="14" VerticalAlignment="Center" Margin="2,0,8,0"/>
+
+                                        <Button DockPanel.Dock="Right" Content="🧹 Təmizlə" Height="26" Padding="10,0"
+                                                Margin="8,0,0,0" FontSize="11" Cursor="Hand"
+                                                Background="#22303F" Foreground="#C7D4E2" BorderThickness="0"
+                                                ToolTip="Axtarışı təmizlə ✓"
+                                                Command="{Binding Kassa.AxtarisiTemizleCommand}"/>
+
+                                        <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10.5"
+                                                   Foreground="#8798AD" Margin="8,0,0,0"
+                                                   Text="{Binding Kassa.SetirlerInfo}"/>
+
+                                        <TextBox Height="26" FontSize="12" VerticalContentAlignment="Center"
+                                                 Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
+                                                 Text="{Binding Kassa.Axtaris, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Müqavilə № · müştəri · avtomobil · qrup · məbləğ üzrə canlı axtarış ✓"/>
+                                    </DockPanel>
+                                </Border>
+
                                 <DataGrid ItemsSource="{Binding Kassa.Setirler}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                           HeadersVisibility="Column"
@@ -4732,7 +4789,31 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ========== ⏳ GÖZLƏNİLƏN MÖHLƏTLƏR (cədvəl) ========== -->
+                        <!-- ============================================================ -->
+                        <!-- 🔎 v6.2.85 — MÖHLƏT AXTARIŞI ✓✓✓                            -->
+                        <!-- ============================================================ -->
+                        <Border Style="{StaticResource GlassCard}" Padding="14,10" Margin="0,0,0,14">
+                            <StackPanel>
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock DockPanel.Dock="Left" Text="🔎" FontSize="14" VerticalAlignment="Center" Margin="2,0,8,0"/>
+
+                                    <Button DockPanel.Dock="Right" Content="🧹 Təmizlə" Height="28" Padding="12,0"
+                                            Margin="8,0,0,0" FontSize="11.5" Cursor="Hand"
+                                            Background="#22303F" Foreground="#C7D4E2" BorderThickness="0"
+                                            ToolTip="Axtarışı təmizlə ✓"
+                                            Command="{Binding Kassa.MohletAxtarisiTemizleCommand}"/>
+
+                                    <TextBox Height="28" FontSize="12.5" VerticalContentAlignment="Center"
+                                             Background="#121A26" Foreground="#E8EFF7" BorderBrush="#2B3949"
+                                             Text="{Binding Kassa.MohletAxtaris, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Müqavilə № · müştəri · avtomobil · dövlət nömrəsi · məbləğ · tarix üzrə canlı axtarış ✓"/>
+                                </DockPanel>
+
+                                <TextBlock FontSize="10.5" Foreground="#8798AD" Margin="26,6,0,0" TextWrapping="Wrap"
+                                           Text="{Binding Kassa.MohletAxtarisInfo}"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource GlassCard}" Padding="18,16" Margin="0,0,0,14">
                             <StackPanel>
                                 <DockPanel>
@@ -4764,7 +4845,7 @@
                                     </Grid.ColumnDefinitions>
 
                                 <DataGrid Grid.Column="0"
-                                          ItemsSource="{Binding Kassa.GozlenilenMohletler}"
+                                          ItemsSource="{Binding Kassa.FilteredGozlenilenMohletler}"
                                           SelectedItem="{Binding Kassa.SelectedGozlenilenMohlet}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False"
                                           HeadersVisibility="Column"
@@ -5139,7 +5220,7 @@
                                                FontWeight="Bold" Foreground="#41D39A"/>
                                 </DockPanel>
 
-                                <DataGrid ItemsSource="{Binding Kassa.OdenilmisMohletler}"
+                                <DataGrid ItemsSource="{Binding Kassa.FilteredOdenilmisMohletler}"
                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                           HeadersVisibility="Column"
                                           MaxHeight="280" Margin="0,12,0,0"
@@ -7335,6 +7416,43 @@
                             Margin="8,0,0,0" Background="#55242A" Foreground="#F9CFCF" Cursor="Hand"
                             ToolTip="Çıxış (Sign out) — proqram yenidən açılır və GİRİŞ pəncərəsi gəlir ✓"
                             Command="{Binding CixisEtCommand}"/>
+
+                    <!-- ============================================================ -->
+                    <!-- 🔍 v6.2.85 — EKRAN MIQYASI (zoom) ✓✓✓                        -->
+                    <!--   Kiçik ekranlarda proqramı kiçiltmək / böyütmək üçün ✓      -->
+                    <!-- ============================================================ -->
+                    <Border Background="#141D28" CornerRadius="8" Padding="9,3" Margin="10,0,0,0"
+                            VerticalAlignment="Center" BorderBrush="#2B3949" BorderThickness="1"
+                            ToolTip="Ekran miqyası — kiçik ekranlarda kiçiltmək üçün ✓ (Ctrl + siçan təkəri də işləyir)">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                            <Button Content="−" Width="24" Height="22" Padding="0" FontSize="14" FontWeight="Bold"
+                                    Background="#22303F" Foreground="#C7D4E2" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Kiçilt (−5%)"
+                                    Command="{Binding ZoomAzaltCommand}"/>
+
+                            <Slider Width="118" Margin="7,0" Minimum="60" Maximum="130"
+                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                    VerticalAlignment="Center" Cursor="Hand"
+                                    ToolTip="60% … 130% — sürüşdürün ✓"
+                                    Value="{Binding ZoomYuzdesi, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <Button Content="+" Width="24" Height="22" Padding="0" FontSize="13" FontWeight="Bold"
+                                    Background="#22303F" Foreground="#C7D4E2" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Böyüt (+5%)"
+                                    Command="{Binding ZoomArtirCommand}"/>
+
+                            <TextBlock Text="{Binding ZoomMetni}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#4EC3F5" VerticalAlignment="Center" Width="42"
+                                       TextAlignment="Center" Margin="6,0,0,0"
+                                       ToolTip="Cari miqyas ✓"/>
+
+                            <Button Content="⟲" Width="24" Height="22" Padding="0" FontSize="12"
+                                    Background="#22303F" Foreground="#C7D4E2" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="100%-ə qaytar"
+                                    Command="{Binding ZoomSifirlaCommand}"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </DockPanel>
         </Border>

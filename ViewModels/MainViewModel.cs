@@ -1298,6 +1298,101 @@ namespace EnterpriseAeroStudio.ViewModels
         }
 
         [ObservableProperty] private string statusMessage = "Hazır";
+
+        // ====================================================================
+        //  🔍 v6.2.85 — EKRAN MIQYASI (ZOOM) ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «kiçik ekranlarda proqramı kiçiltmək/böyütmək
+        //    üçün sürüşdürücü olsun» ✓
+        //  ✅ Alt paneldə «Çıxış et» düyməsinin SAĞINDA:
+        //     [−]  ════●════  [+]  100%  [⟲]  ✓
+        //  • 60% … 150% ✓  ·  Ctrl + siçan təkəri də işləyir ✓
+        //  • Seçim yadda saxlanılır ✓ (%LOCALAPPDATA%\021Cars\ui_zoom.txt ✓)
+        // ====================================================================
+
+        /// <summary>🔍 Miqyas faizi (60 … 130) ✓</summary>
+        [ObservableProperty] private double zoomYuzdesi = 100d;
+
+        /// <summary>🔍 WPF <c>ScaleTransform</c> üçün əmsal (0.60 … 1.50) ✓</summary>
+        public double Zoom => System.Math.Clamp(ZoomYuzdesi, 60d, 130d) / 100d;
+
+        /// <summary>🔍 Göstərilən mətn: «100%» ✓</summary>
+        public string ZoomMetni => $"{System.Math.Round(Zoom * 100d):0}%";
+
+        partial void OnZoomYuzdesiChanged(double value)
+        {
+            OnPropertyChanged(nameof(Zoom));
+            OnPropertyChanged(nameof(ZoomMetni));
+            ZoomYaddaSaxla(value);
+        }
+
+        /// <summary>➕ Miqyası böyüdür (5% addım) ✓</summary>
+        [RelayCommand]
+        private void ZoomArtir() => ZoomYuzdesi = System.Math.Min(130d, ZoomYuzdesi + 5d);
+
+        /// <summary>➖ Miqyası kiçildir (5% addım) ✓</summary>
+        [RelayCommand]
+        private void ZoomAzalt() => ZoomYuzdesi = System.Math.Max(60d, ZoomYuzdesi - 5d);
+
+        /// <summary>⟲ Miqyası 100%-ə qaytarır ✓</summary>
+        [RelayCommand]
+        private void ZoomSifirla() => ZoomYuzdesi = 100d;
+
+        /// <summary>🔍 Miqyas faylının yolu ✓ (proqram qovluğu yazıla bilmirsə — LocalAppData ✓)</summary>
+        private static string ZoomFayli
+        {
+            get
+            {
+                var qovluq = System.IO.Path.Combine(
+                    System.Environment.GetFolderPath(
+                        System.Environment.SpecialFolder.LocalApplicationData),
+                    "021Cars");
+
+                try { System.IO.Directory.CreateDirectory(qovluq); } catch { }
+
+                return System.IO.Path.Combine(qovluq, "ui_zoom.txt");
+            }
+        }
+
+        /// <summary>💾 Miqyası yadda saxlayır ✓ (səssiz ✓)</summary>
+        private static void ZoomYaddaSaxla(double faiz)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(
+                    ZoomFayli,
+                    System.Math.Round(faiz).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch
+            {
+                // 🛡️ yazıla bilmirsə — sadəcə yadda saxlanmır ✓
+            }
+        }
+
+        /// <summary>📂 Son yadda saxlanılan miqyası oxuyur ✓</summary>
+        private static double ZoomOxu()
+        {
+            try
+            {
+                var fayl = ZoomFayli;
+
+                if (System.IO.File.Exists(fayl) &&
+                    double.TryParse(
+                        System.IO.File.ReadAllText(fayl).Trim(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out var faiz))
+                {
+                    return System.Math.Clamp(faiz, 60d, 130d);
+                }
+            }
+            catch
+            {
+                // 🛡️ oxunmursa — 100% ✓
+            }
+
+            return 100d;
+        }
         [ObservableProperty] private bool isInitialized;
 
         /// <summary>Arxiv pəncərəsinin açılması tələb olunduqda (View tərəfindən dinlənir).</summary>
@@ -1416,6 +1511,9 @@ namespace EnterpriseAeroStudio.ViewModels
             CreditTransactions.DataChanged += (_, _) => MarkSelfChange();
             SalesArchive.DataChanged += (_, _) => MarkSelfChange();
             Kassa.DataChanged += (_, _) => MarkSelfChange();   // 💵 v6.2.79 ✓
+
+            // 🔍 v6.2.85 — son yadda saxlanılan ekran miqyası bərpa olunur ✓
+            try { ZoomYuzdesi = ZoomOxu(); } catch { }
         }
 
         /// <summary>Növbəti <see cref="SelfChangeWindow"/> müddətində xarici hadisələri udur.</summary>

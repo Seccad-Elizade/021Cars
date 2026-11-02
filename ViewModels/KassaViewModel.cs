@@ -240,6 +240,120 @@ namespace EnterpriseAeroStudio.ViewModels
 
         partial void OnAxtarisChanged(string value) => Filtrle();
 
+        // ====================================================================
+        //  🔎 v6.2.85 — MÖHLƏT AXTARIŞI ✓✓✓ (Möhlət tabı)
+        // --------------------------------------------------------------------
+        //  ★ İstifadəçi tələbi: «Möhlətdə search bar da əlavə et»
+        //  ✅ Müqavilə № · müştəri · maşın · marka · dövlət nömrəsi ·
+        //     məbləğ · tarix · qeyd üzrə AXTARIR ✓ (canlı ✓)
+        // ====================================================================
+        [ObservableProperty] private string mohletAxtaris = string.Empty;
+
+        partial void OnMohletAxtarisChanged(string value) => MohletFiltriniTetbiqEt();
+
+        /// <summary>🕓 Axtarışa uyğun GÖZLƏNİLƏN möhlətlər (cədvəl bunu göstərir ✓).</summary>
+        public BulkObservableCollection<OdenisMohlet> FilteredGozlenilenMohletler { get; } = new();
+
+        /// <summary>✅ Axtarışa uyğun ÖDƏNİLMİŞ möhlətlər ✓.</summary>
+        public BulkObservableCollection<OdenisMohlet> FilteredOdenilmisMohletler { get; } = new();
+
+        /// <summary>🔎 Axtarış nəticəsi haqqında qısa məlumat ✓.</summary>
+        public string MohletAxtarisInfo
+        {
+            get
+            {
+                var axtaris = (MohletAxtaris ?? string.Empty).Trim();
+
+                if (axtaris.Length == 0)
+                {
+                    return $"🕓 {GozlenilenMohletler.Count} gözlənilən · ✅ {OdenilmisMohletler.Count} ödənilmiş möhlət";
+                }
+
+                return $"🔎 «{axtaris}» → 🕓 {FilteredGozlenilenMohletler.Count} gözlənilən · " +
+                       $"✅ {FilteredOdenilmisMohletler.Count} ödənilmiş tapıldı ✓";
+            }
+        }
+
+        /// <summary>🧹 Möhlət axtarışını təmizləyir ✓.</summary>
+        [RelayCommand]
+        private void MohletAxtarisiTemizle() => MohletAxtaris = string.Empty;
+
+        /// <summary>🧹 Kassa jurnalı axtarışını təmizləyir ✓.</summary>
+        [RelayCommand]
+        private void AxtarisiTemizle() => Axtaris = string.Empty;
+
+        /// <summary>🔎 Möhlət axtarışını tətbiq edir (canlı ✓).</summary>
+        private void MohletFiltriniTetbiqEt()
+        {
+            try
+            {
+                var axtaris = (MohletAxtaris ?? string.Empty).Trim().ToLowerInvariant();
+
+                FilteredGozlenilenMohletler.ReplaceAll(
+                    axtaris.Length == 0
+                        ? GozlenilenMohletler
+                        : GozlenilenMohletler.Where(m => MohletUygundur(m, axtaris)).ToList());
+
+                FilteredOdenilmisMohletler.ReplaceAll(
+                    axtaris.Length == 0
+                        ? OdenilmisMohletler
+                        : OdenilmisMohletler.Where(m => MohletUygundur(m, axtaris)).ToList());
+
+                // 🛡️ Seçilmiş möhlət axtarışdan çıxdısa → seçim sıfırlanır ✓
+                if (SelectedGozlenilenMohlet is OdenisMohlet secili &&
+                    !FilteredGozlenilenMohletler.Contains(secili))
+                {
+                    SelectedGozlenilenMohlet = null;
+                }
+
+                OnPropertyChanged(nameof(MohletAxtarisInfo));
+                OnPropertyChanged(nameof(HasGozlenilen));
+                OnPropertyChanged(nameof(HasOdenilmis));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Möhlət axtarışı tətbiq olunmadı ✗");
+            }
+        }
+
+        /// <summary>🔎 Möhlət axtarış uyğunluğu (müqavilə · müştəri · maşın · məbləğ · tarix ✓).</summary>
+        private static bool MohletUygundur(OdenisMohlet mohlet, string axtaris)
+        {
+            var mətn = new System.Text.StringBuilder(160);
+
+            mətn.Append(mohlet.Id).Append(' ')
+                .Append(mohlet.MenbeMetni).Append(' ')
+                .Append(mohlet.Xulase).Append(' ')
+                .Append(mohlet.TarixMetni).Append(' ')
+                .Append(mohlet.Mebleg.ToString("N2")).Append(' ')
+                .Append(mohlet.Qeyd).Append(' ');
+
+            if (mohlet.OdenilmeTarixi is DateTime od)
+            {
+                mətn.Append(od.ToString("dd.MM.yyyy")).Append(' ');
+            }
+
+            if (mohlet.Credit is Credit kredit)
+            {
+                mətn.Append(kredit.MuqavileNomresi).Append(' ')
+                    .Append(kredit.Mustəri).Append(' ')
+                    .Append(kredit.Car?.DisplayName).Append(' ')
+                    .Append(kredit.Car?.Marka).Append(' ')
+                    .Append(kredit.Car?.QeydiyyatNisani).Append(' ');
+            }
+
+            if (mohlet.Sale is Sale satis)
+            {
+                mətn.Append(satis.MuqavileNomresi).Append(' ')
+                    .Append(satis.Mustəri).Append(' ')
+                    .Append(satis.Car?.DisplayName).Append(' ')
+                    .Append(satis.Car?.Marka).Append(' ')
+                    .Append(satis.Car?.QeydiyyatNisani).Append(' ');
+            }
+
+            return mətn.ToString().ToLowerInvariant().Contains(axtaris, StringComparison.Ordinal);
+        }
+
         /// <summary>🏷️ Bölmələr üzrə cəm (hər qrup üçün ayrı Kart ✓✓✓).</summary>
         public ObservableCollection<KassaQrupCem> QrupCemleri { get; } = new();
 
@@ -1736,6 +1850,9 @@ namespace EnterpriseAeroStudio.ViewModels
                 GozlenilenMohletler.ReplaceAll(gozlenilen);
 
                 OdenilmisMohletler.ReplaceAll(odenilmis);
+
+                // 🔎 v6.2.85 — axtarış filtri dərhal tətbiq olunur ✓ (canlı ✓)
+                MohletFiltriniTetbiqEt();
 
                 OdenilmisCem = butunMohletler.Where(m => m.Odenilib).Sum(m => m.Mebleg);
 
