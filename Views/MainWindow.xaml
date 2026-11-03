@@ -1493,7 +1493,38 @@
                                 </StackPanel>
                                     <StackPanel Grid.Row="1" Grid.Column="2" Margin="6,5" VerticalAlignment="Top">
                                     <TextBlock Text="İlkin Ödəniş (AZN)" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox x:Name="CreditIlkin" Text="{Binding Credits.IlkinOdenis, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <TextBox x:Name="CreditIlkin" Text="{Binding Credits.IlkinOdenis, UpdateSourceTrigger=PropertyChanged}"
+                                             IsReadOnly="{Binding Credits.IlkinBarterVar}"
+                                             ToolTip="İlkin ödəniş ✓&#x0a;🚗 Barter seçilibsə → NAĞD + BARTER cəmi AVTOMATİK yazılır ✓"/>
+
+                                    <!-- ==================================================== -->
+                                    <!-- 🚗 v6.2.92 — İLKİN ÖDƏNİŞ: BARTER (MAŞINLA) ✓✓✓      -->
+                                    <!--  ★ «3 000 ₼ nağd + 10 000 ₼ maşın» ✓                 -->
+                                    <!-- ==================================================== -->
+                                    <CheckBox Content="🚗 Barter (maşınla)" Margin="0,6,0,0" FontSize="11.5"
+                                              FontWeight="SemiBold" Foreground="#F3C24B" Cursor="Hand"
+                                              IsChecked="{Binding Credits.IlkinBarterVar}"
+                                              ToolTip="İşarələyin → ilkin ödəniş NAĞD + MAŞIN (barter) kimi bölünür ✓&#x0a;İlkin ödəniş = Nağd + Barter dəyəri ✓ (avtomatik)"/>
+
+                                    <StackPanel Margin="0,4,0,0"
+                                                Visibility="{Binding Credits.IlkinBarterVar, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="💵 Nağd hissə (AZN)" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding Credits.IlkinBarterNagd, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Müştərinin NAĞD verdiyi hissə ✓ (məs. 3 000 ₼)"/>
+
+                                        <TextBlock Text="🚗 Barter maşının dəyəri (AZN)" Style="{StaticResource FieldLabel}" Margin="0,4,0,0"/>
+                                        <TextBox Text="{Binding Credits.IlkinBarterMebleg, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Verilən maşının dəyəri ✓ (məs. 10 000 ₼)&#x0a;Bu məbləğ də MAYA-ya daxildir ✓"/>
+
+                                        <TextBlock Text="📝 Qeyd (maşın · sənəd №)" Style="{StaticResource FieldLabel}" Margin="0,4,0,0"/>
+                                        <TextBox Height="24" FontSize="11.5"
+                                                 Text="{Binding Credits.IlkinBarterQeyd, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Məsələn: «VAZ 2107 · sənəd M188 · 10-VL-330» ✓"/>
+
+                                        <TextBlock Text="{Binding Credits.IlkinBarterIzahi}" FontSize="10"
+                                                   Foreground="#41D39A" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+
                                     <TextBlock Style="{StaticResource ValidationText}" Text="{Binding (Validation.Errors)[0].ErrorContent, ElementName=CreditIlkin}" Visibility="{Binding Text, RelativeSource={RelativeSource Self}, Converter={StaticResource StrToVis}}"/>
                                 </StackPanel>
                                 <!-- ==================================================== -->

@@ -384,6 +384,117 @@ namespace EnterpriseAeroStudio.ViewModels
         [Range(typeof(decimal), "0", "999999999", ErrorMessage = "İlkin ödəniş mənfi ola bilməz.")]
         private decimal ilkinOdenis;
 
+        // ====================================================================
+        //  🚗 v6.2.92 — İLKİN ÖDƏNİŞ: NAĞD + BARTER (MAŞIN) ✓✓✓
+        // --------------------------------------------------------------------
+        //  ★ İSTİFADƏÇİ TƏLƏBİ: «İlkin ödənişin yanına BARTER checkbox qoy —
+        //    məsələn 3 000 ₼ nağd + 10 000 ₼ dəyərində maşın ✓,
+        //    yanında da QEYD yazmağa yer olsun ✓»
+        //
+        //  🔢 Qayda: <c>IlkinOdenis = Nağd + Barter</c> ✓ (avtomatik ✓)
+        //  📌 Barter məbləği də MAYAYA daxildir ✓ (maşınla ödənilib ✓)
+        //  🛡️ Baza sxemi dəyişmir ✗ — tərkib ayrıca JSON-da saxlanılır ✓
+        // ====================================================================
+
+        /// <summary>🚗 İlkin ödəniş barter (maşınla) verilibmi? ✓</summary>
+        [ObservableProperty] private bool ilkinBarterVar;
+
+        /// <summary>💵 İlkin ödənişin NAĞD hissəsi (₼) ✓</summary>
+        [ObservableProperty] private decimal ilkinBarterNagd;
+
+        /// <summary>🚗 Barter verilən maşının dəyəri (₼) ✓</summary>
+        [ObservableProperty] private decimal ilkinBarterMebleg;
+
+        /// <summary>📝 Barter qeydi (maşın adı, sənəd № və s.) ✓</summary>
+        [ObservableProperty] private string ilkinBarterQeyd = string.Empty;
+
+        /// <summary>🔒 Yükləmə zamanı avtomatik yazmanın qarşısı ✓</summary>
+        private bool _ilkinBarterSusdur;
+
+        /// <summary>📊 «Nağd + Barter = İlkin ödəniş» izahı ✓</summary>
+        public string IlkinBarterIzahi => IlkinBarterVar
+            ? $"💵 Nağd {IlkinBarterNagd:N2} ₼  +  🚗 Barter {IlkinBarterMebleg:N2} ₼  =  İlkin ödəniş {IlkinOdenis:N2} ₼ ✓"
+            : "☐ Barter yoxdur — ilkin ödəniş yalnız nağd ✓";
+
+        partial void OnIlkinBarterVarChanged(bool value)
+        {
+            if (_ilkinBarterSusdur)
+            {
+                return;
+            }
+
+            if (value)
+            {
+                IlkinBarterNagd = Math.Max(0m, IlkinOdenis - IlkinBarterMebleg);
+            }
+            else
+            {
+                IlkinBarterMebleg = 0m;
+                IlkinBarterQeyd = string.Empty;
+            }
+
+            IlkinBarterHesabla();
+        }
+
+        partial void OnIlkinBarterNagdChanged(decimal value) => IlkinBarterHesabla();
+
+        partial void OnIlkinBarterMeblegChanged(decimal value) => IlkinBarterHesabla();
+
+        partial void OnIlkinBarterQeydChanged(string value) => IlkinBarterYaz();
+
+        /// <summary>🧮 Nağd + Barter → İlkin ödəniş ✓ (v6.2.92)</summary>
+        private void IlkinBarterHesabla()
+        {
+            if (_ilkinBarterSusdur || !IlkinBarterVar)
+            {
+                return;
+            }
+
+            IlkinOdenis = Math.Round(
+                Math.Max(0m, IlkinBarterNagd) + Math.Max(0m, IlkinBarterMebleg), 2);
+
+            IlkinBarterYaz();
+        }
+
+        /// <summary>💾 Barter tərkibini saxlayır ✓ (mövcud kredit üçün ✓)</summary>
+        private void IlkinBarterYaz()
+        {
+            if (_ilkinBarterSusdur || SelectedCredit is null)
+            {
+                return;
+            }
+
+            IlkinBarterStore.Yaz(SelectedCredit.Id, IlkinBarterNagd, IlkinBarterMebleg, IlkinBarterQeyd);
+
+            OnPropertyChanged(nameof(IlkinBarterIzahi));
+        }
+
+        /// <summary>📖 Seçilmiş kredit üçün barter tərkibini yükləyir ✓</summary>
+        private void IlkinBarterYukle(Credit? credit)
+        {
+            _ilkinBarterSusdur = true;
+
+            try
+            {
+                var kayit = credit is null ? null : IlkinBarterStore.Oxu(credit.Id);
+
+                IlkinBarterVar = kayit is not null && kayit.Barter > 0m;
+                IlkinBarterMebleg = kayit?.Barter ?? 0m;
+                IlkinBarterNagd = kayit?.Nagd ?? (credit?.IlkinOdenis ?? 0m);
+                IlkinBarterQeyd = kayit?.Qeyd ?? string.Empty;
+            }
+            catch
+            {
+                // 🛡️
+            }
+            finally
+            {
+                _ilkinBarterSusdur = false;
+            }
+
+            OnPropertyChanged(nameof(IlkinBarterIzahi));
+        }
+
         [ObservableProperty]
         [Range(typeof(decimal), "0", "1000000000", ErrorMessage = "Faiz dərəcəsi mənfi ola bilməz.")]
         private decimal faizDerecesi = 12m;
@@ -448,6 +559,7 @@ namespace EnterpriseAeroStudio.ViewModels
                 BarterYenile(value);          // 🤝 BARTER paneli ✓
                 TransferYenile(value);        // 📤 TRANSFER paneli + «Transfer olunan» ✓
                 IlkinMohletYukle(value);      // ⏳ İLKİN ÖDƏNİŞƏ MÖHLƏT paneli ✓✓✓
+                IlkinBarterYukle(value);      // 🚗 İLKİN ÖDƏNİŞ barter tərkibi ✓ (v6.2.92)
                 OnPropertyChanged(nameof(ScheduleInfo));
 
                 // 📊 v6.2.87 — cədvəlin MAYA yekunları ✓ (plan · faktiki · fərq · mənfəət)

@@ -61,6 +61,7 @@ namespace EnterpriseAeroStudio.Services
                  "istifadeciler.json"),
                 (Path.Combine(LocalQovluq, "tab_icazeleri.json"), "tab_icazeleri.json"),
                 (Path.Combine(LocalQovluq, "ui_zoom.txt"), "ui_zoom.txt"),
+                (Path.Combine(LocalQovluq, "ilkin_barter.json"), "ilkin_barter.json"),
                 (Path.Combine(Cas0201.Kok.Qovluq, "bulud_ayarlari.json"), "bulud_ayarlari.json"),
                 (Path.Combine(Cas0201.Kok.Qovluq, "Autocode", "transfer-sexler.json"), "transfer-sexler.json"),
             };
